@@ -18,7 +18,47 @@
 
 > 推奨運用: **ArUco を主軸**、ロスト時のフォールバックに KLT 補間。マーカー不可素材は特徴点方式。
 
-## OpenCvSharp のセットアップ（無料・最初の関門）
+### ⭐ 方式C: 四隅供給の抽象化＋オフライン・ベイク（**初期推奨・2026-06 追記**）
+
+上の1・2は**実行時に検出を回す**前提。だが **ベース動画は事前に固定**なので、
+検出結果も毎回同じ。**実行時に CV を回す必然性が無い**。そこで四隅の「供給元」を
+抽象化し、初期は**オフラインで焼いた軌跡を読むだけ**にする。
+
+```
+〔事前/オフライン〕ベース動画 → Python(OpenCV+contrib, pipで一発) か Mocha でトラッキング
+                              → 四隅を per-frame 書き出し（track.json, 正規化座標）
+〔実行時/Unity〕track.json を読むだけ → ICornerSource → Compositor
+```
+
+- **最大の利点**: アプリ内に **OpenCvSharp が不要** → **Apple Silicon arm64 ネイティブの go/no-go が消える**。
+  実行時依存は Unity＋Klak だけ（すべて arm64 対応確認済、`12`）。
+- 高精度トラッカー（Mocha プレーナー）＋**手修正**が使える → 本番で破綻しにくい。
+- 実行時の検出コスト・AsyncGPUReadback 遅延がゼロ → **60fps が楽**。
+- マーカーを消した綺麗な最終ベース動画を別途用意できる。
+
+```csharp
+public interface ICornerSource { bool TryGetCorners(out Corners c); }
+// BakedCornerSource : track.json を読む（初期）
+// LiveCvCornerSource: 実行時 ArUco（将来、ライブ実景が必要になった時だけ）
+```
+
+`track.json`（正規化座標・出力解像度非依存）:
+```json
+{ "fps": 30, "frames": [
+  { "i": 0, "visible": true,  "quad": [[x,y],[x,y],[x,y],[x,y]] },
+  { "i": 1, "visible": false, "quad": null }
+]}
+```
+`visible:false` は下記「ロスト対策」（フェード）にそのまま接続。
+
+> **使い分け**: 埋め込み先がベース動画内（事前確定）なら **方式C で完結**し arm64 を回避。
+> 将来「ライブの実景/プロジェクタ越しの実景にリアルタイムで貼る」要件が出た時のみ、
+> `LiveCvCornerSource` を足して下記の実行時 ArUco（OpenCvSharp）に取り組む。
+
+## OpenCvSharp のセットアップ（**実行時 CV を使う場合のみ**・最初の関門）
+
+> ⚠️ 初期推奨の**方式C（ベイク）を採るなら、この節は実装不要**。
+> 以下は `LiveCvCornerSource`（ライブ実景対応）に進む将来時点で着手する。
 
 - パッケージ: **OpenCvSharp4**（BSD, 管理層）＋ ネイティブランタイム（`.dylib`）
 - macOS Apple Silicon の native(`.dylib`) を `Assets/Plugins/` に置き、Inspector で

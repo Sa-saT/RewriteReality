@@ -55,15 +55,23 @@
 | クラス | 役割 | 主な依存 |
 |---|---|---|
 | `SourceVideo` | ベース動画の再生・ループ・スクラブ → RenderTexture | VideoPlayer / KlakHap |
-| `SourceCamera` | カメラ入力取得 → Texture | WebCamTexture |
-| `Tracker` | 領域検出。四隅座標＋ホモグラフィ `H` を出力 | OpenCvSharp(Aruco), AsyncGPUReadback |
-| `Compositor` | 背景＋カメラを四隅メッシュで合成し 1 枚の RT に | Material/Shader, CommandBuffer |
+| `SourceCamera` | カメラ入力取得 → Texture | WebCamTexture / (任意)Syphon-in |
+| `ICornerSource`(IF) | 四隅 `Corners` を供給する共通 IF。Compositor は出所を知らない | — |
+| `BakedCornerSource` | 事前ベイクした `track.json` を読み四隅を返す（**初期推奨**） | Unity 標準のみ |
+| `LiveCvCornerSource` | 実行時 ArUco 検出で四隅を返す（**将来オプション**） | OpenCvSharp(Aruco), AsyncGPUReadback |
+| `Compositor` | 背景＋カメラを四隅メッシュで合成し 1 枚の RT に。四隅は `ICornerSource` 経由 | Material/Shader, CommandBuffer |
 | `EffectChain` | エフェクトを順に適用するパイプライン | `EffectBase` |
 | `EffectBase`(抽象) | `Apply(src, dst, audio, params)` の共通 IF | Material + Graphics.Blit |
 | `AudioAnalyzer` | FFT・ビート・帯域別エネルギー算出 | GetSpectrumData / Microphone |
 | `OutputManager` | Fullscreen / Syphon / NDI へ配信 | KlakSyphon, KlakNDI |
 | `ControlHub` | UI/MIDI/OSC を受けてパラメータを一元管理 | Minis, OscJack, ScriptableObject |
 | `Preset`(SO) | シーン設定の保存/読込 | ScriptableObject / JSON |
+
+> **四隅供給の抽象化（重要な設計判断・2026-06）**: 旧 `Tracker` は `ICornerSource` に一般化。
+> ベース動画は事前固定なので、初期は **`BakedCornerSource`（オフラインで焼いた `track.json` を読むだけ）**
+> を採用し、**アプリ内から OpenCvSharp を外す**＝ Apple Silicon arm64 ネイティブの go/no-go を発生させない。
+> 実行時依存は Unity＋Klak だけになる。将来ライブ実景へリアルタイムに貼る要件が出たら
+> `LiveCvCornerSource` を1クラス足すだけ（Compositor 以降は無改修）。詳細は `03`・`12`。
 
 ### エフェクト拡張の肝（`EffectBase`）
 

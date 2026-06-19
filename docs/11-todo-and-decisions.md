@@ -24,10 +24,12 @@ B を先に決めると A の実装方針が固まる。
 - [ ] `Compositor`: 固定四角にカメラを**射影補間**でワープ合成
 - [ ] 四隅を手動ドラッグで指定
 
-### M3. トラッキング
-- [ ] OpenCvSharp で ArUco 検出（ワーカースレッド + AsyncGPUReadback）
-- [ ] 四隅 → ホモグラフィ → 合成へ接続
-- [ ] 平滑化 ＆ ロスト時の KLT/外挿フォールバック
+### M3. トラッキング（**初期は方式C＝ベイクで実装。実行時 CV は将来オプション**）
+- [ ] `ICornerSource` IF ＋ `BakedCornerSource`（`track.json` 読込）
+- [ ] オフラインで四隅をベイク（Python OpenCV / Mocha）→ `track.json` 出力
+- [ ] 四隅 → 合成へ接続、平滑化 ＆ `visible:false` 時のフェード
+- [ ] （将来・ライブ実景が必要な時のみ）`LiveCvCornerSource`: OpenCvSharp で
+      ArUco 検出（ワーカースレッド + AsyncGPUReadback）→ ここで初めて arm64 ビルドに着手
 
 ### M4. エフェクト基盤＋第一弾
 - [ ] `EffectBase` ＋ `EffectChain`（RenderTexture ping-pong / Graphics.Blit）
