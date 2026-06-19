@@ -1,0 +1,58 @@
+# ===== Unity =====
+# 生成物・キャッシュ（コミット不要）
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# Asset meta data — Assets/ 配下を削除した場合の取り残し meta のみ無視
+!/[Aa]ssets/**/*.meta
+
+# Visual Studio / Rider / VSCode の自動生成
+.vs/
+.vscode/
+.idea/
+ExportedObj/
+.consulo/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Unity3D 生成ファイル
+sysinfo.txt
+*.stackdump
+
+# ビルド成果物
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# クラッシュレポート
+crashlytics-build.properties
+
+# ===== macOS =====
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ===== OpenCvSharp ネイティブ（容量大／環境依存：必要なら別途配布） =====
+# Assets/Plugins/ に置く .dylib が巨大な場合は Git LFS 推奨
+# *.dylib filter=lfs diff=lfs merge=lfs -text  ← .gitattributes で設定
