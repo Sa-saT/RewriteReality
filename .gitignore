@@ -1,5 +1,11 @@
-# ===== Unity =====
-# 生成物・キャッシュ（コミット不要）
+# Unity .gitignore（GitHub 公式 Unity.gitignore をベースに統合）
+# Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
+#
+# 注: 本リポジトリは Unity プロジェクトを RewriteReality/ にネストしているため、
+#     ディレクトリパターンは先頭スラッシュ無し（任意の階層で一致）にしている。
+
+# ===== Unity 生成物・キャッシュ =====
+.utmp/
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -7,21 +13,31 @@
 [Bb]uilds/
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
+*.log
 [Mm]emoryCaptures/
 [Rr]ecordings/
 
-# Asset meta data — Assets/ 配下を削除した場合の取り残し meta のみ無視
-!/[Aa]ssets/**/*.meta
+# Blender
+*.blend1
+*.blend1.meta
 
-# Visual Studio / Rider / VSCode の自動生成
+# JetBrains Rider
+[Aa]ssets/Plugins/Editor/JetBrains*
+*.DotSettings.user
+
+# IDE / ビルドツール
 .vs/
 .vscode/
 .idea/
-ExportedObj/
+.gradle/
 .consulo/
+ExportedObj/
+
+# 自動生成プロジェクトファイル
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.tmp
 *.user
@@ -33,19 +49,42 @@ ExportedObj/
 *.mdb
 *.opendb
 *.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
 
-# Unity3D 生成ファイル
+# クラッシュ/情報
 sysinfo.txt
+mono_crash.*
 *.stackdump
+crashlytics-build.properties
 
 # ビルド成果物
 *.apk
 *.aab
 *.unitypackage
+*.unitypackage.meta
 *.app
 
-# クラッシュレポート
-crashlytics-build.properties
+# TestRunner
+InitTestScene*.unity*
+
+# Addressables
+/ServerData
+[Aa]ssets/StreamingAssets/aa*
+[Aa]ssets/AddressableAssetsData/link.xml*
+[Aa]ssets/Addressables_Temp*
+[Aa]ssets/AddressableAssetsData/*/*.bin*
+
+# Visual Scripting 自動生成
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db.meta
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers
+[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
+
+# Play mode test 自動生成シーン
+[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+[Aa]ssets/[Ss]ceneDependencyCache*
 
 # ===== Secrets（絶対にコミットしない） =====
 .env
