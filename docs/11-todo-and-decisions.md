@@ -58,6 +58,7 @@ B を先に決めると A の実装方針が固まる。
 
 ### M9.（将来オプション）iPhone LiDAR 深度レイヤー
 > コア完成後に追加。新規依存は実質ゼロ（KlakNDI を流用）。参照実装は手元の `Rcam3`。
+> 端末要件: **iPhone 12 Pro 以降の Pro 系が下限、理想は 15 Pro 以降**（11 Pro 以前・無印/Plus/SE は不可）。
 - [ ] `IDepthSource` IF を定義（無ければ深度エフェクト無効、コアは無改修）
 - [ ] `RcamDepthSource`: Rcam3 Controller(iPhone, ARKit sceneDepth) → NDI → Unity NDI-in で受信
 - [ ] 深度キー合成 / オクルージョン / 深度ドリブン VFX を `04` のチェーンへ
