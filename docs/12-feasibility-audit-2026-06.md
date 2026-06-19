@@ -49,6 +49,15 @@ fill-rate 二重消費に注意（解像度で調整）。
 3. KlakSyphon/KlakNDI は Keijiro scoped registry から最新（1.0.4 / 2.1.6）を入れ最小配信確認。
 4. 以降 `08-roadmap.md` の M1 へ。
 
+## 将来オプション: iPhone LiDAR 深度レイヤー（M9）
+
+- **メリット**: 深度キー合成 / オクルージョン / 深度ドリブン VFX。Terminal Slam の ML 深度の役割をセンサーで。
+- **取得経路**: 深度は iPhone Pro 側、本体は macOS → **Rcam3 方式**（iPhone ARKit sceneDepth → NDI → Unity NDI-in）。
+- **依存**: 実質ゼロ。送受信は既存スタックの **KlakNDI** を流用。参照実装は手元の `Rcam3`（Keijiro, 固定カメラ向け）。
+- **設計**: 任意・差し替え可能な `IDepthSource`。無ければ深度エフェクト無効、コア(M2〜M6)は無改修。
+- **限界**: 深度 約 256×192・〜5m・エッジノイズ、iPhone/iPad Pro 限定、転送遅延/同期の運用増。
+- **判定**: 🟢 後付け可能・新規依存ほぼ無し。**コア完成後（M8以降）のオプション**として導入。
+
 ## 参照（一次情報）
 
 - NuGet: OpenCvSharp4.runtime.osx_arm64（4.8.1-rc, grinay） — https://www.nuget.org/packages/OpenCvSharp4.runtime.osx_arm64/
@@ -59,3 +68,5 @@ fill-rate 二重消費に注意（解像度で調整）。
 - GitHub: keijiro/KlakNDI（2.1.6） — https://github.com/keijiro/KlakNDI
 - GitHub: keijiro/KlakHap（1.0.0） — https://github.com/keijiro/KlakHap
 - Unity Discussions: Intel Mac 非推奨化（6.6〜） — https://discussions.unity.com/t/unity-to-deprecate-intel-based-mac-support-starting-with-unity-6-6/1721740
+- GitHub: keijiro/Rcam3（iPhone LiDAR 深度 → NDI/VFX） — https://github.com/keijiro/Rcam3
+- GitHub: keijiro/Rcam2（深度 over NDI） — https://github.com/keijiro/Rcam2

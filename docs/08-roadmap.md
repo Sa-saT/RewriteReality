@@ -56,6 +56,13 @@
 - [ ] `.app` ビルド・素材同梱（StreamingAssets）・現場用の最小手順書
 - [ ] （任意）Unity Recorder で録画、Windows 対応(KlakSpout) 検討
 
+## M9.（将来オプション）iPhone LiDAR 深度レイヤー
+- [ ] `IDepthSource`（任意・差し替え可能）を定義。深度が無ければ深度エフェクトは無効、コア無改修
+- [ ] `RcamDepthSource`: Rcam3 Controller(iPhone, ARKit sceneDepth/LiDAR) → NDI → Unity NDI-in
+- [ ] 深度キー合成 / オクルージョン / 深度ドリブン VFX（`04` の第5系統）
+- **完了条件**: 深度付きカメラが NDI で届き、奥行きで合成/遮蔽/VFX が反応する
+- **メモ**: 新規依存は実質ゼロ（KlakNDI 流用）。参照実装は手元の `Rcam3`。限界 256×192・〜5m
+
 ## 想定リスクと対策
 
 | リスク | 対策 |

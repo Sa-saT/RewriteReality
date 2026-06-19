@@ -59,7 +59,9 @@ RewriteRealityProject/        ← git repo ルート
   2. **OpenCvSharp の arm64 動作確認**（最大の関門・go/no-go）
      → 公式 NuGet に macOS arm64 ネイティブは無い。**contrib(aruco)込みの自前ビルドが本命**（`docs/12`）
   3. C# スケルトン生成（`docs/01` のモジュール構成）
-- 同じ親フォルダにある `My project`(HDRP/2022.3) と `Rcam3` は**本プロジェクトとは別物**。
+- 同じ親フォルダにある `My project`(HDRP/2022.3) は**本プロジェクトとは別物**。
+- `Rcam3`（Keijiro, iPhone LiDAR→NDI 深度 VFX）も別プロジェクトだが、**将来の深度レイヤー(M9)の参照実装**
+  として流用予定（`docs/04`・`08`・`11`・`12`）。新規依存は実質ゼロ（KlakNDI を流用）。
 
 ## 作業上の注意
 
