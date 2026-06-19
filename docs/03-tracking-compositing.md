@@ -20,15 +20,21 @@
 
 ## OpenCvSharp のセットアップ（無料・最初の関門）
 
-- パッケージ: **OpenCvSharp4**（BSD）＋ ネイティブランタイム
+- パッケージ: **OpenCvSharp4**（BSD, 管理層）＋ ネイティブランタイム（`.dylib`）
 - macOS Apple Silicon の native(`.dylib`) を `Assets/Plugins/` に置き、Inspector で
   **arm64 / macOS スタンドアロン**にチェック
 - ArUco は contrib モジュール → `OpenCvSharp.Aruco`
-- arm64 ランタイムが入手できない場合の対策:
-  1. 自前で OpenCV(contrib)＋OpenCvSharpExtern を arm64 ビルド
-  2. Intel ビルド＋Rosetta（暫定）
 
-> ここは M0 で必ず先に潰す。動かないまま先に進まない。
+> ⚠️ **2026-06 調査の修正（重要）**: 公式 NuGet には **macOS arm64 ネイティブが無い**。
+> → **arm64 ランタイムは「入手できない場合の対策」ではなく、最初から自前ビルドが本命**。
+> 1. **本命**: OpenCV ＋ opencv_contrib(aruco) ＋ OpenCvSharpExtern を **arm64 で自前ビルド**
+> 2. 第三者 `runtime.osx_arm64`(4.8.1-rc) を試す（aruco 同梱を先に検証）
+> 3. 最終手段: Intel ビルド＋Rosetta（暫定・性能低下）
+>
+> 詳細根拠と各 I/O の対応状況は `12-feasibility-audit-2026-06.md`。
+
+> ここは M0 で必ず先に潰す。**プロジェクトの go/no-go はこの一点に集約される。**
+> 動かないまま先に進まない。
 
 ## 背景フレームを CV に渡す（GPU→CPU を最小化）
 

@@ -40,14 +40,24 @@ Package Manager の **Add package from git URL** で導入。
 |---|---|---|
 | **OpenCvSharp4**（shimat, BSD） | ArUco マーカー検出・findHomography | ネイティブ lib を Apple Silicon で通す必要 |
 
-OpenCvSharp 導入ルート（いずれか）:
-1. **NuGetForUnity** で `OpenCvSharp4` ＋ ランタイム（`OpenCvSharp4.runtime.osx` 系）を取得し、
-   `.dylib` を `Assets/Plugins/` に配置、arm64 用に Import 設定。
-2. ランタイムに arm64 が無い場合は **自前で OpenCV(contrib 込み)＋OpenCvSharp ネイティブをビルド**。
-3. 最終手段: **Intel ビルド＋Rosetta** で動かす（性能は落ちる）。
+> ⚠️ **2026-06 実地調査の結論（重要・方針更新）**:
+> shimat 本家の **公式 NuGet ネイティブランタイムには macOS arm64 が無い**
+> （公式は Windows x64/arm64・Linux x64/arm64・WASM のみ）。
+> NuGet の `OpenCvSharp4.runtime.osx_arm64` は **第三者(grinay)製の `4.8.1-rc`(2023-11)**
+> で停滞気味、かつ **ArUco(contrib) 同梱が不明**。
+> → **「NuGet ランタイムを入れて終わり」は当てにできない。自前ビルドを正本に据える。**
+> 詳細は `12-feasibility-audit-2026-06.md`。
 
-> ArUco は OpenCV の contrib モジュール。`OpenCvSharp.Aruco` 名前空間で使う。
-> 詳細手順とフォールバックは `03-tracking-compositing.md`。
+OpenCvSharp 導入ルート（**推奨順を更新**）:
+1. **自前ビルド（本命・推奨）**: macOS で OpenCV ＋ **opencv_contrib（aruco 必須）** ＋
+   OpenCvSharpExtern を **arm64** で cmake ビルド → `.dylib` を `Assets/Plugins/` に配置、
+   Inspector で arm64 / macOS スタンドアロンに設定。管理層は NuGet の `OpenCvSharp4`（最新 4.13 系）。
+2. 第三者 `runtime.osx_arm64` を試す（**先に aruco 同梱を検証**。当たれば最速、外れたら無駄足）。
+3. 最終手段: **Intel ビルド＋Rosetta**（性能低下。リアルタイム VJ には不利）。
+
+> ArUco は OpenCV の contrib モジュール。`OpenCvSharp.Aruco` 名前空間で使う
+> （OpenCV 4.7+ で detector-class API に移行済み）。
+> 詳細手順とフォールバックは `03-tracking-compositing.md`、調査根拠は `12`。
 
 ## 開発環境セットアップ手順
 

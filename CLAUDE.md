@@ -47,6 +47,7 @@ RewriteRealityProject/        ← git repo ルート
 | `docs/09-platform-comparison.md` | 土台選定の経緯（業界マップ） |
 | `docs/10-openframeworks-alternative.md` | oF 代替設計（参考） |
 | `docs/11-todo-and-decisions.md` | 後日の実装タスク＆未決の選択（質問） |
+| `docs/12-feasibility-audit-2026-06.md` | 依存パッケージの最新状況・実現可能性監査（2026-06） |
 
 ## 現在の状況 / 次の一手
 
@@ -55,7 +56,8 @@ RewriteRealityProject/        ← git repo ルート
 - 後日の実装タスクと未決の選択（質問）は **`docs/11-todo-and-decisions.md`** に集約。
 - 次の一手（`docs/08` M0 の続き）:
   1. Klak（Syphon/NDI/Hap）・VFX Graph・OscJack・Minis のパッケージ投入
-  2. **OpenCvSharp の arm64 動作確認**（最大の関門）
+  2. **OpenCvSharp の arm64 動作確認**（最大の関門・go/no-go）
+     → 公式 NuGet に macOS arm64 ネイティブは無い。**contrib(aruco)込みの自前ビルドが本命**（`docs/12`）
   3. C# スケルトン生成（`docs/01` のモジュール構成）
 - 同じ親フォルダにある `My project`(HDRP/2022.3) と `Rcam3` は**本プロジェクトとは別物**。
 
