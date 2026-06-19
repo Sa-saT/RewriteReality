@@ -7,11 +7,20 @@
 思想的ベース: Rhizomatiks "Terminal Slam" (Squarepusher)
 https://research.rhizomatiks.com/s/works/squarepusher/en.html
 
-## リポジトリ
+## リポジトリ / 構成
 
 - GitHub: `git@github.com:Sa-saT/RewriteReality.git`
-- ローカル: `~/Documents/Unity/RewriteRealityProject/`
-- （Obsidian Vault から本リポジトリへ移行済み）
+- ローカル: `~/Documents/Unity/RewriteRealityProject/`（Obsidian Vault から移行済み）
+
+```
+RewriteRealityProject/        ← git repo ルート
+├── docs/                     ← 設計ドキュメント（00-11）
+├── CLAUDE.md / .gitignore
+└── RewriteReality/           ← Unity プロジェクト本体（1階層ネスト）
+    ├── Assets/ Packages/ ProjectSettings/   → 追跡
+    ├── Library/ Temp/ Logs/ UserSettings/   → .gitignore で除外
+    └── .env                                 → 秘密情報・**コミット禁止**（除外済み）
+```
 
 ## 技術スタック（すべて無料・ネイティブ）
 
@@ -37,13 +46,17 @@ https://research.rhizomatiks.com/s/works/squarepusher/en.html
 | `docs/08-roadmap.md` | 実装ステップ（M0〜M8） |
 | `docs/09-platform-comparison.md` | 土台選定の経緯（業界マップ） |
 | `docs/10-openframeworks-alternative.md` | oF 代替設計（参考） |
+| `docs/11-todo-and-decisions.md` | 後日の実装タスク＆未決の選択（質問） |
 
 ## 現在の状況 / 次の一手
 
 - docs・設計は確定。リポジトリ移行済み。
-- **Unity プロジェクト本体（Assets/Packages/ProjectSettings）は未作成**。
-  → 次は `docs/08` の **M0**: Unity Hub で URP / `6000.0.33f1` のプロジェクトを
-  本フォルダに作成し、Klak 等のパッケージ投入と **OpenCvSharp の arm64 動作確認**（最大の関門）。
+- **Unity プロジェクト作成済み**: `RewriteReality/`（**URP 17.0.3 / `6000.0.33f1`**、Input System 同梱）。
+- 後日の実装タスクと未決の選択（質問）は **`docs/11-todo-and-decisions.md`** に集約。
+- 次の一手（`docs/08` M0 の続き）:
+  1. Klak（Syphon/NDI/Hap）・VFX Graph・OscJack・Minis のパッケージ投入
+  2. **OpenCvSharp の arm64 動作確認**（最大の関門）
+  3. C# スケルトン生成（`docs/01` のモジュール構成）
 - 同じ親フォルダにある `My project`(HDRP/2022.3) と `Rcam3` は**本プロジェクトとは別物**。
 
 ## 作業上の注意

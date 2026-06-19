@@ -47,6 +47,12 @@ sysinfo.txt
 # クラッシュレポート
 crashlytics-build.properties
 
+# ===== Secrets（絶対にコミットしない） =====
+.env
+.env.*
+*.env
+!.env.example
+
 # ===== macOS =====
 .DS_Store
 .AppleDouble
