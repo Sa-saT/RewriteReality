@@ -46,8 +46,6 @@ RewriteRealityProject/        ← git repo ルート
 | `docs/08-roadmap.md` | 実装ステップ（M0〜M8） |
 | `docs/09-platform-comparison.md` | 土台選定の経緯（業界マップ） |
 | `docs/10-openframeworks-alternative.md` | oF 代替設計（参考） |
-| `docs/11-todo-and-decisions.md` | 後日の実装タスク＆未決の選択（質問） |
-| `docs/12-feasibility-audit-2026-06.md` | 依存パッケージの最新状況・実現可能性監査（2026-06） |
 
 ## 現在の状況 / 次の一手
 

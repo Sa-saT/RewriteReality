@@ -10,11 +10,12 @@ B を先に決めると A の実装方針が固まる。
 `docs/08-roadmap.md` の詳細版。上から順に。
 
 ### M0. 環境・依存（土台）※今ここ
-- [ ] Klak パッケージ投入（git URL）: KlakSyphon / KlakNDI / KlakHap
+- [ ] Klak パッケージ投入（git URL）: KlakSyphon / KlakNDI
 - [ ] VFX Graph / Shader Graph をパッケージ追加
 - [ ] OscJack / Minis（MIDI）を追加
-- [ ] **OpenCvSharp を arm64 で導入し ArUco 検出が動くことを確認**（最大の関門）
 - [ ] 各パッケージの最小サンプルが mac arm64 で動作することを確認
+- **メモ**: 初期は方式C（ベイク）採用。**OpenCvSharp/arm64 は M0 では扱わない**
+  （将来 `LiveCvCornerSource` で着手）。KlakHap は任意・M8 で検討（初期は通常 mp4＝VideoPlayer）。
 
 ### M1. ソース表示
 - [ ] `SourceVideo`: 動画 → RenderTexture（必要なら KlakHap）

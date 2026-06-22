@@ -55,7 +55,7 @@ public interface ICornerSource { bool TryGetCorners(out Corners c); }
 > 将来「ライブの実景/プロジェクタ越しの実景にリアルタイムで貼る」要件が出た時のみ、
 > `LiveCvCornerSource` を足して下記の実行時 ArUco（OpenCvSharp）に取り組む。
 
-## OpenCvSharp のセットアップ（**実行時 CV を使う場合のみ**・最初の関門）
+## OpenCvSharp のセットアップ（**実行時 CV を使う場合のみ＝将来オプション**）
 
 > ⚠️ 初期推奨の**方式C（ベイク）を採るなら、この節は実装不要**。
 > 以下は `LiveCvCornerSource`（ライブ実景対応）に進む将来時点で着手する。
@@ -73,8 +73,9 @@ public interface ICornerSource { bool TryGetCorners(out Corners c); }
 >
 > 詳細根拠と各 I/O の対応状況は `12-feasibility-audit-2026-06.md`。
 
-> ここは M0 で必ず先に潰す。**プロジェクトの go/no-go はこの一点に集約される。**
-> 動かないまま先に進まない。
+> **初期（方式C）は不要。** 将来 `LiveCvCornerSource`（ライブ実景）に進む時に限り、
+> ここを最優先で潰す（**その時点での go/no-go**）。動かないまま実行時 CV 機能を広げない。
+> 初期のコア開発（M0〜M8）はこの関門に依存しない。
 
 ## 背景フレームを CV に渡す（GPU→CPU を最小化）
 
@@ -123,8 +124,10 @@ Point2f[] dst = markerCorners;                              // 貼り先四隅
 Mat H = Cv2.FindHomography(InputArray.Create(src), InputArray.Create(dst));
 ```
 
-実際の描画では `H` を直接使わず**貼り先4頂点を持つメッシュ**を描けばよい（下記）。
-`H` は射影補間の重み計算や、領域内マスク生成に利用する。
+> **補足（まどろっこしさ回避）**: 合成の描画は **貼り先4頂点メッシュ＋射影UV補間だけで完結し、`H` は不要**。
+> 射影補間の重み `q` は4隅（対角線交点）から直接求まる（下記「射影補間のやり方」）。
+> `H`（`FindHomography`）を計算するのは **領域内マスク生成など補助用途が要る時だけ**。
+> 不要なら `FindHomography` の呼び出し自体を省略してよい。
 
 ## ロスト対策（KLT 補間 / 予測 / 平滑化）
 

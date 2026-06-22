@@ -27,8 +27,8 @@ Package Manager の **Add package from git URL** で導入。
 |---|---|---|
 | **KlakSyphon** | `https://github.com/keijiro/KlakSyphon.git` | Syphon 入出力(mac) |
 | **KlakNDI** | `https://github.com/keijiro/KlakNDI.git` | NDI 入出力 |
-| **KlakSpout** | `https://github.com/keijiro/KlakSpout.git` | Spout(Win, 任意) |
-| **KlakHap** | `https://github.com/keijiro/KlakHap.git` | HAP 動画再生 |
+| **KlakSpout** | `https://github.com/keijiro/KlakSpout.git` | Spout(**Win 専用・本プロジェクト対象外**。将来 Win 対応時のみ) |
+| **KlakHap** | `https://github.com/keijiro/KlakHap.git` | HAP 動画再生（**任意・初期は通常 mp4＝VideoPlayer で代替**。M8 で検討） |
 | **Minis** | `https://github.com/keijiro/Minis.git` | MIDI 入力（新 Input System） |
 | **OscJack** | `https://github.com/keijiro/OscJack.git` | OSC 送受信 |
 
@@ -36,6 +36,11 @@ Package Manager の **Add package from git URL** で導入。
 > 導入直後に最小サンプルで動作確認するのが最初の関門（`08` M0）。
 
 ### CV（無料・要セットアップ）
+
+> 🟢 **初期構成（方式C＝四隅オフライン・ベイク）では、この節は丸ごと不要。**
+> アプリ内に OpenCvSharp を入れないので arm64 ネイティブの課題も発生しない（`01`/`03`/`12`）。
+> 以下は将来 `LiveCvCornerSource`（ライブ実景へのリアルタイム合成）に進む時だけ着手する。
+
 | パッケージ | 用途 | 注意 |
 |---|---|---|
 | **OpenCvSharp4**（shimat, BSD） | ArUco マーカー検出・findHomography | ネイティブ lib を Apple Silicon で通す必要 |
@@ -63,37 +68,38 @@ OpenCvSharp 導入ルート（**推奨順を更新**）:
 
 ```
 1. Unity Hub をインストール → Unity 6 LTS（Apple Silicon 版）を入れる
-2. 新規プロジェクトを URP テンプレートで作成（出力先: vfx/app/）
+2. 新規プロジェクトを URP テンプレートで作成（出力先: RewriteRealityProject/RewriteReality/, `11` B6）
 3. Package Manager:
    - Visual Effect Graph / Shader Graph / Input System を Add
-   - Klak 各パッケージを git URL で Add
-4. OpenCvSharp を NuGetForUnity 等で導入、Plugins に native を配置、arm64 設定
-5. 各機能の最小動作確認（VideoPlayer / WebCamTexture / Syphon / NDI / OpenCvSharp）
-6. Player Settings: Metal, Mac standalone, fullscreen 設定を整える
+   - Klak 各パッケージを git URL で Add（初期は Syphon/NDI/Minis/OscJack。Hap/Spout は任意）
+4. 各機能の最小動作確認（VideoPlayer / WebCamTexture / Syphon / NDI）
+5. Player Settings: Metal, Mac standalone, fullscreen 設定を整える
+   # 将来 LiveCvCornerSource に進む時のみ: OpenCvSharp を導入し native(.dylib, arm64) を Plugins に配置・設定
 ```
 
 ## ディレクトリ構成（提案）
 
 ```
-vfx/
+RewriteRealityProject/        # 本リポジトリ
 ├── CLAUDE.md
 ├── docs/                 # 本設計ドキュメント
-├── app/                  # Unity プロジェクト
+├── RewriteReality/       # Unity プロジェクト（`11` B6 の推奨ネスト）
 │   ├── Assets/
 │   │   ├── Scripts/
 │   │   │   ├── Sources/   # SourceVideo, SourceCamera
-│   │   │   ├── Tracking/  # Tracker
+│   │   │   ├── Tracking/  # ICornerSource / BakedCornerSource（将来 LiveCvCornerSource）
 │   │   │   ├── Compositing/ # Compositor
 │   │   │   ├── Effects/   # EffectChain + 各 Effect
 │   │   │   ├── Audio/     # AudioAnalyzer
 │   │   │   ├── Output/    # OutputManager
 │   │   │   └── Control/   # ControlHub, Preset(SO)
 │   │   ├── Shaders/       # .shader / Shader Graph / VFX Graph
-│   │   ├── Plugins/       # OpenCvSharp native (.dylib, arm64)
+│   │   ├── Plugins/       # （将来）OpenCvSharp native (.dylib, arm64)
 │   │   ├── Settings/      # URP Asset, Renderer
 │   │   └── StreamingAssets/
 │   │       ├── videos/    # ベース動画 (mp4 / HAP)
-│   │       └── markers/   # ArUco マーカー画像
+│   │       ├── tracks/    # ベイクした四隅 track.json（方式C）
+│   │       └── markers/   # ArUco マーカー画像（将来の実行時CV用）
 │   └── ProjectSettings/
 └── assets/               # 素材の元データ
 ```

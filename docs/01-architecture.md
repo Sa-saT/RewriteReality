@@ -13,13 +13,13 @@
        │                     │
        ▼                     │
 ┌──────────────┐             │
-│ Tracker       │             │
-│ OpenCvSharp   │             │
-│ ArUco→四隅→H  │             │
-│ (別スレッド+    │             │
-│ AsyncGPUReadback)           │
+│ ICornerSource │             │
+│ 初期: Baked    │             │
+│ (track.json)  │             │
+│ 将来: LiveCv   │             │
+│ (ArUco/別ｽﾚｯﾄﾞ)             │
 └──────┬───────┘             │
-       │ 貼り先四隅(H)          │
+       │ 貼り先四隅 Corners     │
        ▼                     ▼
 ┌──────────────────────────────────┐
 │ Compositor (RenderTexture)         │
@@ -42,13 +42,14 @@
   └──────────┘  └─────────┘ └─────────┘
 
   ┌──────────────────────────────────┐
-  │ Control: ofxGui相当=UI / Minis(MIDI)│
+  │ Control: Operator UI / Minis(MIDI) │
   │          / OscJack(OSC)            │ ──► 全モジュールのパラメータ
   └──────────────────────────────────┘
 ```
 
-すべて **RenderTexture（GPU）** で受け渡し、CPU↔GPU 転送はトラッキング用の
-縮小読み出し（AsyncGPUReadback）だけに限定する。
+すべて **RenderTexture（GPU）** で受け渡す。初期（方式C）は CPU↔GPU 転送すら不要
+（`track.json` を読むだけ）。将来 `LiveCvCornerSource` を使う時のみ、トラッキング用の
+縮小読み出し（AsyncGPUReadback）を足す。
 
 ## モジュール設計（C# / MonoBehaviour）
 
@@ -100,23 +101,23 @@ public abstract class EffectBase : MonoBehaviour {
 
 Unity の `Update` / `LateUpdate` ＋ カメラの `OnRenderImage` か、
 **URP の ScriptableRendererFeature / Blit** で合成チェーンを駆動する。
-推奨は「**専用の処理用 Camera は持たず、`Tracker`→`Compositor`→`EffectChain` を
+推奨は「**専用の処理用 Camera は持たず、`CornerSource`→`Compositor`→`EffectChain` を
 自前の `Manager` が毎フレーム RenderTexture 上で実行**」する構成（VJ的に制御しやすい）。
 
 ```
 Manager.LateUpdate():
   source.Tick()                 // VideoPlayer / WebCamTexture 更新
   // audio は別経路で常時解析
-  tracker.Tick(baseRT)          // H を更新（間引き・別スレッド）
-  compositor.Composite(baseRT, camTex, H) -> sceneRT
-  effectChain.Process(sceneRT, audio)      -> finalRT
+  cornerSource.TryGetCorners(out corners)        // 初期:Baked=track.json読込 / 将来:LiveCv
+  compositor.Composite(baseRT, camTex, corners) -> sceneRT
+  effectChain.Process(sceneRT, audio)           -> finalRT
   output.Publish(finalRT)        // 画面 + Syphon + NDI
 ```
 
 ## パフォーマンス設計の原則
 
-1. **全処理を RenderTexture 上で完結**。OpenCV に渡すのは AsyncGPUReadback で取った縮小フレームのみ。
-2. **トラッキングは間引く**: 毎フレームでなく数フレームに1回検出、間は前回 `H` を補間/予測（KLT）。
+1. **全処理を RenderTexture 上で完結**。（将来の実行時CV時のみ）OpenCV に渡すのは AsyncGPUReadback で取った縮小フレームのみ。
+2. **トラッキングは間引く**（実行時CV時のみ）: 毎フレームでなく数フレームに1回検出、間は前回四隅を補間/予測（KLT）。初期の方式Cは事前ベイク済みのため該当しない。
 3. **HAP は KlakHap** で GPU デコード（4K でも軽い）。通常の mp4 は VideoPlayer 標準。
 4. **RenderTexture は使い回す**（毎フレーム生成しない）。
 5. **GC 対策**: 毎フレームの `new`/LINQ/ボクシングを避け、配列・バッファを再利用。
