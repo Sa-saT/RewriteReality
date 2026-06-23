@@ -4,9 +4,6 @@
 （マーカー/トラッキングで追従する領域）に、ライブカメラ映像をリアルタイム合成し、
 グリッチ等のエフェクトをかけて、フルスクリーン/プロジェクター＋Syphon/NDI へ同時出力する。
 
-思想的ベース: Rhizomatiks "Terminal Slam" (Squarepusher)
-https://research.rhizomatiks.com/s/works/squarepusher/en.html
-
 ## リポジトリ / 構成
 
 - GitHub: `git@github.com:Sa-saT/RewriteReality.git`
