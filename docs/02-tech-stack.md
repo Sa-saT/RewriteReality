@@ -64,6 +64,33 @@ OpenCvSharp 導入ルート（**推奨順を更新**）:
 > （OpenCV 4.7+ で detector-class API に移行済み）。
 > 詳細手順とフォールバックは `03-tracking-compositing.md`、調査根拠は `12`。
 
+## ローカルツールチェーン（mac / Homebrew・確認済み 2026-06-23）
+
+このマシンに **brew で導入済み**で、本プロジェクトに効くもの（`brew list` 確認）:
+
+| ツール | 用途 | 備考 |
+|---|---|---|
+| **ffmpeg** | ①ソース動画を mp4/H.264/**1080p/60fps** にエンコード・変換 | 将来 HAP/.mov 化(M8)も ffmpeg |
+| **python@3.12–3.14 / pyenv** | ②方式C（四隅ベイク）スクリプト実行の土台 | **venv で構築予定**（下記） |
+| **numpy** | ベイク/画像処理の数値計算 | OpenCV と併用 |
+| **libndi** | NDI **ランタイム本体**（受信/動作確認・OBS 等の外側用） | **Unity 送出は KlakNDI 同梱で別層**。下注記参照 |
+| **distroav** | OBS 用 NDI プラグイン（受け側テストに有用） | 任意 |
+
+### NDI は「層が違う」— libndi と KlakNDI の関係（混同しない）
+- **Unity からの NDI 送受信は `KlakNDI`**（Unity package）を使う。KlakNDI は **NDI ランタイムを同梱**するため、
+  **Unity 側だけなら brew の `libndi` は必須ではない**（`06` 参照）。
+- brew の **`libndi` は Unity の外側**（OBS/distroav・NDI Tools での受信確認）で使う**受け側/確認用**ランタイム。
+- 結論: **Unity=KlakNDI、確認/受け側=libndi。両立する（競合しない）**。arm64 実機確認は M6。
+
+### Python ベイク環境は venv で構築（方式C / M3）
+- システム/brew の Python を汚さず、**使い捨て venv** に OpenCV(contrib) を入れる。実際の着手は M3。
+```
+python3.12 -m venv ~/.venvs/rr-bake
+~/.venvs/rr-bake/bin/pip install opencv-contrib-python numpy
+# → 四隅ベイクスクリプトで track.json（fps=60, ソース動画と一致）を出力（03 / 11-M3）
+```
+> ⚠️ この OpenCV は **ベイク（オフライン）専用**で Python 側。Unity 内の OpenCvSharp/arm64（将来 `LiveCvCornerSource`）とは**別物**。
+
 ## 開発環境セットアップ手順
 
 ```
