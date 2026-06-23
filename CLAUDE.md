@@ -6,12 +6,11 @@
 
 ## リポジトリ / 構成
 
-- GitHub: `git@github.com:Sa-saT/RewriteReality.git`
 - ローカル: `~/Documents/Unity/RewriteRealityProject/`（Obsidian Vault から移行済み）
 
 ```
 RewriteRealityProject/        ← git repo ルート
-├── docs/                     ← 設計ドキュメント（00-11）
+├── docs/                     ← 設計ドキュメント（00-12）
 ├── CLAUDE.md / .gitignore
 └── RewriteReality/           ← Unity プロジェクト本体（1階層ネスト）
     ├── Assets/ Packages/ ProjectSettings/   → 追跡
@@ -43,12 +42,15 @@ RewriteRealityProject/        ← git repo ルート
 | `docs/08-roadmap.md` | 実装ステップ（M0〜M8） |
 | `docs/09-platform-comparison.md` | 土台選定の経緯（業界マップ） |
 | `docs/10-openframeworks-alternative.md` | oF 代替設計（参考） |
+| `docs/11-todo-and-decisions.md` | 実装タスク（M別）＋確定した選定①〜⑩ |
+| `docs/12-feasibility-audit-2026-06.md` | 実現可能性監査（OpenCvSharp/arm64・方式C） |
 
 ## 現在の状況 / 次の一手
 
 - docs・設計は確定。リポジトリ移行済み。
 - **Unity プロジェクト作成済み**: `RewriteReality/`（**URP 17.0.3 / `6000.0.33f1`**、Input System 同梱）。
-- 後日の実装タスクと未決の選択（質問）は **`docs/11-todo-and-decisions.md`** に集約。
+- **選定フェーズ完了（2026-06-23）**: 動画=mp4/1080p/**60fps**、四隅=方式C(ベイク)、オーディオ=アプリ内FFT+簡易onset、
+  出力=FS→Syphon→NDI＋コーナーピン、操作=抽象マッピング層(当面KB/GUI)。詳細は **`docs/11-todo-and-decisions.md`**。
 - 次の一手（`docs/08` M0 の続き）:
   1. Klak（Syphon/NDI/Hap）・VFX Graph・OscJack・Minis のパッケージ投入
   2. **OpenCvSharp の arm64 動作確認**（最大の関門・go/no-go）
