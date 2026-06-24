@@ -53,6 +53,10 @@ RewriteRealityProject/        ← git repo ルート
 - **Unity プロジェクト作成済み**: `RewriteReality/`（**URP 17.0.3 / `6000.0.33f1`**、Input System 同梱）。
 - **選定フェーズ完了（2026-06-23）**: 動画=mp4/1080p/**60fps**、四隅=方式C(ベイク)、オーディオ=アプリ内FFT+簡易onset、
   出力=FS→Syphon→NDI＋コーナーピン、操作=抽象マッピング層(当面KB/GUI)。詳細は **`docs/11-todo-and-decisions.md`**。
+- **M0 進行中**: パッケージ導入(#1〜3)完了 — Klak(Syphon/NDI)・VFX Graph・OscJack・Minis を
+  Scoped Registry(jp.keijiro) 経由で導入済み（`RewriteReality/Packages/manifest.json`）。
+  → **次回ここから**: タスク **#4 動作確認**（手順 = **`docs/M0-test-procedure.md`**）。
+  VideoPlayer/WebCamTexture/Syphon/NDI を arm64 で確認 → 通れば **#5 C# スケルトン生成**（`docs/01`）。
 - 次の一手（`docs/08` M0 の続き）:
   1. Klak（Syphon/NDI/Hap）・VFX Graph・OscJack・Minis のパッケージ投入
   2. **OpenCvSharp の arm64 動作確認**（最大の関門・go/no-go）
