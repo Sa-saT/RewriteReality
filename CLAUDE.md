@@ -11,6 +11,7 @@
 ```
 RewriteRealityProject/        ← git repo ルート
 ├── docs/                     ← 設計ドキュメント（00-12）
+├── DESIGN.md                 ← オペレータUIデザインシステム（DaVinci系ダーク×Cursor抑制）
 ├── CLAUDE.md / .gitignore
 └── RewriteReality/           ← Unity プロジェクト本体（1階層ネスト）
     ├── Assets/ Packages/ ProjectSettings/   → 追跡
@@ -44,6 +45,7 @@ RewriteRealityProject/        ← git repo ルート
 | `docs/10-openframeworks-alternative.md` | oF 代替設計（参考） |
 | `docs/11-todo-and-decisions.md` | 実装タスク（M別）＋確定した選定①〜⑩ |
 | `docs/12-feasibility-audit-2026-06.md` | 実現可能性監査（OpenCvSharp/arm64・方式C） |
+| `DESIGN.md`（ルート） | オペレータUIデザインシステム・トークン（`docs/07` と対） |
 
 ## 現在の状況 / 次の一手
 

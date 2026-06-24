@@ -26,6 +26,16 @@ public class Preset : ScriptableObject {
 - エフェクトの順序入替・ON/OFF・mix もここから
 - 開発中は Inspector でも十分（パラメータを `[SerializeField]` 公開）
 
+### 見た目（デザインシステム）
+
+- **方向性 = DaVinci Resolve 系のダーク・高密度プロツール ＋ Cursor の editorial な抑制**のハイブリッド。
+- 色・タイポ・コンポーネント・トークンの正本は **ルートの `DESIGN.md`**。実装時はそのトークンを
+  UI Toolkit の **USS 変数**（または uGUI のテーマ）へ写像する。
+- 要点: 暖色ダーク基調 / ブランド色は **Live Amber 1色（希少）**・選択は別系統の Blue /
+  値・座標・OSC は **JetBrains Mono** / 奥行きはヘアラインのみ（影なし） /
+  Cursor のタイムライン5パステルを **6パイプライン段（Source/Tracking/FX/Audio/Output/Scene）の状態ピル**へ転用。
+- レイアウトは下部「ページタブ」＋中央 preview＋左右/下ドックの制御卓構成（`DESIGN.md` の Console Layout）。
+
 ## 2. MIDI（Minis / Keijiro・新 Input System）
 
 - 本番のライブ操作。nanoKONTROL / APC mini / Launch 系
