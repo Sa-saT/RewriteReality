@@ -41,7 +41,9 @@ namespace RewriteReality
 
         void OnDisable()
         {
-            if (_player != null) _player.Pause();
+            // Play モード終了/破棄時は VideoPlayer が先に無効化され得るため、
+            // 有効な時のみ Pause する（"Cannot Pause a disabled VideoPlayer" 回避）。
+            if (_player != null && _player.isActiveAndEnabled) _player.Pause();
         }
 
         /// <summary>毎フレームの更新フック（現状 VideoPlayer が自走するため処理なし）。</summary>
