@@ -6,12 +6,22 @@
 
 ## チェックリスト
 
-- [ ] 1. VideoPlayer（ソース動画 → RT）
-- [ ] 2. WebCamTexture（カメラ入力・mac カメラ許可）
-- [ ] 3. KlakSyphon（出力・mac 専用）
-- [ ] 4. KlakNDI（出力・ネットワーク）
+- [x] 1. VideoPlayer（ソース動画 → RT）
+- [x] 2. WebCamTexture（カメラ入力・mac カメラ許可）
+- [x] 3. KlakSyphon（出力・mac 専用）
+- [x] 4. KlakNDI（出力・ネットワーク）
 
 4つすべて「エラー0 ＋ 映像が出る/受かる」なら **#4 完了 → M0 突破（go）**。
+
+> **2026-06-25 実施結果：4つすべて OK → M0 突破（go）**。Apple Silicon 実機・Editor で確認。
+> 詰まりポイントと対処（実機メモ）：
+> - **VideoPlayer**：iPhone 撮影 MOV（H.264/1080p）はそのまま再生可。ただし APAC 空間オーディオ音声で
+>   再生が止まる → **`Audio Output Mode = None`** で解決。`Unsupported AVFoundation channel layout tag ...`
+>   は無害な Warning（音声 None なら無視可。完全に消すなら `ffmpeg -i in.mov -c:v copy -an out.mp4`）。
+> - **Syphon/NDI**：本バージョンは**サンプル同梱なし** → `SyphonServer` / `NdiSender` を手動 Add Component。
+>   `Capture Method = Texture` に #1 の RenderTexture を割当てるのが最短。Resources 欄は自動割当（非表示）。
+> - **arm64**：`KlakSyphon.bundle` ・ KlakNDI 同梱 `libndi.dylib` とも **universal（arm64 含む）を確認**。
+>   Syphon=OBS の Syphon Client、NDI=OBS+distroav で受信確認 OK。`DllNotFound` 等なし。
 
 ---
 

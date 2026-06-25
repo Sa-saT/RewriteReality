@@ -53,12 +53,14 @@ RewriteRealityProject/        ← git repo ルート
 - **Unity プロジェクト作成済み**: `RewriteReality/`（**URP 17.0.3 / `6000.0.33f1`**、Input System 同梱）。
 - **選定フェーズ完了（2026-06-23）**: 動画=mp4/1080p/**60fps**、四隅=方式C(ベイク)、オーディオ=アプリ内FFT+簡易onset、
   出力=FS→Syphon→NDI＋コーナーピン、操作=抽象マッピング層(当面KB/GUI)。詳細は **`docs/11-todo-and-decisions.md`**。
-- **M0 進行中**: パッケージ導入(#1〜3)完了 — Klak(Syphon/NDI)・VFX Graph・OscJack・Minis を
-  Scoped Registry(jp.keijiro) 経由で導入済み（`RewriteReality/Packages/manifest.json`）。
-  → **次回ここから**: タスク **#4 動作確認**（手順 = **`docs/M0-test-procedure.md`**）。
-  VideoPlayer/WebCamTexture/Syphon/NDI を arm64 で確認 → 通れば **#5 C# スケルトン生成**（`docs/01`）。
+- **M0 ほぼ突破（go）**: #1〜3 パッケージ導入 ＋ **#4 動作確認(2026-06-25)完了**。
+  VideoPlayer / WebCamTexture / KlakSyphon / KlakNDI を **Apple Silicon 実機で確認・全 OK**
+  （Syphon=OBS Syphon Client、NDI=OBS+distroav で受信確認。bundle は arm64 universal）。
+  実機メモ・詰まり対処は **`docs/M0-test-procedure.md`** 末尾に記録。
+  → **次回ここから**: タスク **#5 C# スケルトン生成**（`docs/01` のモジュール構成）。
+  以降の関門は **OpenCvSharp の arm64 ビルド**（go/no-go・`docs/12`）。
 - 次の一手（`docs/08` M0 の続き）:
-  1. Klak（Syphon/NDI/Hap）・VFX Graph・OscJack・Minis のパッケージ投入
+  1. **#5 C# スケルトン生成**（`docs/01`）← 次回ここから
   2. **OpenCvSharp の arm64 動作確認**（最大の関門・go/no-go）
      → 公式 NuGet に macOS arm64 ネイティブは無い。**contrib(aruco)込みの自前ビルドが本命**（`docs/12`）
   3. C# スケルトン生成（`docs/01` のモジュール構成）

@@ -86,6 +86,12 @@ InitTestScene*.unity*
 [Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
 [Aa]ssets/[Ss]ceneDependencyCache*
 
+# テスト用メディア（容量大・ローカル限定。コミットしない。ネスト階層対応で **/ 前置）
+**/[Aa]ssets/_[Tt]est/**/*.[Mm][Oo][Vv]
+**/[Aa]ssets/_[Tt]est/**/*.[Mm][Pp]4
+**/[Aa]ssets/_[Tt]est/**/*.[Mm][Oo][Vv].meta
+**/[Aa]ssets/_[Tt]est/**/*.[Mm][Pp]4.meta
+
 # ===== Secrets（絶対にコミットしない） =====
 .env
 .env.*
