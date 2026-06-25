@@ -57,11 +57,17 @@ RewriteRealityProject/        ← git repo ルート
   VideoPlayer / WebCamTexture / KlakSyphon / KlakNDI を **Apple Silicon 実機で確認・全 OK**
   （Syphon=OBS Syphon Client、NDI=OBS+distroav で受信確認。bundle は arm64 universal）。
   実機メモ・詰まり対処は **`docs/M0-test-procedure.md`** 末尾に記録。
-  → **次回ここから**: タスク **#5 C# スケルトン生成**（`docs/01` のモジュール構成）。
-  以降の関門は **OpenCvSharp の arm64 ビルド**（go/no-go・`docs/12`）。
+- **#5 C# スケルトン生成 完了**（branch `feat/m0-csharp-skeleton`・コンパイル0エラー確認）。
+  `Assets/Scripts/` に `docs/01` のモジュール構成どおりの骨格（Manager / Source* / *CornerSource /
+  Compositor / EffectBase+Chain+初期4種 / AudioAnalyzer / OutputManager / ControlHub / Preset）。
+  中身は空実装＋TODO（エフェクトは素通し、Compositor のワープ・各シェーダは未実装）。
+  → **次回ここから**: **シーン配線**（GameObject へアタッチ・参照割当て・最小1本のパイプ疎通）
+  → 各クラスの中身実装（Compositor のコーナーピン合成 → エフェクトのシェーダ）。
+  以降の関門は **OpenCvSharp の arm64 ビルド**（go/no-go・`docs/12`・方式C採用でM0対象外）。
 - 次の一手（`docs/08` M0 の続き）:
-  1. **#5 C# スケルトン生成**（`docs/01`）← 次回ここから
-  2. **OpenCvSharp の arm64 動作確認**（最大の関門・go/no-go）
+  1. **シーン配線＋パイプ疎通**（動画→合成→出力が1本通るのを確認）← 次回ここから
+  2. Compositor コーナーピン合成・エフェクトのシェーダ実装
+  3. **OpenCvSharp の arm64 動作確認**（将来 LiveCv 時の関門・go/no-go）
      → 公式 NuGet に macOS arm64 ネイティブは無い。**contrib(aruco)込みの自前ビルドが本命**（`docs/12`）
   3. C# スケルトン生成（`docs/01` のモジュール構成）
 - 同じ親フォルダにある `My project`(HDRP/2022.3) は**本プロジェクトとは別物**。
