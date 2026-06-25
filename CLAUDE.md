@@ -61,12 +61,18 @@ RewriteRealityProject/        ← git repo ルート
   `Assets/Scripts/` に `docs/01` のモジュール構成どおりの骨格（Manager / Source* / *CornerSource /
   Compositor / EffectBase+Chain+初期4種 / AudioAnalyzer / OutputManager / ControlHub / Preset）。
   中身は空実装＋TODO（エフェクトは素通し、Compositor のワープ・各シェーダは未実装）。
-  → **次回ここから**: **シーン配線**（GameObject へアタッチ・参照割当て・最小1本のパイプ疎通）
-  → 各クラスの中身実装（Compositor のコーナーピン合成 → エフェクトのシェーダ）。
+- **シーン配線＋パイプ疎通 完了**（`Assets/Scenes/Main.unity`・commit b14d48c）。
+  Manager/Source*/Compositor/EffectChain/AudioAnalyzer/OutputManager を配置・配線し、
+  **動画→合成(背景のみ)→エフェクト(素通し)→出力(FS/Syphon/NDI) が1本通るのを実機確認**。
+  fix: SourceVideo.OnDisable の停止時 Pause ガード済み。`baseRT` 追加。
+  ※ Main.unity の clip は `_Test/IMG_0016.MOV`(gitignore)参照のためクローン環境では未解決。
+  ※ track.json 未配置のため BakedCornerSource は毎回 FullFrame 据え置き（警告は正常）。
+  → **次回ここから**: **Compositor のコーナーピン合成**（カメラを四隅へ射影合成・Task#5）
+  → **初期エフェクトのシェーダ**を1つ実装（RGBShift か ColorGrade・Task#6）。
   以降の関門は **OpenCvSharp の arm64 ビルド**（go/no-go・`docs/12`・方式C採用でM0対象外）。
 - 次の一手（`docs/08` M0 の続き）:
-  1. **シーン配線＋パイプ疎通**（動画→合成→出力が1本通るのを確認）← 次回ここから
-  2. Compositor コーナーピン合成・エフェクトのシェーダ実装
+  1. **Compositor コーナーピン合成**（_warpMaterial+四隅クアッドで camTex を sceneRT へ）← 次回ここから
+  2. **初期エフェクトのシェーダ**実装（まず1種）→ 残り3種
   3. **OpenCvSharp の arm64 動作確認**（将来 LiveCv 時の関門・go/no-go）
      → 公式 NuGet に macOS arm64 ネイティブは無い。**contrib(aruco)込みの自前ビルドが本命**（`docs/12`）
   3. C# スケルトン生成（`docs/01` のモジュール構成）
