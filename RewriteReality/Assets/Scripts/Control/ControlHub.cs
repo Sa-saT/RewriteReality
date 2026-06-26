@@ -15,6 +15,11 @@ namespace RewriteReality
 
         static readonly IReadOnlyList<EffectBase> _empty = new EffectBase[0];
 
+        void Awake()
+        {
+            if (_effectChain == null) _effectChain = FindFirstObjectByType<EffectChain>();
+        }
+
         /// <summary>対象エフェクト列（順序＝適用順）。</summary>
         public IReadOnlyList<EffectBase> Effects => _effectChain != null ? _effectChain.Effects : _empty;
         public int Count => Effects.Count;
