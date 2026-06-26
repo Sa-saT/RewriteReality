@@ -12,7 +12,23 @@ namespace RewriteReality
         [Tooltip("前フレームの残り具合（大きいほど尾を引く）")]
         public float decay = 0.9f;
 
+        [Range(0.9f, 1.1f)]
+        [Tooltip("履歴のズーム（<1 で内側へ吸い込み、>1 で外へ広がる）")]
+        public float zoom = 1.0f;
+
+        [Tooltip("履歴の回転量（ラジアン/フレーム）")]
+        public float rotate = 0f;
+
+        [Tooltip("低域で回転量を上乗せ")]
+        [SerializeField] float _audioRotate = 0f;
+
         RenderTexture _history;
+
+        static readonly int HistoryID = Shader.PropertyToID("_HistoryTex");
+        static readonly int DecayID   = Shader.PropertyToID("_Decay");
+        static readonly int ZoomID    = Shader.PropertyToID("_Zoom");
+        static readonly int RotateID  = Shader.PropertyToID("_Rotate");
+        static readonly int MixID     = Shader.PropertyToID("_Mix");
 
         public override string Name => "Feedback";
 
@@ -20,10 +36,21 @@ namespace RewriteReality
         {
             EnsureHistory(src);
 
-            // TODO: 専用シェーダで dst = lerp(src, history, decay) を行い、結果を history へ退避。
-            //       現状は素通し（履歴は確保のみ）。
-            Graphics.Blit(src, dst);
-            Graphics.Blit(dst, _history);
+            if (mat == null)
+            {
+                var sh = Shader.Find("Hidden/RewriteReality/Feedback");
+                if (sh == null) { Graphics.Blit(src, dst); Graphics.Blit(dst, _history); return; }
+                mat = new Material(sh) { hideFlags = HideFlags.HideAndDontSave };
+            }
+
+            mat.SetTexture(HistoryID, _history);
+            mat.SetFloat(DecayID, decay);
+            mat.SetFloat(ZoomID, zoom);
+            mat.SetFloat(RotateID, rotate + _audioRotate * audio.Low);
+            mat.SetFloat(MixID, mix);
+
+            Graphics.Blit(src, dst, mat); // dst = trail(src, history)
+            Graphics.Blit(dst, _history); // 履歴を更新
         }
 
         void EnsureHistory(RenderTexture reference)
