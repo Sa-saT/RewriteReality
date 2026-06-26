@@ -28,27 +28,36 @@ namespace RewriteReality
         {
             if (finalRT == null) return;
 
-            // 同じ参照なら再設定を省く（GC・無駄な代入を避ける）
-            bool changed = finalRT != _current;
-            _current = finalRT;
+            // 重要: KlakSyphon の SyphonServer は CaptureMethod / SourceTexture の setter が
+            // 呼ばれるたびに TeardownPlugin()（Metal IOSurface テクスチャを破棄→再生成）する。
+            // そのため毎フレーム代入すると外部 Metal テクスチャを毎フレーム作り直し、
+            // レンダースレッドと競合して segv（Unity/OBS ごとクラッシュ）する。
+            // → 値が実際に変わった時だけ代入すること。Capture Method=Texture は Inspector の
+            //   serialized 値で固定し（OnValidate も Texture を維持）、ここでは保険的に補正する。
 
-            // 1) フルスクリーン表示
-            if (_fullscreenTarget != null && changed)
+            // 1) フルスクリーン表示（参照が変わった時だけ）
+            if (_fullscreenTarget != null && finalRT != _current)
                 _fullscreenTarget.texture = finalRT;
 
-            // 2) Syphon サーバ
-            if (_syphonServer != null && changed)
+            // 2) Syphon サーバ（setter は teardown を伴うので差分時のみ）
+            if (_syphonServer != null)
             {
-                _syphonServer.CaptureMethod = Klak.Syphon.CaptureMethod.Texture;
-                _syphonServer.SourceTexture = finalRT;
+                if (_syphonServer.CaptureMethod != Klak.Syphon.CaptureMethod.Texture)
+                    _syphonServer.CaptureMethod = Klak.Syphon.CaptureMethod.Texture;
+                if (_syphonServer.SourceTexture != finalRT)
+                    _syphonServer.SourceTexture = finalRT;
             }
 
-            // 3) NDI センダー
-            if (_ndiSender != null && changed)
+            // 3) NDI センダー（同様に差分時のみ）
+            if (_ndiSender != null)
             {
-                _ndiSender.captureMethod = Klak.Ndi.CaptureMethod.Texture;
-                _ndiSender.sourceTexture = finalRT;
+                if (_ndiSender.captureMethod != Klak.Ndi.CaptureMethod.Texture)
+                    _ndiSender.captureMethod = Klak.Ndi.CaptureMethod.Texture;
+                if (_ndiSender.sourceTexture != finalRT)
+                    _ndiSender.sourceTexture = finalRT;
             }
+
+            _current = finalRT;
 
             // TODO(docs/06): コーナーピン補正（最終 RT に 4 頂点ワープでプロジェクタ台形補正）。
         }

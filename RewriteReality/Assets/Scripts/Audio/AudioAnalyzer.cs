@@ -18,8 +18,12 @@ namespace RewriteReality
         [Tooltip("onset 検出のしきい値（前フレーム比の増加量）")]
         [SerializeField] float _onsetThreshold = 0.04f;
 
+        [Tooltip("デバッグ: 解析レベルを定期的に Console へ出す（確認用・本番は OFF）")]
+        [SerializeField] bool _logLevels;
+
         readonly float[] _spectrum = new float[SpectrumSize];
         float _prevFlux;
+        int _logCounter;
         AudioFeatures _features;
 
         /// <summary>最新の解析結果（<c>in</c> 渡しで参照）。</summary>
@@ -56,6 +60,9 @@ namespace RewriteReality
 
             // TODO: onset 間隔から BPM 推定（自己相関 / IOI ヒストグラム）。現状 0。
             _features.Bpm = 0f;
+
+            if (_logLevels && (++_logCounter % 15) == 0)
+                Debug.Log($"[AudioAnalyzer] Rms={_features.Rms:F4} Low={low:F4} Mid={mid:F4} High={high:F4} Onset={_features.Onset}");
         }
     }
 }
