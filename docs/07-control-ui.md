@@ -77,3 +77,24 @@ void OnCc(InputAction.CallbackContext ctx){
   （`RectTransform` ハンドル or スクリーン座標のドラッグ処理）
 - 決めた4点を特徴点トラッカーの初期領域として渡す（`03` 参照）
 - 複数領域に対応するなら矩形を複数管理（将来）
+
+## 操作UIの実装方針（Swift 不要・UI Toolkit 本命）【確定 2026-06-27】
+
+操作画面は **Unity の UI Toolkit（USS/UXML）で実装**する。Swift/SwiftUI は使わない。
+理由と方針：
+
+- **UI Toolkit は Unity エディタ自身の基盤**＝プロ用ツールUIを作れる。見た目・操作性とも
+  既存 VJ アプリ（Resolume / MadMapper 等）に引けを取らないものを作れる、と判断。
+- `DESIGN.md` のトークン（暖色ダーク／Live Amber 希少／Selection Blue／JetBrains Mono／
+  ヘアライン）を **USS 変数に写像**してスタイリング。
+- **カスタムコントロール**（ノブ・XYパッド・縦フェーダー・メーター・波形）を自作。
+  USS transition で滑らかなホバー/選択。
+- **データバインディング**：`EffectParameter`（自己記述パラメータ）に双方向バインド。
+- **RT プレビュー埋め込み**：base/カメラ/合成/最終 RT をパネルに直接表示（1プロセスなので容易）。
+  MadMapper の Input/Output 分割や領域マッピングUIもこれで実現。
+- 現状の最小 IMGUI（`OperatorGui`）は確認用。本UIは UI Toolkit へ置き換える。
+- **Swift を検討した結論**：ネイティブな質感は上がるが、Unity が Metal 描画プロセスを握るため
+  統合（UaaL / IPC）と RT プレビュー共有のコストが大きく、見返りが小さい。**不採用**。
+  どうしても“ネイティブ操作卓/別マシン操作”が欲しくなったら、**OSC（OscJack）経由の外部
+  コントロールサーフェス**（Swift アプリ / iPad TouchOSC）として後付けする。`ControlHub` は
+  コントローラ非依存の抽象層なので、外部サーフェスは「もう一つのコントローラ」として乗る。
