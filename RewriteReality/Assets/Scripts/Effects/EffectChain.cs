@@ -17,6 +17,9 @@ namespace RewriteReality
         /// <summary>最終出力（最後の Process 結果）。</summary>
         public RenderTexture FinalTexture { get; private set; }
 
+        /// <summary>適用順のエフェクト列（操作層 ControlHub / UI が参照する）。</summary>
+        public IReadOnlyList<EffectBase> Effects => _effects;
+
         /// <summary>
         /// 入力 <paramref name="src"/> にエフェクト列を適用した結果 RT を返す。RT は使い回す。
         /// 有効なエフェクトが無ければ src をそのまま返す。

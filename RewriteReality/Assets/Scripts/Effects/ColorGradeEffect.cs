@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RewriteReality
@@ -30,6 +31,15 @@ namespace RewriteReality
         static readonly int MixID        = Shader.PropertyToID("_Mix");
 
         public override string Name => "Color Grade";
+
+        protected override void CollectParameters(List<EffectParameter> list)
+        {
+            list.Add(new EffectParameter("Exposure",   0f,        3f,       () => _exposure,   v => _exposure = v));
+            list.Add(new EffectParameter("Contrast",   0f,        3f,       () => _contrast,   v => _contrast = v));
+            list.Add(new EffectParameter("Saturation", 0f,        3f,       () => _saturation, v => _saturation = v));
+            list.Add(new EffectParameter("Hue",        -Mathf.PI, Mathf.PI, () => _hue,        v => _hue = v));
+            list.Add(new EffectParameter("Audio Gain", 0f,        2f,       () => _audioGain,  v => _audioGain = v));
+        }
 
         public override void Apply(RenderTexture src, RenderTexture dst, in AudioFeatures audio)
         {

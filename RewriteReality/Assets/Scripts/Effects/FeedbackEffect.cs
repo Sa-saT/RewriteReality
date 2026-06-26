@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RewriteReality
@@ -31,6 +32,13 @@ namespace RewriteReality
         static readonly int MixID     = Shader.PropertyToID("_Mix");
 
         public override string Name => "Feedback";
+
+        protected override void CollectParameters(List<EffectParameter> list)
+        {
+            list.Add(new EffectParameter("Decay",  0f,    0.99f, () => decay,  v => decay = v));
+            list.Add(new EffectParameter("Zoom",   0.9f,  1.1f,  () => zoom,   v => zoom = v));
+            list.Add(new EffectParameter("Rotate", -0.1f, 0.1f,  () => rotate, v => rotate = v));
+        }
 
         public override void Apply(RenderTexture src, RenderTexture dst, in AudioFeatures audio)
         {

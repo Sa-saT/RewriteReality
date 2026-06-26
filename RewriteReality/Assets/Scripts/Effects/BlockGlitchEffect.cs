@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RewriteReality
@@ -30,6 +31,13 @@ namespace RewriteReality
         float _seed;
 
         public override string Name => "Block Glitch";
+
+        protected override void CollectParameters(List<EffectParameter> list)
+        {
+            list.Add(new EffectParameter("Intensity",  0f, 1f,   () => _intensity, v => _intensity = v));
+            list.Add(new EffectParameter("Audio Gain", 0f, 2f,   () => _audioGain, v => _audioGain = v));
+            list.Add(new EffectParameter("Amount",     0f, 0.5f, () => _amount,    v => _amount = v));
+        }
 
         public override void Apply(RenderTexture src, RenderTexture dst, in AudioFeatures audio)
         {

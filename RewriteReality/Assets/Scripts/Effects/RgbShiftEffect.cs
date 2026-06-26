@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RewriteReality
@@ -18,6 +19,13 @@ namespace RewriteReality
         static readonly int OffsetID = Shader.PropertyToID("_Offset");
 
         public override string Name => "RGB Shift";
+
+        protected override void CollectParameters(List<EffectParameter> list)
+        {
+            list.Add(new EffectParameter("Amount",     0f, 0.05f, () => _amount,    v => _amount = v));
+            list.Add(new EffectParameter("Audio Gain", 0f, 0.1f,  () => _audioGain, v => _audioGain = v));
+            list.Add(new EffectParameter("Angle",      0f, 360f,  () => _angle,     v => _angle = v));
+        }
 
         public override void Apply(RenderTexture src, RenderTexture dst, in AudioFeatures audio)
         {
