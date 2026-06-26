@@ -4,26 +4,51 @@ using UnityEngine;
 namespace RewriteReality
 {
     /// <summary>
-    /// 背景（ベース動画）＋カメラを四隅メッシュ（射影補間）で 1 枚の RenderTexture に合成する。
-    /// 四隅の出所は <see cref="ICornerSource"/> 経由で、Compositor は出所を知らない。
+    /// 背景（ベース動画）＋カメラを「4点トラッキング＋多pin手動ワープ」の2段でメッシュ合成する。
+    /// 段1: 追従 <see cref="Corners"/>(4点) からホモグラフィ H(単位正方形→四隅) を解く。
+    /// 段2: 埋め込みを N×M の制御点グリッドで細分化し、各頂点のローカル座標を手動ワープ → H で射影。
+    /// 2×2・手動ワープ無しなら従来の 4pin と同結果（後方互換）。四隅の出所は ICornerSource 経由で知らない。
     /// </summary>
     public sealed class Compositor : MonoBehaviour
     {
-        [Tooltip("カメラを四隅へ射影合成するマテリアル（CornerPin シェーダ）。未設定なら実行時に自動生成する。")]
+        [Tooltip("カメラを射影合成するマテリアル（CornerPin シェーダ）。未設定なら実行時に自動生成する。")]
         [SerializeField] Material _warpMaterial;
 
-        RenderTexture _sceneRT;
-        Mesh _quad;                 // カメラを貼る四隅クアッド（使い回す）
-        Material _runtimeMat;       // _warpMaterial 未設定時のフォールバック
+        [Header("Warp grid（多pin手動ワープ）")]
+        [Tooltip("制御点グリッドの列数（X方向・最小2）")]
+        [SerializeField] int _warpCols = 2;
+        [Tooltip("制御点グリッドの行数（Y方向・最小2）")]
+        [SerializeField] int _warpRows = 2;
+        [Tooltip("制御点のローカル位置（[0..1]², row-major: j*cols+i）。既定は等間隔＝ワープ無し。")]
+        [SerializeField] Vector2[] _warpPoints;
 
-        // GC 回避のため使い回すバッファ（毎フレーム new しない）。
-        readonly List<Vector3> _verts = new List<Vector3>(4) { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
-        readonly List<Vector3> _uvq   = new List<Vector3>(4) { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
-        static readonly int[] _tris = { 0, 1, 2, 0, 2, 3 };
+        RenderTexture _sceneRT;
+        Mesh _mesh;
+        Material _runtimeMat;
+
+        // GC 回避のため使い回すバッファ（グリッド再構成時のみ作り直す）。
+        readonly List<Vector3> _verts = new List<Vector3>();
+        readonly List<Vector3> _uvq   = new List<Vector3>();
+        int[] _tris;
+        int _builtCols, _builtRows;
+
         static readonly int MainTexID = Shader.PropertyToID("_MainTex");
 
         /// <summary>合成結果（EffectChain への入力）。</summary>
         public RenderTexture SceneTexture => _sceneRT;
+
+        // ---- 多pin手動ワープ用の公開 API（UI/#18 から使う）----
+        public int WarpCols => _warpCols;
+        public int WarpRows => _warpRows;
+        public Vector2 GetWarpPoint(int i, int j) => _warpPoints[j * _warpCols + i];
+        public void SetWarpPoint(int i, int j, Vector2 local) => _warpPoints[j * _warpCols + i] = local;
+        public void ResetWarp() { if (_warpPoints != null) FillRegular(_warpPoints, _warpCols, _warpRows); }
+        public void SetGridResolution(int cols, int rows)
+        {
+            _warpCols = Mathf.Max(2, cols);
+            _warpRows = Mathf.Max(2, rows);
+            _warpPoints = null; // 次の EnsureGrid で等間隔生成＋メッシュ再構成
+        }
 
         /// <summary>四隅ワープ用マテリアル。Inspector 未設定なら CornerPin シェーダから自動生成。</summary>
         Material WarpMat
@@ -54,12 +79,12 @@ namespace RewriteReality
             if (baseTex != null) Graphics.Blit(baseTex, _sceneRT);
             else                 ClearSceneRT();
 
-            // 2) カメラを四隅へ射影ワープして上書き合成
+            // 2) カメラをメッシュワープして上書き合成
             var mat = WarpMat;
             if (mat != null && camTex != null)
             {
-                EnsureQuad();
-                UpdateQuad(corners);
+                EnsureGrid();
+                UpdateMesh(corners);
                 mat.SetTexture(MainTexID, camTex);
 
                 var prev = RenderTexture.active;
@@ -67,7 +92,7 @@ namespace RewriteReality
                 GL.PushMatrix();
                 GL.LoadOrtho();          // 0..1 正規化空間（左下原点）→ sceneRT 全面
                 mat.SetPass(0);
-                Graphics.DrawMeshNow(_quad, Matrix4x4.identity);
+                Graphics.DrawMeshNow(_mesh, Matrix4x4.identity);
                 GL.PopMatrix();
                 RenderTexture.active = prev;
             }
@@ -82,72 +107,131 @@ namespace RewriteReality
             if (_sceneRT != null && _sceneRT.width == w && _sceneRT.height == h) return;
 
             if (_sceneRT != null) _sceneRT.Release();
-            _sceneRT = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32)
-            {
-                name = "sceneRT",
-            };
+            _sceneRT = new RenderTexture(w, h, 0, RenderTextureFormat.ARGB32) { name = "sceneRT" };
             _sceneRT.Create();
         }
 
-        void EnsureQuad()
+        /// <summary>制御点グリッドとメッシュのインデックスを（解像度が変わった時だけ）構築する。</summary>
+        void EnsureGrid()
         {
-            if (_quad != null) return;
-            _quad = new Mesh { name = "cornerPinQuad" };
-            _quad.MarkDynamic();
-            _quad.SetVertices(_verts);
-            _quad.SetUVs(0, _uvq);
-            _quad.SetTriangles(_tris, 0);
-            // DrawMeshNow が境界で切られないよう、bounds を広めに固定。
-            _quad.bounds = new Bounds(new Vector3(0.5f, 0.5f, 0f), new Vector3(10f, 10f, 10f));
-        }
+            _warpCols = Mathf.Max(2, _warpCols);
+            _warpRows = Mathf.Max(2, _warpRows);
 
-        /// <summary>
-        /// Corners（正規化 0..1, 左下原点）から頂点位置と射影補間用 uvq を更新する。
-        /// 四隅クアッドの対角線交点までの距離比から各頂点の同次座標 q を求める。
-        /// </summary>
-        void UpdateQuad(in Corners c)
-        {
-            Vector2 bl = c.BottomLeft, br = c.BottomRight, tr = c.TopRight, tl = c.TopLeft;
-
-            float qBL = 1f, qBR = 1f, qTR = 1f, qTL = 1f;
-
-            // 対角線 BL–TR と BR–TL の交点（中心）を求める。
-            Vector2 r = tr - bl;
-            Vector2 s = tl - br;
-            float denom = r.x * s.y - r.y * s.x;
-            if (Mathf.Abs(denom) > 1e-6f)
+            // 制御点が未生成/解像度不一致なら等間隔で作り直す
+            int need = _warpCols * _warpRows;
+            if (_warpPoints == null || _warpPoints.Length != need)
             {
-                Vector2 d = br - bl;
-                float t = (d.x * s.y - d.y * s.x) / denom;
-                Vector2 center = bl + t * r;
+                _warpPoints = new Vector2[need];
+                FillRegular(_warpPoints, _warpCols, _warpRows);
+            }
 
-                float d0 = Vector2.Distance(center, bl);
-                float d2 = Vector2.Distance(center, tr);
-                float d1 = Vector2.Distance(center, br);
-                float d3 = Vector2.Distance(center, tl);
-                if (d0 > 1e-6f && d1 > 1e-6f && d2 > 1e-6f && d3 > 1e-6f)
+            if (_mesh != null && _builtCols == _warpCols && _builtRows == _warpRows) return;
+
+            if (_mesh == null)
+            {
+                _mesh = new Mesh { name = "warpMesh" };
+                _mesh.MarkDynamic();
+            }
+            _mesh.Clear();
+
+            int verts = _warpCols * _warpRows;
+            _verts.Clear(); _uvq.Clear();
+            for (int k = 0; k < verts; k++) { _verts.Add(Vector3.zero); _uvq.Add(Vector3.zero); }
+
+            // 三角形インデックス（セルごとに2枚）
+            int cells = (_warpCols - 1) * (_warpRows - 1);
+            _tris = new int[cells * 6];
+            int t = 0;
+            for (int j = 0; j < _warpRows - 1; j++)
+            {
+                for (int i = 0; i < _warpCols - 1; i++)
                 {
-                    qBL = (d0 + d2) / d2;
-                    qTR = (d0 + d2) / d0;
-                    qBR = (d1 + d3) / d3;
-                    qTL = (d1 + d3) / d1;
+                    int v00 = j * _warpCols + i;
+                    int v10 = v00 + 1;
+                    int v01 = v00 + _warpCols;
+                    int v11 = v01 + 1;
+                    _tris[t++] = v00; _tris[t++] = v10; _tris[t++] = v11;
+                    _tris[t++] = v00; _tris[t++] = v11; _tris[t++] = v01;
                 }
             }
 
-            // 頂点位置（z=0）。GL.LoadOrtho 下で 0..1 が画面全面に対応。
-            _verts[0] = new Vector3(bl.x, bl.y, 0f);
-            _verts[1] = new Vector3(br.x, br.y, 0f);
-            _verts[2] = new Vector3(tr.x, tr.y, 0f);
-            _verts[3] = new Vector3(tl.x, tl.y, 0f);
+            _mesh.SetVertices(_verts);
+            _mesh.SetUVs(0, _uvq);
+            _mesh.SetTriangles(_tris, 0);
+            _mesh.bounds = new Bounds(new Vector3(0.5f, 0.5f, 0f), new Vector3(10f, 10f, 10f));
+            _builtCols = _warpCols;
+            _builtRows = _warpRows;
+        }
 
-            // UV(0..1) に q を乗じて渡す（フラグメントで /q して射影補間）。
-            _uvq[0] = new Vector3(0f,        0f,        qBL); // BL (0,0)
-            _uvq[1] = new Vector3(1f * qBR,  0f,        qBR); // BR (1,0)
-            _uvq[2] = new Vector3(1f * qTR,  1f * qTR,  qTR); // TR (1,1)
-            _uvq[3] = new Vector3(0f,        1f * qTL,  qTL); // TL (0,1)
+        /// <summary>
+        /// Corners から H を解き、各制御点を「手動ワープ → H 射影」して頂点位置と射影補間 uvq を更新する。
+        /// camera UV は規則グリッド（手動ワープに依らない）。q は H の同次分母 w'。
+        /// </summary>
+        void UpdateMesh(in Corners c)
+        {
+            // 単位正方形→四隅 のホモグラフィ係数（Heckbert）。P0=BL(0,0) P1=BR(1,0) P2=TR(1,1) P3=TL(0,1)
+            float x0 = c.BottomLeft.x,  y0 = c.BottomLeft.y;
+            float x1 = c.BottomRight.x, y1 = c.BottomRight.y;
+            float x2 = c.TopRight.x,    y2 = c.TopRight.y;
+            float x3 = c.TopLeft.x,     y3 = c.TopLeft.y;
 
-            _quad.SetVertices(_verts);
-            _quad.SetUVs(0, _uvq);
+            float sx = x0 - x1 + x2 - x3;
+            float sy = y0 - y1 + y2 - y3;
+
+            float a, b, cc, d, e, f, g, h;
+            if (Mathf.Abs(sx) < 1e-6f && Mathf.Abs(sy) < 1e-6f)
+            {
+                // アフィン（平行四辺形）
+                a = x1 - x0; b = x3 - x0; cc = x0;
+                d = y1 - y0; e = y3 - y0; f = y0;
+                g = 0f; h = 0f;
+            }
+            else
+            {
+                float dx1 = x1 - x2, dx2 = x3 - x2;
+                float dy1 = y1 - y2, dy2 = y3 - y2;
+                float den = dx1 * dy2 - dx2 * dy1;
+                if (Mathf.Abs(den) < 1e-9f) den = 1e-9f;
+                g = (sx * dy2 - sy * dx2) / den;
+                h = (dx1 * sy - dy1 * sx) / den;
+                a = x1 - x0 + g * x1; b = x3 - x0 + h * x3; cc = x0;
+                d = y1 - y0 + g * y1; e = y3 - y0 + h * y3; f = y0;
+            }
+
+            int cols = _warpCols, rows = _warpRows;
+            float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
+
+            for (int j = 0; j < rows; j++)
+            {
+                for (int i = 0; i < cols; i++)
+                {
+                    int idx = j * cols + i;
+                    float gu = i * invCx;          // camera UV（規則グリッド）
+                    float gv = j * invCy;
+
+                    Vector2 p = _warpPoints[idx];   // 手動ワープ後のローカル座標
+                    float lx = p.x, ly = p.y;
+
+                    float xp = a * lx + b * ly + cc;
+                    float yp = d * lx + e * ly + f;
+                    float wp = g * lx + h * ly + 1f;
+                    if (wp < 1e-5f) wp = 1e-5f;
+
+                    _verts[idx] = new Vector3(xp / wp, yp / wp, 0f);   // スクリーン位置（0..1）
+                    _uvq[idx]   = new Vector3(gu * wp, gv * wp, wp);   // 射影補間（frag で /q）
+                }
+            }
+
+            _mesh.SetVertices(_verts);
+            _mesh.SetUVs(0, _uvq);
+        }
+
+        static void FillRegular(Vector2[] pts, int cols, int rows)
+        {
+            float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
+            for (int j = 0; j < rows; j++)
+                for (int i = 0; i < cols; i++)
+                    pts[j * cols + i] = new Vector2(i * invCx, j * invCy);
         }
 
         void ClearSceneRT()
@@ -160,12 +244,8 @@ namespace RewriteReality
 
         void OnDestroy()
         {
-            if (_sceneRT != null)
-            {
-                _sceneRT.Release();
-                _sceneRT = null;
-            }
-            if (_quad != null) Destroy(_quad);
+            if (_sceneRT != null) { _sceneRT.Release(); _sceneRT = null; }
+            if (_mesh != null) Destroy(_mesh);
             if (_runtimeMat != null) Destroy(_runtimeMat);
         }
     }
