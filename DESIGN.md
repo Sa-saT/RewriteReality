@@ -308,7 +308,10 @@ padding 24px。見出し `{typography.display}`。背後は `{colors.canvas}` 70
 ## Known Gaps
 
 - CursorGothic 相当は未採用。**Inter ＋ JetBrains Mono** を正本とする（ライセンス安全）。
-- Unity 実装系（**UI Toolkit** USS か uGUI か）は未確定。トークンは USS 変数へ写像する前提（`docs/07`）。
+- Unity 実装系は **UI Toolkit（USS/UXML）に確定**（2026-06-28）。トークンは `RewriteReality/Assets/UI/RewriteReality.uss`
+  の USS 変数へ写像済み。見た目の作り込みは **UI Builder 主体**（見た目=UXML/USS・挙動=薄い C#）で、
+  前段に **Claude Design**（`DESIGN.md` を Design System として使用）を任意採用し、ハンドオフ（HTML/CSS）を
+  Claude Code が UXML/USS へ移植する（`docs/07`）。
 - アニメーション（ピル点灯・ドック開閉・メーター減衰）の時定数は別途。
 - 投影本編側のルック（グリッチ等）は本書の対象外＝エフェクト設計 `docs/04`。
 - カラーマネジメント（HDR/広色域）は将来課題。現状 sRGB 前提。

@@ -112,3 +112,21 @@ void OnCc(InputAction.CallbackContext ctx){
   **Scale Mode = Constant Pixel Size** で Game ビューに等倍表示（Scale With Screen Size だと固定 px 設計がはみ出す）。
 - **進行**: デザイン確定後に領域マッピングUI（`03` の多pin メッシュワープ・MadMapper 参照）の実装へ進む。
 - 現状の IMGUI 版 `OperatorGui` は確認用の併存（H で表示切替）。本UIは上記 UI Toolkit へ集約していく。
+
+### 見た目の前段に Claude Design を使う（任意・推奨）【2026-06-28】
+
+見た目の探索・確定を速くするため、**Claude Design**（`claude.ai/design`・Anthropic Labs）を前段に使う。
+`DESIGN.md` を Design System として読ませ、プロンプト/スクショから **実 HTML/CSS/JS のモック**を作る。
+
+- **使い方**: ①プロジェクト作成（組織の Design System を継承）②`/design-sync` か GitHub import で
+  リポジトリ（ルート `DESIGN.md`／既存 `RewriteReality/Assets/UI/RewriteReality.uss`）を読ませる
+  ③スクショ・既存アセット・プロンプトで Console Layout 等を生成 ④キャンバスで反復
+  ⑤エクスポート（`.zip` / standalone HTML / 共有URL / Canva・Vercel 等）。
+- **Claude Code へのハンドオフ**: 「**Send to Claude Code**」で貼り付けコマンドが出る → Claude Code に貼ると
+  **CSS・コンポーネント構造・レイアウト意図**を取得して実装に使える（ターミナルから直接生成する `/design` もある）。
+- **本プロジェクトでの扱い（重要）**: Claude Design の出力は **Web（HTML/CSS/JS）**で、Unity の **UXML/USS とは別物**。
+  **ワンクリックで動く Unity UI にはならない**。よってハンドオフは「**精度の高い仕様**」として使い、
+  **Claude（Code）が UXML/USS へ移植**する。差の吸収＝CSS→USS（サブセット・**grid 不可→flex**）、
+  Web コントロール→UI Toolkit コントロール、**JS 挙動は使わない**（操作は C# の `ControlHub`/`OperatorUI`）。
+- **合意フロー**: Claude Design で見た目確定 → ハンドオフ（貼り付けコマンド / HTML / スクショ）→
+  Claude が `Assets/UI/` の UXML/USS に移植（`OperatorUI` のバインドは生かす）→ ユーザーが UI Builder で最終調整＋Play。
