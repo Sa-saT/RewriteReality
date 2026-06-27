@@ -1,0 +1,292 @@
+/*
+ * RewriteReality — Operator UI theme (UI Toolkit / USS)
+ * DESIGN.md のデザイントークンを USS 変数へ写像した正本スタイル。
+ * 色は必ず var(--rr-*) 参照。hex 直書きしない（DESIGN.md「色はトークン参照」）。
+ * フォント: Inter / JetBrains Mono は未同梱（Known Gaps）。FontAsset を入れたら
+ *   .rr-theme の -unity-font-definition と .rr-mono に割り当てる。現状はパネル既定フォント。
+ */
+
+/* ============================================================ Tokens */
+.rr-theme {
+    /* Brand & Accent */
+    --rr-primary: #ff5c1a;          /* Live Amber: armed/live/CTA。希少に */
+    --rr-primary-active: #d8480f;
+    --rr-selection: #4a9ed8;        /* Selection Blue: 選択/フォーカス専用 */
+    --rr-on-primary: #161512;
+
+    /* Surfaces（暖色ダーク階調） */
+    --rr-canvas: #161512;
+    --rr-canvas-soft: #1c1a15;
+    --rr-surface-panel: #232019;
+    --rr-surface-raised: #2c2820;
+    --rr-surface-inset: #121009;
+
+    /* Hairlines */
+    --rr-hairline: #353128;
+    --rr-hairline-soft: #2a2720;
+    --rr-hairline-strong: #454034;
+
+    /* Text */
+    --rr-text: #ece9e0;
+    --rr-body: #b8b3a6;
+    --rr-muted: #878275;
+    --rr-muted-soft: #5e5a50;
+
+    /* Pipeline Stages（状態表示専用） */
+    --rr-stage-source: #e8b08a;
+    --rr-stage-tracking: #93c9a0;
+    --rr-stage-effects: #b9a6e0;
+    --rr-stage-audio: #8fb8e6;
+    --rr-stage-output: #d6a44a;
+    --rr-stage-scene: #d98fae;
+
+    /* Semantic */
+    --rr-live: #46b888;
+    --rr-record: #e2476a;
+    --rr-warn: #e0a23a;
+
+    flex-grow: 1;
+    color: var(--rr-text);
+    background-color: var(--rr-canvas);
+    font-size: 12px;
+}
+
+/* JetBrains Mono を入れたらここに -unity-font-definition を割当て、値/座標を等幅整列 */
+.rr-mono {
+    -unity-text-align: middle-right;
+}
+
+/* ============================================================ Shell layout */
+.rr-root {
+    flex-grow: 1;
+    flex-direction: column;
+}
+
+/* Top bar / transport */
+.rr-top-bar {
+    height: 48px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 12px;
+    padding-right: 12px;
+    background-color: var(--rr-canvas);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline-strong);
+}
+.rr-brand {
+    color: var(--rr-text);
+    -unity-font-style: bold;
+    font-size: 15px;
+}
+.rr-project {
+    color: var(--rr-muted);
+    margin-left: 6px;
+}
+.rr-spacer { flex-grow: 1; }
+.rr-fps {
+    color: var(--rr-text);
+    font-size: 15px;
+    -unity-text-align: middle-right;
+    min-width: 76px;
+    margin-left: 12px;
+}
+.rr-fps--warn { color: var(--rr-warn); }
+
+/* Middle row: left dock / viewport / right dock */
+.rr-mid {
+    flex-grow: 1;
+    flex-direction: row;
+}
+
+.rr-dock {
+    background-color: var(--rr-surface-panel);
+    border-color: var(--rr-hairline-strong);
+}
+.rr-dock-left {
+    width: 200px;
+    border-right-width: 1px;
+}
+.rr-dock-right {
+    width: 280px;
+    border-left-width: 1px;
+}
+.rr-dock-bottom {
+    height: 168px;
+    border-top-width: 1px;
+}
+
+.rr-panel-header {
+    height: 32px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 12px;
+    padding-right: 12px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline);
+}
+.rr-panel-header > Label {
+    color: var(--rr-text);
+    -unity-font-style: bold;
+    font-size: 15px;
+}
+.rr-panel-body {
+    flex-grow: 1;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+/* Preview viewport（卓の主役） */
+.rr-viewport {
+    flex-grow: 1;
+    background-color: var(--rr-canvas-soft);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+}
+.rr-preview {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+}
+
+/* Page tabs（下部・DaVinci のページ相当） */
+.rr-page-tabs {
+    height: 36px;
+    flex-direction: row;
+    background-color: var(--rr-canvas);
+    border-top-width: 1px;
+    border-top-color: var(--rr-hairline-strong);
+}
+.rr-page-tab {
+    padding-left: 16px;
+    padding-right: 16px;
+    -unity-text-align: middle-center;
+    color: var(--rr-muted);
+    font-size: 11px;
+    -unity-font-style: bold;
+    border-top-width: 2px;
+    border-top-color: rgba(0, 0, 0, 0);
+}
+.rr-page-tab--active { color: var(--rr-text); }
+.rr-page-tab--active.rr-stage-source   { border-top-color: var(--rr-stage-source); }
+.rr-page-tab--active.rr-stage-tracking { border-top-color: var(--rr-stage-tracking); }
+.rr-page-tab--active.rr-stage-effects  { border-top-color: var(--rr-stage-effects); }
+.rr-page-tab--active.rr-stage-audio    { border-top-color: var(--rr-stage-audio); }
+.rr-page-tab--active.rr-stage-output   { border-top-color: var(--rr-stage-output); }
+.rr-page-tab--active.rr-stage-scene    { border-top-color: var(--rr-stage-scene); }
+
+/* ============================================================ FX chain (bottom dock) */
+.rr-fx-list {
+    flex-grow: 1;
+    flex-direction: column;
+    padding: 6px;
+}
+.rr-fx-item {
+    height: 28px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-left-width: 2px;
+    border-left-color: var(--rr-stage-effects); /* FX 段アクセント */
+    border-radius: 2px;
+}
+.rr-fx-item:hover { background-color: var(--rr-surface-raised); }
+.rr-fx-item--selected {
+    background-color: var(--rr-surface-raised);
+    border-left-color: var(--rr-selection);
+}
+.rr-fx-name {
+    flex-grow: 1;
+    margin-left: 6px;
+    color: var(--rr-body);
+}
+.rr-fx-item--selected .rr-fx-name { color: var(--rr-primary); -unity-font-style: bold; }
+.rr-fx-name--disabled { color: var(--rr-muted-soft); }
+
+/* ============================================================ Parameter rows (inspector) */
+.rr-param-row {
+    height: 28px;
+    flex-direction: row;
+    align-items: center;
+    border-radius: 2px;
+    padding-left: 6px;
+    padding-right: 4px;
+}
+.rr-param-row:hover { background-color: var(--rr-surface-raised); }
+.rr-param-row--selected {
+    background-color: var(--rr-surface-raised);
+    border-left-width: 2px;
+    border-left-color: var(--rr-selection);
+    padding-left: 4px;
+}
+.rr-param-label {
+    width: 84px;
+    color: var(--rr-body);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rr-param-slider {
+    flex-grow: 1;
+    margin-left: 4px;
+    margin-right: 8px;
+}
+.rr-param-value {
+    width: 44px;
+    color: var(--rr-text);
+    -unity-text-align: middle-right;
+    font-size: 12px;
+}
+
+/* Slider 溝/つまみ（DESIGN: 溝 inset・充填 muted・つまみ text） */
+.rr-param-slider .unity-base-slider__tracker {
+    background-color: var(--rr-surface-inset);
+    border-color: var(--rr-hairline-soft);
+}
+.rr-param-slider .unity-base-slider__dragger {
+    background-color: var(--rr-text);
+    border-radius: 4px;
+    width: 10px;
+    height: 10px;
+}
+
+/* Toggle: OFF inset / ON live */
+.rr-fx-toggle {
+    margin-right: 0;
+}
+.rr-fx-toggle .unity-toggle__checkmark {
+    background-color: var(--rr-surface-inset);
+    border-color: var(--rr-hairline);
+    border-radius: 2px;
+    width: 16px;
+    height: 16px;
+}
+.rr-fx-toggle:checked .unity-toggle__checkmark {
+    background-color: var(--rr-live);
+    border-color: var(--rr-live);
+}
+
+/* Badges / status pills */
+.rr-badge {
+    color: var(--rr-muted);
+    background-color: var(--rr-surface-raised);
+    font-size: 11px;
+    -unity-font-style: bold;
+    padding: 3px 8px;
+    margin-left: 6px;
+    border-radius: 9999px;
+}
+.rr-badge--on { color: var(--rr-on-primary); background-color: var(--rr-live); }
+
+.rr-hint {
+    color: var(--rr-muted-soft);
+    font-size: 11px;
+    margin-top: 6px;
+    white-space: normal;
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!--
+      FX チェーン1行のテンプレート（UI Builder で見た目を編集可能）。
+      OperatorUI.cs が Instantiate して name で各要素を引き、値を流し込む。
+      色は親(rr-root)の rr-theme から継承するので、UI Builder 単体プレビューでは
+      配色が薄く見えることがある（実体はシェル内で正しく出る）。
+    -->
+    <Style src="RewriteReality.uss" />
+    <ui:VisualElement name="fx-item" class="rr-fx-item">
+        <ui:Toggle name="fx-toggle" class="rr-fx-toggle" />
+        <ui:Label name="fx-name" text="1. Effect" class="rr-fx-name" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!--
+      パラメータ1行のテンプレート（UI Builder で見た目を編集可能）。
+      OperatorUI.cs が Instantiate し、slider の low/high/value と label を流し込む。
+      スライダを大きく/掴みやすくするなどの調整はこの UXML / RewriteReality.uss で行う。
+    -->
+    <Style src="RewriteReality.uss" />
+    <ui:VisualElement name="param-row" class="rr-param-row">
+        <ui:Label name="param-label" text="Param" class="rr-param-label" />
+        <ui:Slider name="param-slider" low-value="0" high-value="1" class="rr-param-slider" />
+        <ui:Label name="param-value" text="0.00" class="rr-param-value rr-mono" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -98,3 +98,17 @@ void OnCc(InputAction.CallbackContext ctx){
   どうしても“ネイティブ操作卓/別マシン操作”が欲しくなったら、**OSC（OscJack）経由の外部
   コントロールサーフェス**（Swift アプリ / iPad TouchOSC）として後付けする。`ControlHub` は
   コントローラ非依存の抽象層なので、外部サーフェスは「もう一つのコントローラ」として乗る。
+
+### 見た目はユーザーが UI Builder で作成・確定する【確定 2026-06-28】
+
+- **役割分担**: 見た目/レイアウト（UXML/USS）は **ユーザー自身が Unity の UI Builder で直接オーサリング**
+  して確定する。Claude（agent）は **UXML/USS の足場**（シェル・行テンプレ・USS トークン）と、新コントロールの
+  **UXML テンプレ＋C# バインド**を用意する役。ビジュアルの作り込みはユーザーが行う。
+- **単一ソース**: 見た目の正本は `Assets/UI/` の UXML/USS。**C# には見た目を書かない**
+  （`OperatorUI.cs` は `Q<>()`＋`EffectParameter` バインドのみ）。新しい操作部品は
+  「**まず UXML テンプレ → C# はバインドだけ**」の順で足す。
+- **手順**: `Window > UI Toolkit > UI Builder` で `OperatorShell.uxml`／`FxRow.uxml`／`ParamRow.uxml`／
+  `RewriteReality.uss` を開いて編集（ライブプレビュー・再コンパイル不要）。`PanelSettings` は
+  **Scale Mode = Constant Pixel Size** で Game ビューに等倍表示（Scale With Screen Size だと固定 px 設計がはみ出す）。
+- **進行**: デザイン確定後に領域マッピングUI（`03` の多pin メッシュワープ・MadMapper 参照）の実装へ進む。
+- 現状の IMGUI 版 `OperatorGui` は確認用の併存（H で表示切替）。本UIは上記 UI Toolkit へ集約していく。

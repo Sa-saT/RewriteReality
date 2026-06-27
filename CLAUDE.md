@@ -79,6 +79,15 @@ RewriteRealityProject/        ← git repo ルート
 - 同じ親フォルダにある `My project`(HDRP/2022.3) は**本プロジェクトとは別物**。
 - `Rcam3`（Keijiro, iPhone LiDAR→NDI 深度 VFX）も別プロジェクトだが、**将来の深度レイヤー(M9)の参照実装**
   として流用予定（`docs/04`・`08`・`11`・`12`）。新規依存は実質ゼロ（KlakNDI を流用）。
+- **操作UI = UI Toolkit（#20 土台 完了・2026-06-28）**: `Assets/UI/`（RewriteReality.uss=DESIGN.md
+  トークン→USS／OperatorShell.uxml／FxRow・ParamRow.uxml 行テンプレ）＋ `OperatorUI.cs`
+  （ControlHub/EffectParameter 双方向バインド・preview=EffectChain.FinalTexture・FPS）。配線=
+  PanelSettings(Scale Mode=**Constant Pixel Size**)→UIDocument(Source=OperatorShell.uxml)→OperatorUI。
+  IMGUI 版 OperatorGui は併存。
+  - **ワークフロー＝UI Builder 主体**（見た目=UXML/USS／挙動=薄い C#。行も UXML テンプレ化）。
+  - **⚠ 見た目・レイアウトはユーザーが UI Builder で自身で作成・確定する**。agent は UXML/USS の足場と
+    新コントロール用テンプレ＋バインドを用意する役で、**ビジュアルの作り込みはユーザーに委ねる**。
+    **デザイン確定（タスク#24）後に #21→#22→#18（領域マッピングUI）へ着手**。詳細＝`docs/07-control-ui.md`。
 
 ## 作業上の注意
 

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <Style src="RewriteReality.uss" />
+    <!--
+      RewriteReality オペレータシェル（DESIGN.md Console Layout）。
+      動的な中身（FX 一覧・inspector パラメータ行・preview・FPS）は OperatorUI.cs が
+      名前で取得して流し込む。ここは静的な骨格と命名済みコンテナのみ。
+    -->
+    <ui:VisualElement name="rr-root" class="rr-theme rr-root">
+
+        <!-- top-bar: ブランド / 出力状態 / FPS -->
+        <ui:VisualElement name="rr-top-bar" class="rr-top-bar">
+            <ui:Label text="RewriteReality" class="rr-brand" />
+            <ui:Label name="rr-project" text="— Operator" class="rr-project" />
+            <ui:VisualElement class="rr-spacer" />
+            <ui:Label name="rr-status-syphon" text="SYPHON" class="rr-badge" />
+            <ui:Label name="rr-status-ndi" text="NDI" class="rr-badge" />
+            <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
+        </ui:VisualElement>
+
+        <!-- middle: 左ドック / preview / 右ドック(inspector) -->
+        <ui:VisualElement name="rr-mid" class="rr-mid">
+
+            <ui:VisualElement name="rr-dock-left" class="rr-dock rr-dock-left">
+                <ui:VisualElement class="rr-panel-header"><ui:Label text="Source / Scene" /></ui:VisualElement>
+                <ui:VisualElement class="rr-panel-body">
+                    <ui:Label class="rr-hint" text="左ドックは #22 で Surface 一覧 / Input·Output 分割ビューを実装。" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="rr-viewport" class="rr-viewport">
+                <ui:Image name="rr-preview" class="rr-preview" />
+            </ui:VisualElement>
+
+            <ui:VisualElement name="rr-dock-right" class="rr-dock rr-dock-right">
+                <ui:VisualElement class="rr-panel-header"><ui:Label name="rr-inspector-title" text="Inspector" /></ui:VisualElement>
+                <ui:ScrollView name="rr-inspector" class="rr-panel-body" />
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+        <!-- bottom dock: FX チェーン -->
+        <ui:VisualElement name="rr-dock-bottom" class="rr-dock rr-dock-bottom">
+            <ui:VisualElement class="rr-panel-header"><ui:Label text="FX Chain" /></ui:VisualElement>
+            <ui:ScrollView name="rr-fx-list" class="rr-fx-list" />
+        </ui:VisualElement>
+
+        <!-- page-tabs（DaVinci ページ相当・各タブは段色のトップボーダー） -->
+        <ui:VisualElement name="rr-page-tabs" class="rr-page-tabs">
+            <ui:Label name="rr-tab-source"   text="SOURCE"  class="rr-page-tab rr-stage-source" />
+            <ui:Label name="rr-tab-track"    text="TRACK"   class="rr-page-tab rr-stage-tracking" />
+            <ui:Label name="rr-tab-fx"       text="FX"      class="rr-page-tab rr-stage-effects rr-page-tab--active" />
+            <ui:Label name="rr-tab-audio"    text="AUDIO"   class="rr-page-tab rr-stage-audio" />
+            <ui:Label name="rr-tab-output"   text="OUTPUT"  class="rr-page-tab rr-stage-output" />
+            <ui:Label name="rr-tab-scenes"   text="SCENES"  class="rr-page-tab rr-stage-scene" />
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>
