@@ -10,6 +10,21 @@
 - **外部から数値で受ける**: Ableton/Max から **OSC（OscJack）**で BPM・帯域を送ってもらう
   （最も安定。`07` 参照）
 
+## 外部モード（MIDI/音楽アプリ）での音連動【2026-06-30】
+
+音源が外部（DJ/Ableton/音楽アプリ・MIDI 運用）でも、画像エフェクトは音と連動できる。**2系統**あり併用可。
+
+- **Path 1：スペクトル/onset 連動（音の中身に反応）**
+  `AudioAnalyzer` は **AudioListener（最終ミックス）** を FFT 解析するので、**外部音が Unity の AudioListener に届いていれば**
+  内部再生と同じく Low/Mid/High/RMS/onset が効く。外部音の取り込みは **仮想オーディオデバイス（BlackHole / Loopback）** で
+  「アプリ出力 → BlackHole → `MicInput` 入力」に回す。二重再生回避は macOS の **Multi-Output Device**（スピーカー＋BlackHole）で、
+  Unity 出力モニタを絞り**解析だけ効かせる**。→ **現アーキで可能**（`AudioAnalyzer`＋`MicInput`・要 BlackHole 配線）。
+- **Path 2：MIDI/OSC 連動（操作信号で動かす）**
+  波形でなく制御信号を `ControlHub`（コントローラ非依存の抽象マッピング層）へ。**MIDI クロック/OSC→BPM 同期**、
+  **MIDI ノート→short/エフェクト発火**、**MIDI CC→連続パラメータ**。→ **M7・未実装**（設計済み・`ControlHub` に差すだけ）。
+- **併用例**: BPM＝MIDIクロック(Path2)／瞬発グリッチ＝onset(Path1)／色の揺れ＝高域(Path1)／short発火＝MIDIパッド(Path2)。
+- 前提: Path 1 は **外部音を BlackHole 等で Unity に取り込む**ことだけ。これで音楽アプリの音と画像エフェクトはリンクする。
+
 ## 解析（AudioAnalyzer クラス）
 
 Unity は FFT を標準提供（`GetSpectrumData`）。これで帯域エネルギーを取る。

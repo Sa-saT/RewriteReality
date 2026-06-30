@@ -87,6 +87,7 @@
 ### M12. タイムライン（song リニア通し ＋ short ホールド発火）
 - [ ] 下部マルチトラックUIの土台。再生ヘッド/スクラブを `SourceVideo.Time`・`track.json` と整合
 - [ ] **song**：映像トラックのクリップ配置・ON-OFF・opacity・リニア通し再生
+- [ ] **song 動画だけライブ速度可変**：`SourceVideo.PlaybackSpeed`（VideoPlayer.playbackSpeed）をボタン/スクロール(ジョグ)に割当（`ControlHub`）。0=フリーズ〜Nx・音声は通常速度のまま・四隅は video time で整合
 - [ ] **short**：キー割当の**ホールド発火**（押下中だけ最上位レイヤー合成・離すと非表示）。`EffectChain` 最終段に short レイヤー1段、`ControlHub` に short トリガー追加
 - **完了条件**: song が通し再生され、キー押下中だけ short が最上位で差し込まれる（C＝song＋short・`07b` §3.5.2）
 

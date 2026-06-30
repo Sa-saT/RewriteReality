@@ -55,7 +55,7 @@
 
 | クラス | 役割 | 主な依存 |
 |---|---|---|
-| `SourceVideo` | ベース動画の再生・ループ・スクラブ → RenderTexture | VideoPlayer / KlakHap |
+| `SourceVideo` | ベース動画の再生・ループ・スクラブ・**ライブ速度可変（`PlaybackSpeed`・映像のみ）** → RenderTexture | VideoPlayer / KlakHap |
 | `SourceCamera` | カメラ入力取得 → Texture | WebCamTexture / (任意)Syphon-in |
 | `ICornerSource`(IF) | 四隅 `Corners` を供給する共通 IF。Compositor は出所を知らない | — |
 | `BakedCornerSource` | 事前ベイクした `track.json` を読み四隅を返す（**初期推奨**） | Unity 標準のみ |
