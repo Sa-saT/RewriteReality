@@ -21,12 +21,20 @@ namespace RewriteReality
         [Header("NDI")]
         [SerializeField] NdiSender _ndiSender;
 
+        [Header("Output Surface（M10・出力変形）")]
+        [Tooltip("出力段のメッシュ/コーナーピン変形。未設定 or 無効なら finalRT を素通し。")]
+        [SerializeField] OutputWarp _outputWarp;
+
         RenderTexture _current;
 
         /// <summary>毎フレーム、最終 RT を各出力へ反映する。</summary>
         public void Publish(RenderTexture finalRT)
         {
             if (finalRT == null) return;
+
+            // M10: 出力変形（Output Surface）。無効/未設定なら finalRT を素通し（参照そのまま）。
+            // 有効時は OutputWarp 内の永続 RT を返すので、下の差分代入ロジックはそのまま成立する。
+            RenderTexture outRT = _outputWarp != null ? _outputWarp.Apply(finalRT) : finalRT;
 
             // 重要: KlakSyphon の SyphonServer は CaptureMethod / SourceTexture の setter が
             // 呼ばれるたびに TeardownPlugin()（Metal IOSurface テクスチャを破棄→再生成）する。
@@ -36,16 +44,16 @@ namespace RewriteReality
             //   serialized 値で固定し（OnValidate も Texture を維持）、ここでは保険的に補正する。
 
             // 1) フルスクリーン表示（参照が変わった時だけ）
-            if (_fullscreenTarget != null && finalRT != _current)
-                _fullscreenTarget.texture = finalRT;
+            if (_fullscreenTarget != null && outRT != _current)
+                _fullscreenTarget.texture = outRT;
 
             // 2) Syphon サーバ（setter は teardown を伴うので差分時のみ）
             if (_syphonServer != null)
             {
                 if (_syphonServer.CaptureMethod != Klak.Syphon.CaptureMethod.Texture)
                     _syphonServer.CaptureMethod = Klak.Syphon.CaptureMethod.Texture;
-                if (_syphonServer.SourceTexture != finalRT)
-                    _syphonServer.SourceTexture = finalRT;
+                if (_syphonServer.SourceTexture != outRT)
+                    _syphonServer.SourceTexture = outRT;
             }
 
             // 3) NDI センダー（同様に差分時のみ）
@@ -53,13 +61,11 @@ namespace RewriteReality
             {
                 if (_ndiSender.captureMethod != Klak.Ndi.CaptureMethod.Texture)
                     _ndiSender.captureMethod = Klak.Ndi.CaptureMethod.Texture;
-                if (_ndiSender.sourceTexture != finalRT)
-                    _ndiSender.sourceTexture = finalRT;
+                if (_ndiSender.sourceTexture != outRT)
+                    _ndiSender.sourceTexture = outRT;
             }
 
-            _current = finalRT;
-
-            // TODO(docs/06): コーナーピン補正（最終 RT に 4 頂点ワープでプロジェクタ台形補正）。
+            _current = outRT;
         }
     }
 }

@@ -74,8 +74,9 @@
 > **コア（M0〜M8）完成後**に下の順で積む（土台を壊さない）。深度(M9)とは独立。
 
 ### M10. 出力変形（Output Surface）
-- [ ] 最終 RT に**メッシュ/コーナーピン変形**（旧 B4 出力段台形補正を内包・`OutputManager`）
-- [ ] OUTPUT ページから surface として編集（Input/Output 分割ビュー §3.2）
+- [x] 最終 RT に**メッシュ/コーナーピン変形**（旧 B4 出力段台形補正を内包）＝**`OutputWarp` 実装＋`OutputManager` 配線**
+      （既定 OFF＝素通し・Inspector でキーストーン四隅＋多pinグリッド／射影数学は `WarpMath` を `Compositor` と共有）※Unity 検証待ち
+- [ ] OUTPUT ページから surface として編集（Input/Output 分割ビュー §3.2）＝#22
 - **完了条件**: プロジェクタ面に合わせて出力映像を MadMapper 流に変形できる
 
 ### M11. 準備・本番の 2 モード

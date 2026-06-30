@@ -61,6 +61,8 @@
 | `BakedCornerSource` | 事前ベイクした `track.json` を読み四隅を返す（**初期推奨**） | Unity 標準のみ |
 | `LiveCvCornerSource` | 実行時 ArUco 検出で四隅を返す（**将来オプション**） | OpenCvSharp(Aruco), AsyncGPUReadback |
 | `Compositor` | 背景＋カメラを四隅メッシュで合成し 1 枚の RT に。四隅は `ICornerSource` 経由 | Material/Shader, CommandBuffer |
+| `WarpMath`(static) | 単位正方形→四隅 の射影変換（Heckbert）の純粋数学。`Compositor`/`OutputWarp` が共有 | — |
+| `OutputWarp` | （M10）finalRT 全体を四隅キーストーン＋多pin メッシュで出力変形（既定OFF=素通し） | CornerPin shader / `WarpMath` |
 | `IDepthSource`(IF) | （任意）深度マップを供給。無ければ深度エフェクトを無効化 | — |
 | `DepthCameraSource` | （将来）深度カメラ(Orbbec/RealSense等)の色＋深度を USB直結SDK or NDI で受信し供給 | 各社 SDK / (任意)KlakNDI |
 | `EffectChain` | エフェクトを順に適用するパイプライン | `EffectBase` |

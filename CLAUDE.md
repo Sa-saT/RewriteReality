@@ -100,6 +100,9 @@ RewriteRealityProject/        ← git repo ルート
   M13 マルチトラック/音声・タスク#25〜28）。仕様=`docs/07b`、決定=`docs/11` B9、モジュール=`docs/01`。
   タイムラインの動き＝**C（song＋short）確定**：song=リニア通し（裏で進行）＋short=キー割当の**ホールド発火**
   （押下中だけ最上位レイヤー・離すと song に戻る＝Resolume「Piano」）。複数同時押しは後押しが上。詳細=`07b` §3.5.2。
+  - **進捗**: **#23 ビルド準備＝設定済**（カスタムシェーダ5本を Always Included＋Mic Usage Desc・実機ビルド確認待ち）。
+    **#25 M10 出力変形＝バックエンド実装**（`OutputWarp`＋`OutputManager` 配線・既定OFF素通し・射影数学は `WarpMath` を
+    `Compositor` と共有）※Unity でコンパイル/動作検証待ち。編集UIは #22。
 
 ## 作業上の注意
 
