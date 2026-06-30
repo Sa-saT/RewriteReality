@@ -16,6 +16,7 @@ RewriteReality（リアルタイム・カメラ埋め込み VJ アプリ／Unity
 | [05-audio-reactive.md](05-audio-reactive.md) | FFT / ビート → エフェクト連動 |
 | [06-output.md](06-output.md) | フルスクリーン / Syphon / NDI 出力・**出力品質の設計** |
 | [07-control-ui.md](07-control-ui.md) | GUI / MIDI / OSC・プリセット・**操作UI方針（UI Toolkit 本命）** |
+| [07b-operator-ui-brief.md](07b-operator-ui-brief.md) | **オペレータUI デザインブリーフ（#24・Claude Design 用・MadMapper 参照）** |
 | [08-roadmap.md](08-roadmap.md) | 実装ステップ（M0〜M8） |
 | [09-platform-comparison.md](09-platform-comparison.md) | 土台選定の経緯（業界マップ） |
 | [10-openframeworks-alternative.md](10-openframeworks-alternative.md) | oF 代替設計（参考） |
