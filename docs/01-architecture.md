@@ -69,6 +69,15 @@
 | `OutputManager` | Fullscreen / Syphon / NDI へ配信 | KlakSyphon, KlakNDI |
 | `ControlHub` | UI/MIDI/OSC を受けてパラメータを一元管理 | Minis, OscJack, ScriptableObject |
 | `Preset`(SO) | シーン設定の保存/読込 | ScriptableObject / JSON |
+| `AppMode` | （将来・M11）準備 Edit / 本番 Live のモード状態。本番は構成固定・値のみ操作 | — |
+| `SurfaceManager` | （将来・M11）複数 Input Surface＋Output Surface を管理。`Compositor` warp を surface 単位に | `Compositor` |
+| `Timeline` | （将来・M12/13）マルチトラック（映像/音声）の時間軸・再生ヘッド・クリップ配置 | `SourceVideo`/`track.json` 整合 |
+| `AudioMixer`/`AudioTrack` | （将来・M13）音声トラックの内部再生＋ミックス（fade/mute/音量）。解析は最終ミックス | AudioSource / AudioListener |
+
+> **AV ショー化の拡張（M10〜M13・段階的・2026-06-30）**: 上表の `AppMode`/`SurfaceManager`/`Timeline`/
+> `AudioMixer` は「カメラ埋め込み VJ」→「タイムライン＋音声ミックスの AV ショー・ツール」拡張ぶん。
+> **コア（M0〜M8）完成後**に積む。`EffectBase` には範囲指定 **target（Global / Surface[id]）** を追加（範囲別適用）。
+> `OutputManager` は**出力変形（Output Surface）**を持つ（旧 B4 出力段コーナーピンを内包）。仕様＝`07b`、決定＝`11` B9。
 
 > **四隅供給の抽象化（重要な設計判断・2026-06）**: 旧 `Tracker` は `ICornerSource` に一般化。
 > ベース動画は事前固定なので、初期は **`BakedCornerSource`（オフラインで焼いた `track.json` を読むだけ）**
