@@ -40,6 +40,7 @@ RewriteRealityProject/        ← git repo ルート
 | `docs/05-audio-reactive.md` | FFT/ビート → エフェクト連動 |
 | `docs/06-output.md` | フルスクリーン/Syphon/NDI 出力 |
 | `docs/07-control-ui.md` | GUI/MIDI/OSC・プリセット |
+| `docs/07b-operator-ui-brief.md` | オペレータUI デザインブリーフ（#24・Claude Design 用・MadMapper 参照・正本） |
 | `docs/08-roadmap.md` | 実装ステップ（M0〜M8） |
 | `docs/09-platform-comparison.md` | 土台選定の経緯（業界マップ） |
 | `docs/10-openframeworks-alternative.md` | oF 代替設計（参考） |

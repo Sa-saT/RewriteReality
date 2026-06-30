@@ -34,7 +34,8 @@ public class Preset : ScriptableObject {
 - 要点: 暖色ダーク基調 / ブランド色は **Live Amber 1色（希少）**・選択は別系統の Blue /
   値・座標・OSC は **JetBrains Mono** / 奥行きはヘアラインのみ（影なし） /
   Cursor のタイムライン5パステルを **6パイプライン段（Source/Tracking/FX/Audio/Output/Scene）の状態ピル**へ転用。
-- レイアウトは下部「ページタブ」＋中央 preview＋左右/下ドックの制御卓構成（`DESIGN.md` の Console Layout）。
+- レイアウトは Console Layout（上部バー＋左右ドック＋中央 preview）。**下部＝マルチトラック・タイムライン**、
+  下端にページタブ＋準備/本番モード切替（AV ショー化拡張・`11` B9）。**詳細な操作UI仕様は [`07b-operator-ui-brief.md`](07b-operator-ui-brief.md) が正本**。
 
 ## 2. MIDI（Minis / Keijiro・新 Input System）
 
