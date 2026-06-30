@@ -62,7 +62,7 @@
 | `LiveCvCornerSource` | 実行時 ArUco 検出で四隅を返す（**将来オプション**） | OpenCvSharp(Aruco), AsyncGPUReadback |
 | `Compositor` | 背景＋カメラを四隅メッシュで合成し 1 枚の RT に。四隅は `ICornerSource` 経由 | Material/Shader, CommandBuffer |
 | `IDepthSource`(IF) | （任意）深度マップを供給。無ければ深度エフェクトを無効化 | — |
-| `RcamDepthSource` | （将来）iPhone LiDAR の色＋深度を NDI-in で受信し供給 | KlakNDI / Rcam3 方式 |
+| `DepthCameraSource` | （将来）深度カメラ(Orbbec/RealSense等)の色＋深度を USB直結SDK or NDI で受信し供給 | 各社 SDK / (任意)KlakNDI |
 | `EffectChain` | エフェクトを順に適用するパイプライン | `EffectBase` |
 | `EffectBase`(抽象) | `Apply(src, dst, audio, params)` の共通 IF | Material + Graphics.Blit |
 | `AudioAnalyzer` | FFT・ビート・帯域別エネルギー算出 | GetSpectrumData / Microphone |

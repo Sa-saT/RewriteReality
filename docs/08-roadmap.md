@@ -60,13 +60,13 @@
 - [ ] （任意）KlakHap で HAP 動画の GPU デコード導入（高解像度ベース動画時）
 - [ ] （任意）Unity Recorder で録画、Windows 対応(KlakSpout) 検討
 
-## M9.（将来オプション）iPhone LiDAR 深度レイヤー
+## M9.（将来オプション）深度レイヤー（深度カメラ）
 - [ ] `IDepthSource`（任意・差し替え可能）を定義。深度が無ければ深度エフェクトは無効、コア無改修
-- [ ] `RcamDepthSource`: Rcam3 Controller(iPhone, ARKit sceneDepth/LiDAR) → NDI → Unity NDI-in
+- [ ] `DepthCameraSource`: 深度カメラ（Orbbec/RealSense 等）の色＋深度を USB 直結 SDK or NDI で受信し供給
 - [ ] 深度キー合成 / オクルージョン / 深度ドリブン VFX（`04` の第5系統）
-- **完了条件**: 深度付きカメラが NDI で届き、奥行きで合成/遮蔽/VFX が反応する
-- **メモ**: 新規依存は実質ゼロ（KlakNDI 流用）。参照実装は手元の `Rcam3`。限界 256×192・〜5m
-- **端末要件**: iPhone **12 Pro 以降**の Pro 系が下限、**理想は 15 Pro 以降**（11 Pro 以前・無印/Plus/SE は LiDAR 非搭載で不可）
+- **完了条件**: 色＋深度が届き、奥行きで合成/遮蔽/VFX が反応する
+- **メモ**: コア完成後（M8以降）の後付け。`IDepthSource` で差替可能ゆえ本体は無改修
+- **機材要件**: **深度カメラ（深度センサー）**。候補=Orbbec Femto（Apple Silicon SDK あり）/ Intel RealSense D4xx。旧案の iPhone Pro LiDAR（Rcam3 方式）は Pro 機がある場合の参考実装で**非前提**（iPad/iPhone Pro 縛りは撤回）。機種は着手時に選定
 
 ## 想定リスクと対策
 

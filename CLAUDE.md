@@ -77,8 +77,10 @@ RewriteRealityProject/        ← git repo ルート
      → 公式 NuGet に macOS arm64 ネイティブは無い。**contrib(aruco)込みの自前ビルドが本命**（`docs/12`）
   3. C# スケルトン生成（`docs/01` のモジュール構成）
 - 同じ親フォルダにある `My project`(HDRP/2022.3) は**本プロジェクトとは別物**。
-- `Rcam3`（Keijiro, iPhone LiDAR→NDI 深度 VFX）も別プロジェクトだが、**将来の深度レイヤー(M9)の参照実装**
-  として流用予定（`docs/04`・`08`・`11`・`12`）。新規依存は実質ゼロ（KlakNDI を流用）。
+- **将来の深度レイヤー(M9)＝深度カメラ（深度センサー・例: Orbbec Femto / RealSense）**を `IDepthSource`
+  （`DepthCameraSource`）で供給（`docs/04`・`08`・`11`・`12`）。**旧案の iPhone/iPad Pro LiDAR 前提は撤回**
+  （Pro 機なし・2026-06-30）。`Rcam3`（Keijiro, iPhone LiDAR→NDI）は Pro 機がある場合の参照実装に格下げ。
+  コアは深度無しで完成（M9 は後付け・本体無改修）。
 - **操作UI = UI Toolkit（#20 土台 完了・2026-06-28）**: `Assets/UI/`（RewriteReality.uss=DESIGN.md
   トークン→USS／OperatorShell.uxml／FxRow・ParamRow.uxml 行テンプレ）＋ `OperatorUI.cs`
   （ControlHub/EffectParameter 双方向バインド・preview=EffectChain.FinalTexture・FPS）。配線=

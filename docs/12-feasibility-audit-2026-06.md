@@ -49,16 +49,15 @@ fill-rate 二重消費に注意（解像度で調整）。
 3. KlakSyphon/KlakNDI は Keijiro scoped registry から最新（1.0.4 / 2.1.6）を入れ最小配信確認。
 4. 以降 `08-roadmap.md` の M1 へ。
 
-## 将来オプション: iPhone LiDAR 深度レイヤー（M9）
+## 将来オプション: 深度レイヤー（M9・深度カメラ）
 
 - **メリット**: 深度キー合成 / オクルージョン / 深度ドリブン VFX。Terminal Slam の ML 深度の役割をセンサーで。
-- **取得経路**: 深度は iPhone Pro 側、本体は macOS → **Rcam3 方式**（iPhone ARKit sceneDepth → NDI → Unity NDI-in）。
-- **依存**: 実質ゼロ。送受信は既存スタックの **KlakNDI** を流用。参照実装は手元の `Rcam3`（Keijiro, 固定カメラ向け）。
+- **取得経路**: **深度カメラ（深度センサー）**の色＋深度を ① USB 直結 SDK でテクスチャ化、または ② NDI 経由で受信。
+- **候補機材**: **Orbbec Femto Bolt/Mega**（Apple Silicon 向け SDK・Unity 連携あり＝macOS では本命）／**Intel RealSense D4xx**（arm64 は librealsense 自前ビルド要）。
 - **設計**: 任意・差し替え可能な `IDepthSource`。無ければ深度エフェクト無効、コア(M2〜M6)は無改修。
-- **限界**: 深度 約 256×192・〜5m・エッジノイズ、iPhone/iPad Pro 限定、転送遅延/同期の運用増。
-- **ハード要件（端末）**: LiDAR 搭載＝ **iPhone 12 Pro / Pro Max 以降の Pro 系が下限**（11 Pro 以前・無印/Plus/SE は LiDAR 非搭載で不可）。
-  **理想は 15 Pro 以降**（リアルタイム深度＋NDI エンコードに余裕）。iPad は Pro 2020(第4世代)以降。
-- **判定**: 🟢 後付け可能・新規依存ほぼ無し。**コア完成後（M8以降）のオプション**として導入。
+- **限界**: センサー依存（概ね 〜数 m・低解像度・エッジノイズ）、転送/同期の運用増。
+- **撤回事項**: 旧案の **iPhone/iPad Pro LiDAR 前提は撤回**（Pro 機なし）。**Rcam3 方式（iPhone ARKit sceneDepth → NDI）は Pro 機がある場合の参考実装**に格下げ。
+- **判定**: 🟢 後付け可能・コアは無改修。**コア完成後（M8以降）のオプション**として、機種選定の上で導入。
 
 ## 参照（一次情報）
 

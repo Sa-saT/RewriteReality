@@ -57,13 +57,14 @@
 - [ ] `.app` ビルド・素材同梱（StreamingAssets）・現場手順書
 - [ ] （任意）Unity Recorder で録画、Windows 対応(KlakSpout)
 
-### M9.（将来オプション）iPhone LiDAR 深度レイヤー
-> コア完成後に追加。新規依存は実質ゼロ（KlakNDI を流用）。参照実装は手元の `Rcam3`。
-> 端末要件: **iPhone 12 Pro 以降の Pro 系が下限、理想は 15 Pro 以降**（11 Pro 以前・無印/Plus/SE は不可）。
+### M9.（将来オプション）深度レイヤー（深度カメラ）
+> コア完成後に追加。`IDepthSource` で差替可能ゆえ本体は無改修。
+> 機材要件: **深度カメラ（深度センサー）**。候補=Orbbec Femto（Apple Silicon SDK あり）/ RealSense D4xx。
+> 旧案の iPhone Pro LiDAR（Rcam3 方式）は Pro 機がある場合の参考実装で**非前提**（iPad/iPhone Pro 縛りは撤回）。
 - [ ] `IDepthSource` IF を定義（無ければ深度エフェクト無効、コアは無改修）
-- [ ] `RcamDepthSource`: Rcam3 Controller(iPhone, ARKit sceneDepth) → NDI → Unity NDI-in で受信
+- [ ] `DepthCameraSource`: 深度カメラの色＋深度を USB 直結 SDK or NDI で受信して供給
 - [ ] 深度キー合成 / オクルージョン / 深度ドリブン VFX を `04` のチェーンへ
-- [ ] 限界（256×192・〜5m・エッジノイズ）と遅延/同期のフェイルセーフ確認
+- [ ] 限界（センサー依存・〜数 m・低解像度・エッジノイズ）と遅延/同期のフェイルセーフ確認
 
 ---
 
@@ -103,9 +104,11 @@
 - 初期4種: **RGB シフト / ブロックグリッチ / フィードバック / 色調**。
 - パーティクル（VFX Graph）は **M4 後半〜M8**。
 
-### B8. iPhone LiDAR 深度（将来）＝ ⑩【確定】
+### B8. 深度レイヤー（将来・深度カメラ）＝ ⑩【更新 2026-06-30】
 - **M9 のオプション**。コアは深度無しで完成させる。
-- 用途（深度キー合成/オクルージョン/深度ドリブン VFX）と固定カメラ前提は M9 着手時に確定。
+- 取得源は **深度カメラ（深度センサー・例: Orbbec Femto / RealSense）**。`IDepthSource` で差替可能。
+- 旧案の **iPhone/iPad Pro LiDAR 縛りは撤回**（Pro 機なし）。Rcam3 方式は Pro 機がある場合の参考実装に格下げ。
+- 用途（深度キー合成/オクルージョン/深度ドリブン VFX）と固定カメラ前提・機種は M9 着手時に確定。
 
 ---
 
