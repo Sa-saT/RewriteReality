@@ -218,4 +218,5 @@ C（両方）の具体形。**song** が本流として流れ続け、**short** 
 > SOURCE/TRACK/FX/AUDIO/OUTPUT/SCENES）。② TRACK ページは MadMapper 風の領域マッピング
 > （左 Surface 一覧＋中央 Input/Output 分割キャンバス＝N×M 制御点をドラッグしてメッシュワープ＋右 per-surface プロパティ）。
 > ③ OUTPUT は**出力映像自体も MadMapper 風に変形**（メッシュ/コーナーピン）。
-> ブランド色は希少な Amber、選択は Blue、数値は等幅。影は使わずヘアラインで奥行き。HTML/CSS（flex・grid 不使用）で。
+> ブランド色は希少な Amber、選択は Blue、数値は等幅。影は使わずヘアラインで奥行き。
+> レイアウトは **flexbox で**（UI Toolkit の USS は **CSS grid 非対応**なので grid は使わない）。HTML/CSS で。
