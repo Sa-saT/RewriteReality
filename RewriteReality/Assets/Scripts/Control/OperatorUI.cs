@@ -110,7 +110,16 @@ namespace RewriteReality
 
         void LateUpdate()
         {
-            if (!_built || _hub == null) return;
+            // UIDocument が rootVisualElement を構築するタイミングは OnEnable より後になり得るため、
+            // OnEnable の初回 BuildShell が空振り（_root 未構築）でも、_built になるまで毎フレーム再試行する。
+            if (!_built) { BuildShell(); if (!_built) return; }
+
+            // preview / fps は ControlHub 非依存で常に更新する
+            // （動画プレビュー確認が ControlHub の配線に依存しないよう堅牢化）。
+            UpdatePreview();
+            UpdateFps();
+
+            if (_hub == null) return; // 以降（FX 一覧 / inspector）は ControlHub が必要
 
             // FX 一覧はエフェクト数が変わった時だけ再構築（毎フレーム new を避ける）
             if (_hub.Count != _builtEffectCount) RebuildFxList();
@@ -119,8 +128,6 @@ namespace RewriteReality
 
             SyncFxRows();
             SyncParamRows();
-            UpdatePreview();
-            UpdateFps();
         }
 
         // -------------------------------------------------- preview / fps
