@@ -105,6 +105,13 @@ RewriteRealityProject/        ← git repo ルート
     **#25 M10 出力変形＝バックエンド実装**（`OutputWarp`＋`OutputManager` 配線・既定OFF素通し・射影数学は `WarpMath` を
     `Compositor` と共有）。**ビルド成功＝Compositor の WarpMath リファクタは無回帰**を確認。OutputWarp の出力変形“見た目”は
     未検証（scene に OutputWarp を配線＋ON で確認）。編集UIは #22。
+    **#26 M11＝バックエンド実装（2026-07-01）**：`AppMode`（準備 Edit/本番 Live・`GuardStructuralEdit` で構成ロック）、
+    `SurfaceManager`＋`Surface`（複数 Input Surface・各面が追従四隅＋多pin warp＋content＋opacity を保持）、
+    `Compositor` に多surface合成経路を追加（`DrawContent` に共通化・従来の単一 surface 経路は温存）、
+    `EffectBase.scope`(Global/Surface)＋`targetSurfaceId` と `EffectChain.Process`/`ProcessSurface` で範囲別適用。
+    `Manager` は `SurfaceManager` 配置時のみ多surface経路・未配置なら従来経路にフォールバック（**非破壊**）。
+    warp グリッド生成は `WarpMath.FillRegularGrid` に統一（Compositor/Surface/OutputWarp）。
+    **Unityコンパイル/シーン配線は未検証**（シーンに SurfaceManager 配置＋surface 追加は #22 で）。UI は #22。
 
 ## 作業上の注意
 

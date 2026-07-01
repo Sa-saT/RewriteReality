@@ -65,20 +65,24 @@
 | `OutputWarp` | （M10）finalRT 全体を四隅キーストーン＋多pin メッシュで出力変形（既定OFF=素通し） | CornerPin shader / `WarpMath` |
 | `IDepthSource`(IF) | （任意）深度マップを供給。無ければ深度エフェクトを無効化 | — |
 | `DepthCameraSource` | （将来）深度カメラ(Orbbec/RealSense等)の色＋深度を USB直結SDK or NDI で受信し供給 | 各社 SDK / (任意)KlakNDI |
-| `EffectChain` | エフェクトを順に適用するパイプライン | `EffectBase` |
-| `EffectBase`(抽象) | `Apply(src, dst, audio, params)` の共通 IF | Material + Graphics.Blit |
+| `EffectChain` | エフェクトを順に適用。範囲別に `Process`(Global=finalRT) / `ProcessSurface`(Surface単位) | `EffectBase` |
+| `EffectBase`(抽象) | `Apply(src, dst, audio)` の共通 IF＋範囲 `scope`(Global/Surface)＋`targetSurfaceId`（M11） | Material + Graphics.Blit |
 | `AudioAnalyzer` | FFT・ビート・帯域別エネルギー算出 | GetSpectrumData / Microphone |
 | `OutputManager` | Fullscreen / Syphon / NDI へ配信 | KlakSyphon, KlakNDI |
 | `ControlHub` | UI/MIDI/OSC を受けてパラメータを一元管理 | Minis, OscJack, ScriptableObject |
 | `Preset`(SO) | シーン設定の保存/読込 | ScriptableObject / JSON |
-| `AppMode` | （将来・M11）準備 Edit / 本番 Live のモード状態。本番は構成固定・値のみ操作 | — |
-| `SurfaceManager` | （将来・M11）複数 Input Surface＋Output Surface を管理。`Compositor` warp を surface 単位に | `Compositor` |
+| `AppMode` | （M11・実装済 backend）準備 Edit / 本番 Live のモード状態。本番は構成固定・`GuardStructuralEdit` でロック | — |
+| `SurfaceManager` | （M11・実装済 backend）複数 Input Surface（`Surface`）を管理。`Compositor` が surface 単位に合成 | `Compositor` / `AppMode` |
+| `Surface` | （M11・実装済）1埋め込み面の構成（追従四隅＋多pin warp＋content＋opacity）。warp API は `Compositor` と同規約 | `ICornerSource` / `WarpMath` |
 | `Timeline` | （将来・M12/13）マルチトラック（映像/音声）の時間軸・再生ヘッド・クリップ配置 | `SourceVideo`/`track.json` 整合 |
 | `AudioMixer`/`AudioTrack` | （将来・M13）音声トラックの内部再生＋ミックス（fade/mute/音量）。解析は最終ミックス | AudioSource / AudioListener |
 
-> **AV ショー化の拡張（M10〜M13・段階的・2026-06-30）**: 上表の `AppMode`/`SurfaceManager`/`Timeline`/
+> **AV ショー化の拡張（M10〜M13・段階的・2026-06-30）**: 上表の `AppMode`/`SurfaceManager`/`Surface`/`Timeline`/
 > `AudioMixer` は「カメラ埋め込み VJ」→「タイムライン＋音声ミックスの AV ショー・ツール」拡張ぶん。
-> **コア（M0〜M8）完成後**に積む。`EffectBase` には範囲指定 **target（Global / Surface[id]）** を追加（範囲別適用）。
+> **M10（`OutputWarp`）／M11 backend（`AppMode`/`SurfaceManager`/`Surface`＋`EffectBase.scope`）は実装済**
+> （2026-07-01）。`EffectBase` は範囲指定 **scope（Global / Surface）＋targetSurfaceId** を持ち、`EffectChain` が
+> `Process`(Global) / `ProcessSurface`(Surface) で範囲別適用。`Manager` は `SurfaceManager` 配置時のみ多surface経路、
+> 未配置なら従来の単一 surface 経路にフォールバック（非破壊）。UI（Surface一覧/IO分割）は #22。
 > `OutputManager` は**出力変形（Output Surface）**を持つ（旧 B4 出力段コーナーピンを内包）。仕様＝`07b`、決定＝`11` B9。
 
 > **四隅供給の抽象化（重要な設計判断・2026-06）**: 旧 `Tracker` は `ICornerSource` に一般化。

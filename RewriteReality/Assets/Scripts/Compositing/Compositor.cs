@@ -42,7 +42,7 @@ namespace RewriteReality
         public int WarpRows => _warpRows;
         public Vector2 GetWarpPoint(int i, int j) => _warpPoints[j * _warpCols + i];
         public void SetWarpPoint(int i, int j, Vector2 local) => _warpPoints[j * _warpCols + i] = local;
-        public void ResetWarp() { if (_warpPoints != null) FillRegular(_warpPoints, _warpCols, _warpRows); }
+        public void ResetWarp() { if (_warpPoints != null) WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows); }
         public void SetGridResolution(int cols, int rows)
         {
             _warpCols = Mathf.Max(2, cols);
@@ -69,35 +69,80 @@ namespace RewriteReality
         }
 
         /// <summary>
-        /// 背景とカメラを合成して内部の sceneRT を返す。RT/メッシュは使い回す（毎フレーム生成しない）。
+        /// 背景とカメラを合成して内部の sceneRT を返す（単一 surface・従来経路）。
+        /// RT/メッシュは使い回す（毎フレーム生成しない）。
         /// </summary>
         public RenderTexture Composite(Texture baseTex, Texture camTex, in Corners corners)
         {
             EnsureSceneRT(baseTex);
+            BlitBase(baseTex);
 
-            // 1) 背景を sceneRT へ
-            if (baseTex != null) Graphics.Blit(baseTex, _sceneRT);
-            else                 ClearSceneRT();
-
-            // 2) カメラをメッシュワープして上書き合成
             var mat = WarpMat;
             if (mat != null && camTex != null)
             {
-                EnsureGrid();
-                UpdateMesh(corners);
-                mat.SetTexture(MainTexID, camTex);
-
-                var prev = RenderTexture.active;
-                RenderTexture.active = _sceneRT;
-                GL.PushMatrix();
-                GL.LoadOrtho();          // 0..1 正規化空間（左下原点）→ sceneRT 全面
-                mat.SetPass(0);
-                Graphics.DrawMeshNow(_mesh, Matrix4x4.identity);
-                GL.PopMatrix();
-                RenderTexture.active = prev;
+                EnsureGrid(); // 組込み単一 surface の制御点を保証
+                DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat);
             }
-
             return _sceneRT;
+        }
+
+        /// <summary>
+        /// 複数 Input Surface を合成して sceneRT を返す（多surface対応・M11・<see cref="SurfaceManager"/> 駆動）。
+        /// 各 surface の content（現状 Camera=<paramref name="cameraTex"/>）を四隅＋メッシュワープしてベース上へ重ねる。
+        /// <paramref name="effectChain"/> があれば、その surface に割り当てた範囲エフェクトを content へ先に掛ける
+        /// （content が RenderTexture のときのみ・docs/07b §3.6）。従来の単一 Composite は温存。
+        /// </summary>
+        public RenderTexture Composite(Texture baseTex, SurfaceManager surfaces, Texture cameraTex,
+                                       double time, EffectChain effectChain, in AudioFeatures audio)
+        {
+            EnsureSceneRT(baseTex);
+            BlitBase(baseTex);
+
+            var mat = WarpMat;
+            if (mat != null && surfaces != null)
+            {
+                var list = surfaces.Surfaces;
+                for (int s = 0; s < list.Count; s++)
+                {
+                    var surf = list[s];
+                    if (surf == null || !surf.Enabled) continue;
+
+                    Texture content = surf.Content == Surface.ContentKind.Camera ? cameraTex : null;
+                    if (content == null) continue; // Video/None content は段階的（将来）
+
+                    // 範囲=Surface のエフェクトを content に先掛け（RenderTexture のときのみ）
+                    if (effectChain != null && content is RenderTexture crt && effectChain.HasSurfaceEffects(surf.Id))
+                        content = effectChain.ProcessSurface(crt, surf.Id, audio);
+
+                    var corners = surf.UpdateCorners(time);
+                    DrawContent(content, corners, surf.WarpPoints, surf.WarpCols, surf.WarpRows, mat);
+                }
+            }
+            return _sceneRT;
+        }
+
+        /// <summary>背景を sceneRT へ（無ければクリア）。</summary>
+        void BlitBase(Texture baseTex)
+        {
+            if (baseTex != null) Graphics.Blit(baseTex, _sceneRT);
+            else                 ClearSceneRT();
+        }
+
+        /// <summary>content を四隅＋多pin メッシュワープして sceneRT へ上書き描画する（surface 共通）。</summary>
+        void DrawContent(Texture content, in Corners corners, Vector2[] points, int cols, int rows, Material mat)
+        {
+            EnsureMeshTopology(cols, rows);
+            WriteMesh(corners, points, cols, rows);
+            mat.SetTexture(MainTexID, content);
+
+            var prev = RenderTexture.active;
+            RenderTexture.active = _sceneRT;
+            GL.PushMatrix();
+            GL.LoadOrtho();          // 0..1 正規化空間（左下原点）→ sceneRT 全面
+            mat.SetPass(0);
+            Graphics.DrawMeshNow(_mesh, Matrix4x4.identity);
+            GL.PopMatrix();
+            RenderTexture.active = prev;
         }
 
         void EnsureSceneRT(Texture reference)
@@ -111,7 +156,7 @@ namespace RewriteReality
             _sceneRT.Create();
         }
 
-        /// <summary>制御点グリッドとメッシュのインデックスを（解像度が変わった時だけ）構築する。</summary>
+        /// <summary>組込み単一 surface の制御点＋メッシュ位相を保証する（従来経路）。</summary>
         void EnsureGrid()
         {
             _warpCols = Mathf.Max(2, _warpCols);
@@ -122,10 +167,21 @@ namespace RewriteReality
             if (_warpPoints == null || _warpPoints.Length != need)
             {
                 _warpPoints = new Vector2[need];
-                FillRegular(_warpPoints, _warpCols, _warpRows);
+                WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
             }
 
-            if (_mesh != null && _builtCols == _warpCols && _builtRows == _warpRows) return;
+            EnsureMeshTopology(_warpCols, _warpRows);
+        }
+
+        /// <summary>
+        /// cols×rows のメッシュ位相（頂点数＋三角形インデックス）を構築する（解像度が変わった時だけ）。
+        /// surface ごとに解像度が異なる場合はこの切替時にだけ作り直す（同一なら再利用・GC 回避）。
+        /// </summary>
+        void EnsureMeshTopology(int cols, int rows)
+        {
+            cols = Mathf.Max(2, cols);
+            rows = Mathf.Max(2, rows);
+            if (_mesh != null && _builtCols == cols && _builtRows == rows) return;
 
             if (_mesh == null)
             {
@@ -134,21 +190,21 @@ namespace RewriteReality
             }
             _mesh.Clear();
 
-            int verts = _warpCols * _warpRows;
+            int verts = cols * rows;
             _verts.Clear(); _uvq.Clear();
             for (int k = 0; k < verts; k++) { _verts.Add(Vector3.zero); _uvq.Add(Vector3.zero); }
 
             // 三角形インデックス（セルごとに2枚）
-            int cells = (_warpCols - 1) * (_warpRows - 1);
+            int cells = (cols - 1) * (rows - 1);
             _tris = new int[cells * 6];
             int t = 0;
-            for (int j = 0; j < _warpRows - 1; j++)
+            for (int j = 0; j < rows - 1; j++)
             {
-                for (int i = 0; i < _warpCols - 1; i++)
+                for (int i = 0; i < cols - 1; i++)
                 {
-                    int v00 = j * _warpCols + i;
+                    int v00 = j * cols + i;
                     int v10 = v00 + 1;
-                    int v01 = v00 + _warpCols;
+                    int v01 = v00 + cols;
                     int v11 = v01 + 1;
                     _tris[t++] = v00; _tris[t++] = v10; _tris[t++] = v11;
                     _tris[t++] = v00; _tris[t++] = v11; _tris[t++] = v01;
@@ -159,20 +215,19 @@ namespace RewriteReality
             _mesh.SetUVs(0, _uvq);
             _mesh.SetTriangles(_tris, 0);
             _mesh.bounds = new Bounds(new Vector3(0.5f, 0.5f, 0f), new Vector3(10f, 10f, 10f));
-            _builtCols = _warpCols;
-            _builtRows = _warpRows;
+            _builtCols = cols;
+            _builtRows = rows;
         }
 
         /// <summary>
-        /// Corners から H を解き、各制御点を「手動ワープ → H 射影」して頂点位置と射影補間 uvq を更新する。
-        /// camera UV は規則グリッド（手動ワープに依らない）。q は H の同次分母 w'。
+        /// Corners から H を解き、各制御点を「手動ワープ → H 射影」して頂点位置と射影補間 uvq を書き込む。
+        /// camera UV は規則グリッド（手動ワープに依らない）。q は H の同次分母 w'。位相は事前に EnsureMeshTopology。
         /// </summary>
-        void UpdateMesh(in Corners c)
+        void WriteMesh(in Corners c, Vector2[] points, int cols, int rows)
         {
             // 単位正方形→四隅 の射影変換（Heckbert）。数学は WarpMath に共通化（OutputWarp と共有）。
             var hmg = WarpMath.Solve(c.BottomLeft, c.BottomRight, c.TopRight, c.TopLeft);
 
-            int cols = _warpCols, rows = _warpRows;
             float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
 
             for (int j = 0; j < rows; j++)
@@ -183,7 +238,7 @@ namespace RewriteReality
                     float gu = i * invCx;          // camera UV（規則グリッド）
                     float gv = j * invCy;
 
-                    Vector2 p = _warpPoints[idx];   // 手動ワープ後のローカル座標
+                    Vector2 p = points[idx];        // 手動ワープ後のローカル座標
                     WarpMath.Project(hmg, p.x, p.y, out float xp, out float yp, out float wp);
 
                     _verts[idx] = new Vector3(xp, yp, 0f);            // スクリーン位置（0..1）
@@ -193,14 +248,6 @@ namespace RewriteReality
 
             _mesh.SetVertices(_verts);
             _mesh.SetUVs(0, _uvq);
-        }
-
-        static void FillRegular(Vector2[] pts, int cols, int rows)
-        {
-            float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
-            for (int j = 0; j < rows; j++)
-                for (int i = 0; i < cols; i++)
-                    pts[j * cols + i] = new Vector2(i * invCx, j * invCy);
         }
 
         void ClearSceneRT()

@@ -73,7 +73,7 @@ namespace RewriteReality
         {
             _bl = new Vector2(0f, 0f); _br = new Vector2(1f, 0f);
             _tr = new Vector2(1f, 1f); _tl = new Vector2(0f, 1f);
-            if (_warpPoints != null) FillRegular(_warpPoints, _warpCols, _warpRows);
+            if (_warpPoints != null) WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
         }
 
         public void SetGridResolution(int cols, int rows)
@@ -151,7 +151,7 @@ namespace RewriteReality
             if (_warpPoints == null || _warpPoints.Length != need)
             {
                 _warpPoints = new Vector2[need];
-                FillRegular(_warpPoints, _warpCols, _warpRows);
+                WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
             }
 
             if (_mesh != null && _builtCols == _warpCols && _builtRows == _warpRows) return;
@@ -220,14 +220,6 @@ namespace RewriteReality
 
             _mesh.SetVertices(_verts);
             _mesh.SetUVs(0, _uvq);
-        }
-
-        static void FillRegular(Vector2[] pts, int cols, int rows)
-        {
-            float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
-            for (int j = 0; j < rows; j++)
-                for (int i = 0; i < cols; i++)
-                    pts[j * cols + i] = new Vector2(i * invCx, j * invCy);
         }
 
         void OnDestroy()

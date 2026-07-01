@@ -4,6 +4,13 @@ using UnityEngine;
 namespace RewriteReality
 {
     /// <summary>
+    /// エフェクトの適用範囲（M11・準備 Edit で割当・docs/07b §3.6）。
+    /// <see cref="Global"/>=合成後の画面全体（既定・現行の finalRT パス）。
+    /// <see cref="Surface"/>=指定 surface の埋め込み内容だけに掛ける（範囲別適用・段階的）。
+    /// </summary>
+    public enum EffectScope { Global, Surface }
+
+    /// <summary>
     /// エフェクトの共通抽象基盤。「クラスを1つ足すだけ」で新エフェクトを追加できる拡張の肝。
     /// 有効/無効は MonoBehaviour 標準の <see cref="Behaviour.enabled"/> を使う。
     /// 調整可能パラメータは <see cref="Parameters"/> で自己記述し、操作層（ControlHub）が一律に扱う。
@@ -13,6 +20,13 @@ namespace RewriteReality
         [Range(0f, 1f)]
         [Tooltip("ドライ/ウェットの混合比（1=エフェクト全適用）")]
         public float mix = 1f;
+
+        [Header("適用範囲（M11・準備 Edit で割当）")]
+        [Tooltip("Global=合成後の画面全体／Surface=指定 surface のみ（範囲別適用・docs/07b §3.6）")]
+        public EffectScope scope = EffectScope.Global;
+
+        [Tooltip("scope=Surface のとき対象にする Surface の Id")]
+        public int targetSurfaceId = 0;
 
         /// <summary>専用シェーダのマテリアル（派生クラスが用意）。</summary>
         protected Material mat;

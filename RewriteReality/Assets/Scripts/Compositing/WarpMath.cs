@@ -61,5 +61,18 @@ namespace RewriteReality
             outY = yp / wp;
             w = wp;
         }
+
+        /// <summary>
+        /// N×M 制御点グリッドを等間隔（ワープ無し）で埋める。row-major（j*cols+i）、各点は [0,1]²。
+        /// <see cref="Compositor"/> と <see cref="Surface"/> が同じ規約でグリッドを生成するため共有する。
+        /// </summary>
+        public static void FillRegularGrid(Vector2[] pts, int cols, int rows)
+        {
+            if (pts == null || cols < 2 || rows < 2) return;
+            float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
+            for (int j = 0; j < rows; j++)
+                for (int i = 0; i < cols; i++)
+                    pts[j * cols + i] = new Vector2(i * invCx, j * invCy);
+        }
     }
 }
