@@ -730,6 +730,67 @@
 .rr-badge--selection { background-color: rgba(0, 0, 0, 0); color: var(--rr-selection); border-color: var(--rr-selection); }
 .rr-badge--on { color: var(--rr-on-primary); background-color: var(--rr-live); }
 
+/* ============================================================ 出力ルート（上バー OUTPUT メニュー＋要約） */
+.rr-output {
+    flex-direction: row;
+    align-items: center;
+}
+.rr-output-btn {
+    height: 24px;
+    padding-left: 4px;
+    padding-right: 4px;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--rr-body);
+    border-width: 0;
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+.rr-output-btn:hover { color: var(--rr-text); }
+/* 出力ルートの状態チップ（Fu/Sy/ND・有効=緑／無効=灰・クリックで切替） */
+.rr-out-chip {
+    height: 20px;
+    margin-left: 8px;
+    padding-left: 0;
+    padding-right: 0;
+    border-width: 0;
+    font-size: 11px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    background-color: rgba(0, 0, 0, 0);
+}
+.rr-out-chip--on  { color: var(--rr-live); }
+.rr-out-chip--off { color: var(--rr-muted); }
+.rr-out-chip:disabled { opacity: 0.4; }
+
+/* OUTPUT ルート メニュー（ポップオーバー・絶対配置） */
+.rr-output-menu {
+    position: absolute;
+    top: 50px;
+    right: 12px;
+    width: 180px;
+    background-color: var(--rr-surface-raised);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 6px;
+    padding: 8px;
+}
+.rr-output-menu__title {
+    color: var(--rr-muted);
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin-bottom: 6px;
+}
+.rr-output-menu__row {
+    height: 26px;
+    flex-direction: row;
+    align-items: center;
+}
+.rr-output-menu__label {
+    margin-left: 8px;
+    color: var(--rr-body);
+    font-size: 12px;
+}
+
 .rr-hint {
     color: var(--rr-muted-soft);
     font-size: 11px;

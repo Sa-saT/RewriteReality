@@ -26,10 +26,12 @@
                 <ui:Label text="01:12.40" class="rr-time rr-mono" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
-            <ui:VisualElement class="rr-status">
-                <ui:Label name="rr-status-syphon" text="SYPHON" class="rr-badge rr-badge--live" />
-                <ui:Label name="rr-status-ndi" text="NDI" class="rr-badge rr-badge--live" />
-                <ui:Label text="FULL" class="rr-badge" />
+            <!-- 出力ルート: OUTPUT▾ メニュー＋要約（有効な方式名=緑／無し=CONNECTING 灰） -->
+            <ui:VisualElement class="rr-output">
+                <ui:Button name="rr-output-btn" text="OUTPUT ▾" class="rr-output-btn" />
+                <ui:Button name="rr-out-chip-fs" text="Fu" class="rr-out-chip rr-out-chip--off" />
+                <ui:Button name="rr-out-chip-syphon" text="Sy" class="rr-out-chip rr-out-chip--off" />
+                <ui:Button name="rr-out-chip-ndi" text="ND" class="rr-out-chip rr-out-chip--off" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
@@ -59,13 +61,6 @@
                     <ui:Label text="Projector A" class="rr-list-label" />
                     <ui:Label text="6×4" class="rr-list-meta rr-mono" />
                 </ui:VisualElement>
-
-                <!-- FX チェーン（OperatorUI が rr-fx-list を生成） -->
-                <ui:VisualElement class="rr-section-label">
-                    <ui:Label text="FX CHAIN" class="rr-section-label__text" />
-                    <ui:Label text="FX" class="rr-stage-pill rr-stage-pill--effects" />
-                </ui:VisualElement>
-                <ui:ScrollView name="rr-fx-list" class="rr-fx-list" />
 
                 <ui:VisualElement class="rr-section-label">
                     <ui:Label text="INPUT" class="rr-section-label__text" />
@@ -199,11 +194,15 @@
 
             </ui:VisualElement>
 
-            <!-- Right dock (inspector) -->
+            <!-- Right dock: FX チェーン（上）＋ Inspector（下）＝Unity 風の一覧＋プロパティ -->
             <ui:VisualElement name="rr-dock-right" class="rr-dock rr-dock-right">
+                <ui:VisualElement class="rr-section-label">
+                    <ui:Label text="FX CHAIN" class="rr-section-label__text" />
+                </ui:VisualElement>
+                <ui:ScrollView name="rr-fx-list" class="rr-fx-list" />
+
                 <ui:VisualElement class="rr-inspector-title-row">
                     <ui:Label name="rr-inspector-title" text="Inspector" />
-                    <ui:Label text="SURF 1" class="rr-badge rr-badge--selection" />
                 </ui:VisualElement>
                 <ui:ScrollView name="rr-inspector" class="rr-inspector" />
             </ui:VisualElement>
@@ -315,6 +314,23 @@
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
             <ui:Label text="frame 4.2ms · gc 0.3ms" class="rr-perf rr-mono" />
+        </ui:VisualElement>
+
+        <!-- OUTPUT ルート メニュー（OUTPUT▾ で開閉・絶対配置で上バー右下に出す・OperatorUI が配線） -->
+        <ui:VisualElement name="rr-output-menu" class="rr-output-menu" style="display: none;">
+            <ui:Label text="OUTPUT ROUTES" class="rr-output-menu__title" />
+            <ui:VisualElement class="rr-output-menu__row">
+                <ui:Toggle name="rr-out-fs" class="rr-fx-toggle" />
+                <ui:Label text="Fullscreen" class="rr-output-menu__label" />
+            </ui:VisualElement>
+            <ui:VisualElement class="rr-output-menu__row">
+                <ui:Toggle name="rr-out-syphon" class="rr-fx-toggle" />
+                <ui:Label text="Syphon" class="rr-output-menu__label" />
+            </ui:VisualElement>
+            <ui:VisualElement class="rr-output-menu__row">
+                <ui:Toggle name="rr-out-ndi" class="rr-fx-toggle" />
+                <ui:Label text="NDI" class="rr-output-menu__label" />
+            </ui:VisualElement>
         </ui:VisualElement>
 
     </ui:VisualElement>

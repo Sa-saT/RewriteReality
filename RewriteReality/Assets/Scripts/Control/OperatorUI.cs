@@ -19,6 +19,8 @@ namespace RewriteReality
         [SerializeField] ControlHub _hub;
         [Tooltip("preview に映す最終 RT の供給元（未指定なら自動取得）")]
         [SerializeField] EffectChain _chain;
+        [Tooltip("上バー OUTPUT メニューの対象（未指定なら自動取得）")]
+        [SerializeField] OutputManager _output;
 
         [Header("Assets (UIDocument に未設定なら使うフォールバック)")]
         [SerializeField] VisualTreeAsset _shellUxml;
@@ -44,6 +46,12 @@ namespace RewriteReality
         ScrollView _inspector;
         bool _built;
 
+        // 上バー OUTPUT メニュー＋状態チップ（Fu/Sy/ND）
+        Button _outputBtn;
+        VisualElement _outputMenu;
+        Button _chipFs, _chipSyphon, _chipNdi;   // OUTPUT 右の状態チップ（クリックで切替）
+        Toggle _outFs, _outSyphon, _outNdi;       // メニュー内トグル
+
         // FX 行・パラメータ行のバインド保持（再構築判定/毎フレーム同期用）
         readonly List<FxRow> _fxRows = new List<FxRow>();
         readonly List<ParamRow> _paramRows = new List<ParamRow>();
@@ -58,6 +66,7 @@ namespace RewriteReality
         {
             if (_hub == null) _hub = FindFirstObjectByType<ControlHub>();
             if (_chain == null) _chain = FindFirstObjectByType<EffectChain>();
+            if (_output == null) _output = FindFirstObjectByType<OutputManager>();
         }
 
         void OnEnable()
@@ -92,10 +101,91 @@ namespace RewriteReality
                 return;
             }
 
+            BuildOutputControls();
+
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
             _inspectorEffect = -1;
             ApplyVisibility();
+        }
+
+        // -------------------------------------------------- output routes (top bar)
+        // ルート番号: 0=Fullscreen, 1=Syphon, 2=NDI
+        void BuildOutputControls()
+        {
+            _outputBtn = _root.Q<Button>("rr-output-btn");
+            _outputMenu = _root.Q<VisualElement>("rr-output-menu");
+            _chipFs = _root.Q<Button>("rr-out-chip-fs");
+            _chipSyphon = _root.Q<Button>("rr-out-chip-syphon");
+            _chipNdi = _root.Q<Button>("rr-out-chip-ndi");
+            _outFs = _root.Q<Toggle>("rr-out-fs");
+            _outSyphon = _root.Q<Toggle>("rr-out-syphon");
+            _outNdi = _root.Q<Toggle>("rr-out-ndi");
+
+            if (_outputMenu != null) _outputMenu.style.display = DisplayStyle.None;
+            if (_outputBtn != null) _outputBtn.clicked += ToggleOutputMenu;
+
+            // チップ・メニュートグルの両方から同じルートを切替（状態は共有）
+            if (_chipFs != null)     _chipFs.clicked     += () => ToggleRoute(0);
+            if (_chipSyphon != null) _chipSyphon.clicked += () => ToggleRoute(1);
+            if (_chipNdi != null)    _chipNdi.clicked    += () => ToggleRoute(2);
+            if (_outFs != null)     _outFs.RegisterValueChangedCallback(evt => SetRoute(0, evt.newValue));
+            if (_outSyphon != null) _outSyphon.RegisterValueChangedCallback(evt => SetRoute(1, evt.newValue));
+            if (_outNdi != null)    _outNdi.RegisterValueChangedCallback(evt => SetRoute(2, evt.newValue));
+
+            RefreshOutputStatus();
+        }
+
+        void ToggleOutputMenu()
+        {
+            if (_outputMenu == null) return;
+            bool show = _outputMenu.style.display == DisplayStyle.None;
+            _outputMenu.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        bool RouteAvailable(int route) => _output != null &&
+            (route == 0 ? _output.HasFullscreen : route == 1 ? _output.HasSyphon : _output.HasNdi);
+
+        bool RouteEnabled(int route) => _output != null &&
+            (route == 0 ? _output.FullscreenEnabled : route == 1 ? _output.SyphonEnabled : _output.NdiEnabled);
+
+        void ToggleRoute(int route)
+        {
+            if (!RouteAvailable(route)) return;
+            SetRoute(route, !RouteEnabled(route));
+        }
+
+        void SetRoute(int route, bool on)
+        {
+            if (_output == null) return;
+            if (route == 0) _output.FullscreenEnabled = on;
+            else if (route == 1) _output.SyphonEnabled = on;
+            else _output.NdiEnabled = on;
+            RefreshOutputStatus();
+        }
+
+        void RefreshOutputStatus()
+        {
+            ApplyRoute(_chipFs, _outFs, 0);
+            ApplyRoute(_chipSyphon, _outSyphon, 1);
+            ApplyRoute(_chipNdi, _outNdi, 2);
+        }
+
+        void ApplyRoute(Button chip, Toggle t, int route)
+        {
+            bool available = RouteAvailable(route);
+            bool on = available && RouteEnabled(route);
+            if (chip != null)
+            {
+                chip.SetEnabled(available);
+                EnableClass(chip, "rr-out-chip--on", on);
+                EnableClass(chip, "rr-out-chip--off", !on);
+            }
+            if (t != null)
+            {
+                t.SetEnabled(available);
+                t.SetValueWithoutNotify(on);
+            }
         }
 
         void Update()

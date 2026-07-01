@@ -25,7 +25,39 @@ namespace RewriteReality
         [Tooltip("出力段のメッシュ/コーナーピン変形。未設定 or 無効なら finalRT を素通し。")]
         [SerializeField] OutputWarp _outputWarp;
 
+        [Header("出力ルート ON/OFF（UI から切替・上バー OUTPUT メニュー）")]
+        [SerializeField] bool _fullscreenEnabled = true;
+        [SerializeField] bool _syphonEnabled = true;
+        [SerializeField] bool _ndiEnabled = true;
+
         RenderTexture _current;
+
+        // ---- ルートの利用可否（コンポーネントが割り当てられているか）----
+        public bool HasFullscreen => _fullscreenTarget != null;
+        public bool HasSyphon     => _syphonServer != null;
+        public bool HasNdi        => _ndiSender != null;
+
+        // ---- ルートの ON/OFF（UI トグル）。実際に配信を止める/再開する ----
+        public bool FullscreenEnabled { get => _fullscreenEnabled; set => _fullscreenEnabled = value; }
+        public bool SyphonEnabled     { get => _syphonEnabled;     set => _syphonEnabled = value; }
+        public bool NdiEnabled        { get => _ndiEnabled;        set => _ndiEnabled = value; }
+
+        /// <summary>有効なルート名の要約（例 "Full · Syphon · NDI"）。1つも無ければ空文字。</summary>
+        public string ActiveRoutesSummary()
+        {
+            var sb = _sb;
+            sb.Clear();
+            if (HasFullscreen && _fullscreenEnabled) Append(sb, "Full");
+            if (HasSyphon && _syphonEnabled)         Append(sb, "Syphon");
+            if (HasNdi && _ndiEnabled)               Append(sb, "NDI");
+            return sb.ToString();
+        }
+        static readonly System.Text.StringBuilder _sb = new System.Text.StringBuilder(32);
+        static void Append(System.Text.StringBuilder sb, string s)
+        {
+            if (sb.Length > 0) sb.Append(" · ");
+            sb.Append(s);
+        }
 
         /// <summary>毎フレーム、最終 RT を各出力へ反映する。</summary>
         public void Publish(RenderTexture finalRT)
@@ -40,29 +72,39 @@ namespace RewriteReality
             // 呼ばれるたびに TeardownPlugin()（Metal IOSurface テクスチャを破棄→再生成）する。
             // そのため毎フレーム代入すると外部 Metal テクスチャを毎フレーム作り直し、
             // レンダースレッドと競合して segv（Unity/OBS ごとクラッシュ）する。
-            // → 値が実際に変わった時だけ代入すること。Capture Method=Texture は Inspector の
-            //   serialized 値で固定し（OnValidate も Texture を維持）、ここでは保険的に補正する。
+            // → 値が実際に変わった時だけ代入すること。ルート OFF 時はコンポーネントを無効化して配信停止。
 
-            // 1) フルスクリーン表示（参照が変わった時だけ）
-            if (_fullscreenTarget != null && outRT != _current)
-                _fullscreenTarget.texture = outRT;
-
-            // 2) Syphon サーバ（setter は teardown を伴うので差分時のみ）
-            if (_syphonServer != null)
+            // 1) フルスクリーン表示（OFF なら texture を外す・参照が変わった時だけ代入）
+            if (_fullscreenTarget != null)
             {
-                if (_syphonServer.CaptureMethod != Klak.Syphon.CaptureMethod.Texture)
-                    _syphonServer.CaptureMethod = Klak.Syphon.CaptureMethod.Texture;
-                if (_syphonServer.SourceTexture != outRT)
-                    _syphonServer.SourceTexture = outRT;
+                var fsTex = _fullscreenEnabled ? outRT : null;
+                if (_fullscreenTarget.texture != fsTex) _fullscreenTarget.texture = fsTex;
             }
 
-            // 3) NDI センダー（同様に差分時のみ）
+            // 2) Syphon サーバ（OFF ならコンポーネント無効化＝配信停止。ON 時のみ差分代入）
+            if (_syphonServer != null)
+            {
+                if (_syphonServer.enabled != _syphonEnabled) _syphonServer.enabled = _syphonEnabled;
+                if (_syphonEnabled)
+                {
+                    if (_syphonServer.CaptureMethod != Klak.Syphon.CaptureMethod.Texture)
+                        _syphonServer.CaptureMethod = Klak.Syphon.CaptureMethod.Texture;
+                    if (_syphonServer.SourceTexture != outRT)
+                        _syphonServer.SourceTexture = outRT;
+                }
+            }
+
+            // 3) NDI センダー（同様に OFF で無効化・ON 時のみ差分代入）
             if (_ndiSender != null)
             {
-                if (_ndiSender.captureMethod != Klak.Ndi.CaptureMethod.Texture)
-                    _ndiSender.captureMethod = Klak.Ndi.CaptureMethod.Texture;
-                if (_ndiSender.sourceTexture != outRT)
-                    _ndiSender.sourceTexture = outRT;
+                if (_ndiSender.enabled != _ndiEnabled) _ndiSender.enabled = _ndiEnabled;
+                if (_ndiEnabled)
+                {
+                    if (_ndiSender.captureMethod != Klak.Ndi.CaptureMethod.Texture)
+                        _ndiSender.captureMethod = Klak.Ndi.CaptureMethod.Texture;
+                    if (_ndiSender.sourceTexture != outRT)
+                        _ndiSender.sourceTexture = outRT;
+                }
             }
 
             _current = outRT;
