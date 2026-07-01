@@ -2,57 +2,319 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <Style src="RewriteReality.uss" />
     <!--
-      RewriteReality オペレータシェル（DESIGN.md Console Layout）。
-      動的な中身（FX 一覧・inspector パラメータ行・preview・FPS）は OperatorUI.cs が
-      名前で取得して流し込む。ここは静的な骨格と命名済みコンテナのみ。
+      RewriteReality オペレータ・コンソール（Claude Design "RewriteReality Design System" /
+      ui_kits/operator/index.html を UXML/USS へ移植・#24）。
+      静的スキャフォルド＋既存 OperatorUI.cs のバインドを維持する構成。
+      OperatorUI が name で引く要素（rr-root / rr-preview / rr-fps / rr-inspector-title /
+      rr-inspector / rr-fx-list）は必ず残す。インタラクション（warp ドラッグ=#21・surface CRUD=#22・
+      timeline 再生=#27・mode/page 切替=各担当）は後続タスク。ビジュアル最終調整は UI Builder で行う。
     -->
     <ui:VisualElement name="rr-root" class="rr-theme rr-root">
 
-        <!-- top-bar: ブランド / 出力状態 / FPS -->
+        <!-- ============================================ Top bar -->
         <ui:VisualElement name="rr-top-bar" class="rr-top-bar">
-            <ui:Label text="RewriteReality" class="rr-brand" />
-            <ui:Label name="rr-project" text="— Operator" class="rr-project" />
+            <ui:VisualElement class="rr-brand-group">
+                <ui:VisualElement class="rr-brand-dot" />
+                <ui:Label text="RewriteReality" class="rr-brand" />
+                <ui:Label name="rr-project" text="reality_set_02" class="rr-brand-sub rr-mono" />
+            </ui:VisualElement>
+            <ui:VisualElement class="rr-divider" />
+            <ui:VisualElement class="rr-transport">
+                <ui:Button name="rr-transport-prev" text="⏮" class="rr-transport-btn" />
+                <ui:Button name="rr-transport-play" text="⏸" class="rr-transport-btn rr-transport-btn--active" />
+                <ui:Button name="rr-transport-loop" text="⟳" class="rr-transport-btn" />
+                <ui:Label text="01:12.40" class="rr-time rr-mono" />
+            </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
-            <ui:Label name="rr-status-syphon" text="SYPHON" class="rr-badge" />
-            <ui:Label name="rr-status-ndi" text="NDI" class="rr-badge" />
+            <ui:VisualElement class="rr-status">
+                <ui:Label name="rr-status-syphon" text="SYPHON" class="rr-badge rr-badge--live" />
+                <ui:Label name="rr-status-ndi" text="NDI" class="rr-badge rr-badge--live" />
+                <ui:Label text="FULL" class="rr-badge" />
+            </ui:VisualElement>
+            <ui:VisualElement class="rr-divider" />
             <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
         </ui:VisualElement>
 
-        <!-- middle: 左ドック / preview / 右ドック(inspector) -->
+        <!-- ============================================ Middle: docks + center -->
         <ui:VisualElement name="rr-mid" class="rr-mid">
 
+            <!-- Left dock -->
             <ui:VisualElement name="rr-dock-left" class="rr-dock rr-dock-left">
-                <ui:VisualElement class="rr-panel-header"><ui:Label text="Source / Scene" /></ui:VisualElement>
-                <ui:VisualElement class="rr-panel-body">
-                    <ui:Label class="rr-hint" text="左ドックは #22 で Surface 一覧 / Input·Output 分割ビューを実装。" />
+                <ui:VisualElement class="rr-section-label">
+                    <ui:Label text="SURFACES" class="rr-section-label__text" />
+                    <ui:Button text="+ Surface" class="rr-add-btn" />
+                </ui:VisualElement>
+                <ui:VisualElement class="rr-list-item rr-list-item--active">
+                    <ui:VisualElement class="rr-list-dot rr-list-dot--tracking" />
+                    <ui:Label text="Surf 1 · center" class="rr-list-label" />
+                    <ui:Label text="4×3" class="rr-list-meta rr-mono" />
+                </ui:VisualElement>
+                <ui:VisualElement class="rr-list-item">
+                    <ui:VisualElement class="rr-list-dot rr-list-dot--tracking" />
+                    <ui:Label text="Surf 2 · left wall" class="rr-list-label" />
+                    <ui:Label text="3×3" class="rr-list-meta rr-mono" />
+                </ui:VisualElement>
+                <ui:VisualElement class="rr-list-item">
+                    <ui:VisualElement class="rr-list-dot rr-list-dot--output" />
+                    <ui:Label text="Projector A" class="rr-list-label" />
+                    <ui:Label text="6×4" class="rr-list-meta rr-mono" />
+                </ui:VisualElement>
+
+                <!-- FX チェーン（OperatorUI が rr-fx-list を生成） -->
+                <ui:VisualElement class="rr-section-label">
+                    <ui:Label text="FX CHAIN" class="rr-section-label__text" />
+                    <ui:Label text="FX" class="rr-stage-pill rr-stage-pill--effects" />
+                </ui:VisualElement>
+                <ui:ScrollView name="rr-fx-list" class="rr-fx-list" />
+
+                <ui:VisualElement class="rr-section-label">
+                    <ui:Label text="INPUT" class="rr-section-label__text" />
+                </ui:VisualElement>
+                <ui:VisualElement class="rr-list-item">
+                    <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
+                    <ui:Label text="Live Camera 1" class="rr-list-label" />
+                    <ui:Label text="1080p" class="rr-list-meta rr-mono" />
+                </ui:VisualElement>
+                <ui:VisualElement class="rr-list-item">
+                    <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
+                    <ui:Label text="Syphon In" class="rr-list-label" />
+                    <ui:Label text="—" class="rr-list-meta rr-mono" />
                 </ui:VisualElement>
             </ui:VisualElement>
 
-            <ui:VisualElement name="rr-viewport" class="rr-viewport">
-                <ui:Image name="rr-preview" class="rr-preview" />
+            <!-- Center stage -->
+            <ui:VisualElement name="rr-center" class="rr-center">
+
+                <!-- メイン画面＝プレビュー・ビューポート（既定表示・動画確認用に大きく出す）。
+                     OperatorUI が Final RT を rr-preview に表示。四隅ピンは出力コーナー参照。 -->
+                <ui:VisualElement name="rr-viewport" class="rr-viewport">
+                    <!-- 背面プレースホルダ（Final RT 未供給時＝Play停止/未配線でも空にならない・実RTが来れば上に描画） -->
+                    <ui:VisualElement class="rr-video-fill">
+                        <ui:VisualElement class="rr-video-fill__bars">
+                            <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--source" />
+                            <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--output" />
+                            <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--tracking" />
+                            <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--audio" />
+                            <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--effects" />
+                            <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--scene" />
+                            <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--text" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="rr-video-fill__vignette" />
+                    </ui:VisualElement>
+                    <ui:Image name="rr-preview" class="rr-preview" />
+                    <ui:VisualElement class="rr-safe-area" />
+                    <ui:VisualElement class="rr-video-fill__label-row">
+                        <ui:VisualElement class="rr-video-fill__dot rr-list-dot--tracking" />
+                        <ui:Label text="FINAL RT · EFFECTCHAIN" class="rr-video-fill__label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--tl" />
+                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--tr" />
+                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--bl" />
+                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--br" />
+                    <ui:VisualElement class="rr-viewport-overlay-tr">
+                        <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
+                    </ui:VisualElement>
+                    <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />
+                </ui:VisualElement>
+
+                <!-- TRACK: Input/Output 分割マッピング（既定は非表示・page=track で表示 #22。warp ドラッグ=#21）。
+                     メイン画面と rr-preview を二重化しないため、ここには実プレビューを置かない。 -->
+                <ui:VisualElement name="rr-center-track" class="rr-map-col" style="display: none;">
+                    <ui:VisualElement class="rr-map-row">
+
+                        <!-- Input pane（camera UV・素地は VideoFill プレースホルダ・#22 で実カメラ） -->
+                        <ui:VisualElement class="rr-map-pane">
+                            <ui:VisualElement class="rr-video-fill">
+                                <ui:VisualElement class="rr-video-fill__bars">
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--source" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--output" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--tracking" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--audio" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--effects" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--scene" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--text" />
+                                </ui:VisualElement>
+                                <ui:VisualElement class="rr-video-fill__vignette" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-video-fill__label-row">
+                                <ui:VisualElement class="rr-video-fill__dot rr-list-dot--source" />
+                                <ui:Label text="INPUT · CAMERA UV" class="rr-video-fill__label" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin rr-warp-pin--selected" style="left: 37%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 92%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 92%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 92%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 92%;" />
+                        </ui:VisualElement>
+
+                        <!-- Output/composite pane＝実プレビュー(rr-preview)＋warp 重ね -->
+                        <ui:VisualElement class="rr-map-pane rr-map-pane--gap-left">
+                            <ui:VisualElement class="rr-video-fill">
+                                <ui:VisualElement class="rr-video-fill__bars">
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--source" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--output" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--tracking" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--audio" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--effects" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--scene" />
+                                    <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--text" />
+                                </ui:VisualElement>
+                                <ui:VisualElement class="rr-video-fill__vignette" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-safe-area" />
+                            <ui:VisualElement class="rr-video-fill__label-row">
+                                <ui:VisualElement class="rr-video-fill__dot rr-list-dot--tracking" />
+                                <ui:Label text="OUTPUT · COMPOSITE" class="rr-video-fill__label" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-viewport-overlay-tr">
+                                <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
+                            </ui:VisualElement>
+                            <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 8%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin rr-warp-pin--selected" style="left: 37%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 50%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 92%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 92%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 92%;" />
+                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 92%;" />
+                        </ui:VisualElement>
+
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-map-hint">
+                        <ui:Label text="Drag control points to mesh-warp · 4×3 grid · Selection Blue = selected pin" class="rr-map-hint__text" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
             </ui:VisualElement>
 
+            <!-- Right dock (inspector) -->
             <ui:VisualElement name="rr-dock-right" class="rr-dock rr-dock-right">
-                <ui:VisualElement class="rr-panel-header"><ui:Label name="rr-inspector-title" text="Inspector" /></ui:VisualElement>
-                <ui:ScrollView name="rr-inspector" class="rr-panel-body" />
+                <ui:VisualElement class="rr-inspector-title-row">
+                    <ui:Label name="rr-inspector-title" text="Inspector" />
+                    <ui:Label text="SURF 1" class="rr-badge rr-badge--selection" />
+                </ui:VisualElement>
+                <ui:ScrollView name="rr-inspector" class="rr-inspector" />
             </ui:VisualElement>
 
         </ui:VisualElement>
 
-        <!-- bottom dock: FX チェーン -->
-        <ui:VisualElement name="rr-dock-bottom" class="rr-dock rr-dock-bottom">
-            <ui:VisualElement class="rr-panel-header"><ui:Label text="FX Chain" /></ui:VisualElement>
-            <ui:ScrollView name="rr-fx-list" class="rr-fx-list" />
+        <!-- ============================================ Timeline（マルチトラック・#27/#28） -->
+        <ui:VisualElement name="rr-timeline" class="rr-timeline">
+            <ui:VisualElement class="rr-timeline-head">
+                <ui:Button name="rr-tl-prev" text="⏮" class="rr-transport-btn" />
+                <ui:Button name="rr-tl-play" text="⏸" class="rr-transport-btn rr-transport-btn--active" />
+                <ui:Button name="rr-tl-loop" text="⟳" class="rr-transport-btn" />
+                <ui:Label text="01:12.40" class="rr-timeline-time rr-mono" />
+                <ui:Label text="/ 03:20.00" class="rr-timeline-total rr-mono" />
+                <ui:VisualElement class="rr-spacer" />
+                <ui:Label text="TIMELINE" class="rr-timeline-title" />
+            </ui:VisualElement>
+            <ui:VisualElement class="rr-timeline-body">
+                <ui:VisualElement class="rr-ruler">
+                    <ui:Label text="0:00" class="rr-ruler-mark rr-mono" />
+                    <ui:Label text="0:30" class="rr-ruler-mark rr-mono" />
+                    <ui:Label text="1:00" class="rr-ruler-mark rr-mono" />
+                    <ui:Label text="1:30" class="rr-ruler-mark rr-mono" />
+                    <ui:Label text="2:00" class="rr-ruler-mark rr-mono" />
+                    <ui:Label text="2:30" class="rr-ruler-mark rr-mono" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="rr-track">
+                    <ui:VisualElement class="rr-track-head">
+                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Label text="VID 1" class="rr-track-name rr-mono" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-lane">
+                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 0; width: 26%;"><ui:Label text="CLIPA" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 27%; width: 34%;"><ui:Label text="CLIPB" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 62%; width: 20%;"><ui:Label text="CLIPC" class="rr-clip__label" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-tail">
+                        <ui:Label text="OPACITY" class="rr-track-tail__label rr-mono" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="rr-track">
+                    <ui:VisualElement class="rr-track-head">
+                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Label text="VID 2" class="rr-track-name rr-mono" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-lane">
+                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 12%; width: 22%;"><ui:Label text="OVERLAY" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 66%; width: 24%;"><ui:Label text="LOWERTHIRD" class="rr-clip__label" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-tail">
+                        <ui:Label text="OPACITY" class="rr-track-tail__label rr-mono" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="rr-track">
+                    <ui:VisualElement class="rr-track-head">
+                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Label text="AUD 1" class="rr-track-name rr-mono" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-lane">
+                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 0; width: 82%;"><ui:Label text="MASTER" class="rr-clip__label" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-tail">
+                        <ui:Label text="FADE" class="rr-track-tail__label rr-mono" />
+                        <ui:Label text="🔊" class="rr-track-tail__label" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="rr-track">
+                    <ui:VisualElement class="rr-track-head">
+                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Label text="AUD 2" class="rr-track-name rr-mono rr-track-name--off" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-lane">
+                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 14%; width: 10%;"><ui:Label text="SFX" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 40%; width: 12%;"><ui:Label text="SFX" class="rr-clip__label" /></ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-tail">
+                        <ui:Label text="🔇" class="rr-track-tail__label" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="rr-playhead" style="left: 40%;" />
+            </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- page-tabs（DaVinci ページ相当・各タブは段色のトップボーダー） -->
-        <ui:VisualElement name="rr-page-tabs" class="rr-page-tabs">
-            <ui:Label name="rr-tab-source"   text="SOURCE"  class="rr-page-tab rr-stage-source" />
-            <ui:Label name="rr-tab-track"    text="TRACK"   class="rr-page-tab rr-stage-tracking" />
-            <ui:Label name="rr-tab-fx"       text="FX"      class="rr-page-tab rr-stage-effects rr-page-tab--active" />
-            <ui:Label name="rr-tab-audio"    text="AUDIO"   class="rr-page-tab rr-stage-audio" />
-            <ui:Label name="rr-tab-output"   text="OUTPUT"  class="rr-page-tab rr-stage-output" />
-            <ui:Label name="rr-tab-scenes"   text="SCENES"  class="rr-page-tab rr-stage-scene" />
+        <!-- ============================================ Bottom bar: mode + page tabs -->
+        <ui:VisualElement name="rr-bottom-bar" class="rr-bottom-bar">
+            <ui:VisualElement class="rr-mode-switch">
+                <ui:VisualElement name="rr-mode-edit" class="rr-mode-opt rr-mode-opt--active">
+                    <ui:VisualElement class="rr-mode-opt__dot" />
+                    <ui:Label text="準備 EDIT" />
+                </ui:VisualElement>
+                <ui:VisualElement name="rr-mode-live" class="rr-mode-opt">
+                    <ui:VisualElement class="rr-mode-opt__dot" />
+                    <ui:Label text="本番 LIVE" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="rr-divider" />
+            <ui:VisualElement name="rr-page-tabs" class="rr-page-tabs">
+                <ui:Label name="rr-tab-source"  text="SOURCE" class="rr-page-tab rr-stage-source" />
+                <ui:Label name="rr-tab-track"   text="TRACK"  class="rr-page-tab rr-stage-tracking rr-page-tab--active" />
+                <ui:Label name="rr-tab-fx"      text="FX"     class="rr-page-tab rr-stage-effects" />
+                <ui:Label name="rr-tab-audio"   text="AUDIO"  class="rr-page-tab rr-stage-audio" />
+                <ui:Label name="rr-tab-output"  text="OUTPUT" class="rr-page-tab rr-stage-output" />
+                <ui:Label name="rr-tab-scenes"  text="SCENES" class="rr-page-tab rr-stage-scene" />
+            </ui:VisualElement>
+            <ui:VisualElement class="rr-spacer" />
+            <ui:Label text="frame 4.2ms · gc 0.3ms" class="rr-perf rr-mono" />
         </ui:VisualElement>
 
     </ui:VisualElement>

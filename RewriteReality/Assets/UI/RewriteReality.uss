@@ -1,9 +1,17 @@
 /*
  * RewriteReality — Operator UI theme (UI Toolkit / USS)
  * DESIGN.md のデザイントークンを USS 変数へ写像した正本スタイル。
- * 色は必ず var(--rr-*) 参照。hex 直書きしない（DESIGN.md「色はトークン参照」）。
- * フォント: Inter / JetBrains Mono は未同梱（Known Gaps）。FontAsset を入れたら
- *   .rr-theme の -unity-font-definition と .rr-mono に割り当てる。現状はパネル既定フォント。
+ * Claude Design "RewriteReality Design System" の operator console を UXML/USS へ移植（#24）。
+ * 色は必ず var(--rr-*) 参照。hex 直書きはトークン定義ブロックのみ（DESIGN.md「色はトークン参照」）。
+ *
+ * UI Toolkit 固有の制約（移植時の変換）:
+ *  - flex の gap プロパティ非対応 → 子要素の margin で間隔を作る。
+ *  - dashed ボーダー非対応 → safe-area は薄いソリット hairline で代替。
+ *  - color-mix()/radial-gradient()/box-shadow 非対応 → 近い単色/枠線で代替（影は使わない方針と一致）。
+ *  - 中央寄せは transform ではなく translate: プロパティを使用。
+ *  - フォント Inter/JetBrains Mono は未同梱（Known Gap）。FontAsset を入れたら
+ *    .rr-theme の -unity-font-definition と .rr-mono に割り当てる。現状はパネル既定フォント。
+ *  - lucide アイコン非同梱 → transport/mute はテキスト字形で代替。
  */
 
 /* ============================================================ Tokens */
@@ -56,15 +64,25 @@
     -unity-text-align: middle-right;
 }
 
+.rr-divider {
+    width: 1px;
+    height: 20px;
+    background-color: var(--rr-hairline);
+    margin-left: 10px;
+    margin-right: 10px;
+}
+.rr-spacer { flex-grow: 1; }
+
 /* ============================================================ Shell layout */
 .rr-root {
     flex-grow: 1;
     flex-direction: column;
 }
 
-/* Top bar / transport */
+/* ---------------------------------------------------------- Top bar / transport */
 .rr-top-bar {
     height: 48px;
+    flex-shrink: 0;
     flex-direction: row;
     align-items: center;
     padding-left: 12px;
@@ -73,106 +91,503 @@
     border-bottom-width: 1px;
     border-bottom-color: var(--rr-hairline-strong);
 }
+.rr-brand-group { flex-direction: row; align-items: center; }
+.rr-brand-dot {
+    width: 9px; height: 9px;
+    border-radius: 9999px;
+    background-color: var(--rr-primary);
+    margin-right: 8px;
+}
 .rr-brand {
     color: var(--rr-text);
     -unity-font-style: bold;
-    font-size: 15px;
+    font-size: 13px;
 }
-.rr-project {
+.rr-brand-sub {
     color: var(--rr-muted);
-    margin-left: 6px;
+    font-size: 11px;
+    margin-left: 8px;
+    -unity-text-align: middle-left;
 }
-.rr-spacer { flex-grow: 1; }
+.rr-project { color: var(--rr-muted); margin-left: 6px; }
+
+.rr-transport { flex-direction: row; align-items: center; }
+.rr-transport-btn {
+    width: 26px; height: 26px;
+    -unity-text-align: middle-center;
+    color: var(--rr-body);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 2px;
+}
+.rr-transport-btn:hover { background-color: var(--rr-surface-raised); }
+.rr-transport-btn--active {
+    background-color: var(--rr-primary);
+    color: var(--rr-on-primary);
+}
+.rr-time {
+    color: var(--rr-body);
+    font-size: 12px;
+    margin-left: 8px;
+    -unity-text-align: middle-left;
+}
+
+.rr-status { flex-direction: row; align-items: center; }
+
 .rr-fps {
     color: var(--rr-text);
     font-size: 15px;
     -unity-text-align: middle-right;
     min-width: 76px;
-    margin-left: 12px;
+    margin-left: 8px;
 }
 .rr-fps--warn { color: var(--rr-warn); }
 
-/* Middle row: left dock / viewport / right dock */
+/* ---------------------------------------------------------- Middle: left dock / center / right dock */
 .rr-mid {
     flex-grow: 1;
     flex-direction: row;
 }
 
 .rr-dock {
+    flex-shrink: 0;
+    flex-direction: column;
     background-color: var(--rr-surface-panel);
     border-color: var(--rr-hairline-strong);
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 12px;
 }
-.rr-dock-left {
-    width: 200px;
-    border-right-width: 1px;
-}
-.rr-dock-right {
-    width: 280px;
-    border-left-width: 1px;
-}
-.rr-dock-bottom {
-    height: 168px;
-    border-top-width: 1px;
-}
+.rr-dock-left  { width: 210px; border-right-width: 1px; }
+.rr-dock-right { width: 290px; border-left-width: 1px; }
+/* 旧・下部 FX ドック（現在はタイムラインに置換・互換のため残置） */
+.rr-dock-bottom { height: 168px; border-top-width: 1px; }
 
-.rr-panel-header {
-    height: 32px;
+/* Section label（ドック内の小見出し・uppercase muted） */
+.rr-section-label {
+    height: 26px;
     flex-direction: row;
     align-items: center;
-    padding-left: 12px;
-    padding-right: 12px;
-    border-bottom-width: 1px;
-    border-bottom-color: var(--rr-hairline);
+    justify-content: space-between;
+    padding-left: 2px;
+    padding-right: 2px;
+    margin-top: 8px;
+    margin-bottom: 2px;
 }
-.rr-panel-header > Label {
-    color: var(--rr-text);
+.rr-section-label__text {
+    color: var(--rr-muted);
+    font-size: 11px;
     -unity-font-style: bold;
-    font-size: 15px;
+    -unity-text-align: middle-left;
 }
-.rr-panel-body {
+.rr-add-btn {
+    color: var(--rr-body);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 4px;
+    font-size: 10px;
+    padding: 2px 7px;
+}
+.rr-add-btn:hover { background-color: var(--rr-surface-raised); }
+
+/* List item（Surface/Input/Route などの一覧行） */
+.rr-list-item {
+    height: 28px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-left-width: 2px;
+    border-left-color: rgba(0, 0, 0, 0);
+    border-radius: 2px;
+}
+.rr-list-item:hover { background-color: var(--rr-surface-raised); }
+.rr-list-item--active {
+    background-color: var(--rr-surface-raised);
+    border-left-color: var(--rr-selection);
+}
+.rr-list-dot {
+    width: 7px; height: 7px;
+    border-radius: 9999px;
+    background-color: var(--rr-muted-soft);
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+.rr-list-dot--source   { background-color: var(--rr-stage-source); }
+.rr-list-dot--tracking { background-color: var(--rr-stage-tracking); }
+.rr-list-dot--effects  { background-color: var(--rr-stage-effects); }
+.rr-list-dot--audio    { background-color: var(--rr-stage-audio); }
+.rr-list-dot--output   { background-color: var(--rr-stage-output); }
+.rr-list-dot--scene    { background-color: var(--rr-stage-scene); }
+.rr-list-dot--live     { background-color: var(--rr-live); }
+.rr-list-label {
     flex-grow: 1;
-    padding-top: 8px;
-    padding-bottom: 8px;
-    padding-left: 12px;
-    padding-right: 12px;
+    color: var(--rr-body);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-left;
+}
+.rr-list-item--active .rr-list-label { color: var(--rr-text); }
+.rr-list-meta {
+    color: var(--rr-muted);
+    font-size: 10px;
+    -unity-text-align: middle-right;
+    flex-shrink: 0;
 }
 
-/* Preview viewport（卓の主役） */
+/* ---------------------------------------------------------- Center stage */
+.rr-center {
+    flex-grow: 1;
+    flex-direction: column;
+    padding: 8px;
+}
+
+/* Preview viewport（卓の主役・OperatorUI が Final RT を rr-preview に表示） */
 .rr-viewport {
     flex-grow: 1;
     background-color: var(--rr-canvas-soft);
-    border-left-width: 1px;
-    border-right-width: 1px;
+    border-width: 1px;
     border-color: var(--rr-hairline-strong);
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
 }
 .rr-preview {
     flex-grow: 1;
     width: 100%;
     height: 100%;
 }
+.rr-safe-area {
+    position: absolute;
+    left: 5%; top: 5%; right: 5%; bottom: 5%;
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+}
+.rr-corner-pin {
+    position: absolute;
+    width: 8px; height: 8px;
+    background-color: var(--rr-selection);
+}
+.rr-corner-pin--tl { left: 5%;  top: 5%;    translate: -50% -50%; }
+.rr-corner-pin--tr { right: 5%; top: 5%;    translate: 50% -50%; }
+.rr-corner-pin--bl { left: 5%;  bottom: 5%; translate: -50% 50%; }
+.rr-corner-pin--br { right: 5%; bottom: 5%; translate: 50% 50%; }
+.rr-viewport-overlay-tr {
+    position: absolute;
+    top: 8px; right: 10px;
+    flex-direction: row;
+}
+.rr-viewport-meta {
+    position: absolute;
+    bottom: 8px; left: 10px;
+    color: var(--rr-muted);
+    font-size: 11px;
+}
+
+/* Mapping（TRACK=Input/Output 分割・OUTPUT=単一 warp）— warp のドラッグ/メッシュ線は #21 */
+.rr-map-col { flex-grow: 1; flex-direction: column; }
+.rr-map-row { flex-grow: 1; flex-direction: row; }
+.rr-map-pane {
+    flex-grow: 1;
+    background-color: var(--rr-canvas-soft);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+}
+.rr-map-pane--gap-left { margin-left: 8px; }
+.rr-video-fill {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background-color: var(--rr-surface-inset);
+    overflow: hidden;
+}
+.rr-video-fill__bars {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    flex-direction: row;
+    opacity: 0.16;
+}
+.rr-video-fill__bar { flex-grow: 1; }
+/* バーの色はクラスで指定（inline style の var() は UI Toolkit 非対応＝NRE のため） */
+.rr-video-fill__bar--source   { background-color: var(--rr-stage-source); }
+.rr-video-fill__bar--output   { background-color: var(--rr-stage-output); }
+.rr-video-fill__bar--tracking { background-color: var(--rr-stage-tracking); }
+.rr-video-fill__bar--audio    { background-color: var(--rr-stage-audio); }
+.rr-video-fill__bar--effects  { background-color: var(--rr-stage-effects); }
+.rr-video-fill__bar--scene    { background-color: var(--rr-stage-scene); }
+.rr-video-fill__bar--text     { background-color: var(--rr-text); }
+/* 中央を落として映像信号らしく見せる（radial-gradient 非対応の近似） */
+.rr-video-fill__vignette {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background-color: rgba(18, 16, 9, 0.45);
+}
+.rr-video-fill__label-row {
+    position: absolute;
+    top: 8px; left: 8px;
+    flex-direction: row;
+    align-items: center;
+}
+.rr-video-fill__dot {
+    width: 7px; height: 7px;
+    border-radius: 9999px;
+    margin-right: 6px;
+}
+.rr-video-fill__label {
+    color: var(--rr-body);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+.rr-warp-pin {
+    position: absolute;
+    width: 8px; height: 8px;
+    background-color: var(--rr-selection);
+    border-width: 1px;
+    border-color: var(--rr-canvas);
+    translate: -50% -50%;
+}
+.rr-warp-pin--selected {
+    width: 12px; height: 12px;
+    background-color: var(--rr-primary);
+    border-color: var(--rr-primary);
+}
+.rr-map-hint {
+    height: 24px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    margin-top: 8px;
+}
+.rr-map-hint__text { color: var(--rr-muted); font-size: 11px; }
+
+/* ---------------------------------------------------------- Right dock (inspector) */
+.rr-inspector-title-row {
+    height: 26px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 2px;
+    padding-right: 2px;
+    margin-top: 8px;
+    margin-bottom: 2px;
+}
+#rr-inspector-title {
+    color: var(--rr-muted);
+    font-size: 11px;
+    -unity-font-style: bold;
+}
+.rr-inspector { flex-grow: 1; }
+
+/* Inspector の静的行（Row/Field・#22 でバインド） */
+.rr-insp-row {
+    height: 28px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.rr-field {
+    color: var(--rr-body);
+    font-size: 12px;
+    -unity-font-style: bold;
+}
+
+/* Buttons（primary/secondary/ghost・sm） */
+.rr-btn-row { flex-direction: row; margin-top: 10px; padding-left: 8px; }
+.rr-btn {
+    height: 24px;
+    padding-left: 12px;
+    padding-right: 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin-right: 6px;
+    border-width: 1px;
+}
+.rr-btn--primary {
+    background-color: var(--rr-primary);
+    color: var(--rr-on-primary);
+    border-color: var(--rr-primary);
+}
+.rr-btn--secondary {
+    background-color: var(--rr-surface-raised);
+    color: var(--rr-text);
+    border-color: var(--rr-hairline-strong);
+}
+.rr-btn--ghost {
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--rr-body);
+    border-color: var(--rr-hairline-strong);
+}
+
+/* ---------------------------------------------------------- Timeline (bottom dock) */
+.rr-timeline {
+    height: 176px;
+    flex-shrink: 0;
+    flex-direction: column;
+    background-color: var(--rr-surface-panel);
+    border-top-width: 1px;
+    border-top-color: var(--rr-hairline-strong);
+}
+.rr-timeline-head {
+    height: 30px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline);
+}
+.rr-timeline-title {
+    color: var(--rr-muted);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+.rr-timeline-time { color: var(--rr-text); font-size: 15px; margin-left: 4px; }
+.rr-timeline-total { color: var(--rr-muted); font-size: 11px; margin-left: 6px; }
+.rr-timeline-body { flex-grow: 1; }
+
+.rr-ruler {
+    height: 18px;
+    margin-left: 96px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline);
+    flex-direction: row;
+}
+.rr-ruler-mark {
+    color: var(--rr-muted);
+    font-size: 10px;
+    width: 90px;
+    -unity-text-align: middle-left;
+    padding-left: 5px;
+    border-left-width: 1px;
+    border-left-color: var(--rr-hairline-strong);
+}
+
+.rr-track {
+    height: 34px;
+    flex-direction: row;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline-soft);
+}
+.rr-track-head {
+    width: 96px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-right-width: 1px;
+    border-right-color: var(--rr-hairline);
+}
+.rr-track-name { color: var(--rr-text); font-size: 11px; margin-left: 6px; }
+.rr-track-name--off { color: var(--rr-muted); }
+.rr-track-lane { flex-grow: 1; }
+.rr-track-tail {
+    width: 74px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-left-width: 1px;
+    border-left-color: var(--rr-hairline);
+}
+.rr-track-tail__label { color: var(--rr-muted); font-size: 9px; }
+
+.rr-clip {
+    position: absolute;
+    top: 4px; bottom: 4px;
+    border-width: 1px;
+    border-radius: 3px;
+    overflow: hidden;
+    justify-content: center;
+    padding-left: 7px;
+    background-color: var(--rr-surface-inset);
+}
+.rr-clip__label {
+    color: var(--rr-text);
+    font-size: 10px;
+    -unity-font-style: bold;
+}
+.rr-clip--source { border-color: var(--rr-stage-source); }
+.rr-clip--fx     { border-color: var(--rr-stage-effects); }
+.rr-clip--audio  { border-color: var(--rr-stage-audio); }
+
+.rr-playhead {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 1px;
+    background-color: var(--rr-selection);
+}
+
+/* ---------------------------------------------------------- Bottom bar: mode + page tabs */
+.rr-bottom-bar {
+    height: 44px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--rr-canvas);
+    border-top-width: 1px;
+    border-top-color: var(--rr-hairline-strong);
+    padding-left: 10px;
+    padding-right: 10px;
+}
+.rr-mode-switch {
+    flex-direction: row;
+    align-items: center;
+    padding: 3px;
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 6px;
+}
+.rr-mode-opt {
+    height: 26px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 12px;
+    padding-right: 12px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 4px;
+    color: var(--rr-muted);
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin-right: 2px;
+}
+.rr-mode-opt__dot {
+    width: 6px; height: 6px;
+    border-radius: 9999px;
+    background-color: var(--rr-muted-soft);
+    margin-right: 6px;
+}
+.rr-mode-opt--active { background-color: var(--rr-surface-raised); color: var(--rr-text); }
+.rr-mode-opt--active .rr-mode-opt__dot { background-color: var(--rr-live); }
+.rr-mode-opt--live-active { background-color: var(--rr-primary); color: var(--rr-on-primary); }
+.rr-mode-opt--live-active .rr-mode-opt__dot { background-color: var(--rr-on-primary); }
 
 /* Page tabs（下部・DaVinci のページ相当） */
 .rr-page-tabs {
     height: 36px;
     flex-direction: row;
-    background-color: var(--rr-canvas);
-    border-top-width: 1px;
-    border-top-color: var(--rr-hairline-strong);
+    align-items: stretch;
 }
 .rr-page-tab {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 18px;
+    padding-right: 18px;
     -unity-text-align: middle-center;
     color: var(--rr-muted);
     font-size: 11px;
     -unity-font-style: bold;
+    background-color: rgba(0, 0, 0, 0);
     border-top-width: 2px;
     border-top-color: rgba(0, 0, 0, 0);
 }
-.rr-page-tab--active { color: var(--rr-text); }
+.rr-page-tab--active { color: var(--rr-text); background-color: var(--rr-canvas-soft); }
 .rr-page-tab--active.rr-stage-source   { border-top-color: var(--rr-stage-source); }
 .rr-page-tab--active.rr-stage-tracking { border-top-color: var(--rr-stage-tracking); }
 .rr-page-tab--active.rr-stage-effects  { border-top-color: var(--rr-stage-effects); }
@@ -180,11 +595,12 @@
 .rr-page-tab--active.rr-stage-output   { border-top-color: var(--rr-stage-output); }
 .rr-page-tab--active.rr-stage-scene    { border-top-color: var(--rr-stage-scene); }
 
-/* ============================================================ FX chain (bottom dock) */
+.rr-perf { color: var(--rr-muted); font-size: 11px; }
+
+/* ============================================================ FX chain list（左ドック・OperatorUI 駆動） */
 .rr-fx-list {
-    flex-grow: 1;
+    flex-grow: 0;
     flex-direction: column;
-    padding: 6px;
 }
 .rr-fx-item {
     height: 28px;
@@ -209,24 +625,24 @@
 .rr-fx-item--selected .rr-fx-name { color: var(--rr-primary); -unity-font-style: bold; }
 .rr-fx-name--disabled { color: var(--rr-muted-soft); }
 
-/* ============================================================ Parameter rows (inspector) */
+/* ============================================================ Parameter rows (inspector・OperatorUI 駆動) */
 .rr-param-row {
     height: 28px;
     flex-direction: row;
     align-items: center;
     border-radius: 2px;
+    border-left-width: 2px;
+    border-left-color: rgba(0, 0, 0, 0);
     padding-left: 6px;
     padding-right: 4px;
 }
 .rr-param-row:hover { background-color: var(--rr-surface-raised); }
 .rr-param-row--selected {
     background-color: var(--rr-surface-raised);
-    border-left-width: 2px;
     border-left-color: var(--rr-selection);
-    padding-left: 4px;
 }
 .rr-param-label {
-    width: 84px;
+    width: 92px;
     color: var(--rr-body);
     font-size: 12px;
     overflow: hidden;
@@ -237,14 +653,24 @@
     margin-left: 4px;
     margin-right: 8px;
 }
+.rr-param-midi {
+    color: var(--rr-muted);
+    font-size: 10px;
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 9999px;
+    padding: 1px 6px;
+    margin-right: 6px;
+}
 .rr-param-value {
-    width: 44px;
+    min-width: 48px;
     color: var(--rr-text);
     -unity-text-align: middle-right;
     font-size: 12px;
 }
+.rr-param-value--armed { color: var(--rr-primary); }
 
-/* Slider 溝/つまみ（DESIGN: 溝 inset・充填 muted・つまみ text） */
+/* Slider 溝/つまみ（DESIGN: 溝 inset・つまみ text） */
 .rr-param-slider .unity-base-slider__tracker {
     background-color: var(--rr-surface-inset);
     border-color: var(--rr-hairline-soft);
@@ -257,9 +683,6 @@
 }
 
 /* Toggle: OFF inset / ON live */
-.rr-fx-toggle {
-    margin-right: 0;
-}
 .rr-fx-toggle .unity-toggle__checkmark {
     background-color: var(--rr-surface-inset);
     border-color: var(--rr-hairline);
@@ -272,16 +695,39 @@
     border-color: var(--rr-live);
 }
 
-/* Badges / status pills */
+/* ============================================================ StagePill（署名・6段の状態表示専用） */
+.rr-stage-pill {
+    color: var(--rr-canvas);
+    font-size: 11px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    padding: 3px 8px;
+    border-radius: 9999px;
+}
+.rr-stage-pill--source   { background-color: var(--rr-stage-source); }
+.rr-stage-pill--tracking { background-color: var(--rr-stage-tracking); }
+.rr-stage-pill--effects  { background-color: var(--rr-stage-effects); }
+.rr-stage-pill--audio    { background-color: var(--rr-stage-audio); }
+.rr-stage-pill--output   { background-color: var(--rr-stage-output); }
+.rr-stage-pill--scene    { background-color: var(--rr-stage-scene); }
+
+/* ============================================================ Badges / status pills */
 .rr-badge {
     color: var(--rr-muted);
     background-color: var(--rr-surface-raised);
     font-size: 11px;
     -unity-font-style: bold;
-    padding: 3px 8px;
+    -unity-text-align: middle-center;
+    padding: 2px 8px;
     margin-left: 6px;
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
     border-radius: 9999px;
 }
+.rr-badge--live      { background-color: rgba(0, 0, 0, 0); color: var(--rr-live);      border-color: var(--rr-live); }
+.rr-badge--record    { background-color: rgba(0, 0, 0, 0); color: var(--rr-record);    border-color: var(--rr-record); }
+.rr-badge--warn      { background-color: rgba(0, 0, 0, 0); color: var(--rr-warn);      border-color: var(--rr-warn); }
+.rr-badge--selection { background-color: rgba(0, 0, 0, 0); color: var(--rr-selection); border-color: var(--rr-selection); }
 .rr-badge--on { color: var(--rr-on-primary); background-color: var(--rr-live); }
 
 .rr-hint {
