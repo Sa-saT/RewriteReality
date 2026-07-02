@@ -57,6 +57,7 @@
                         <ui:Toggle name="rr-surf-enabled" class="rr-fx-toggle" />
                         <ui:Label text="Enabled" class="rr-surf-prop-label" />
                         <ui:VisualElement class="rr-spacer" />
+                        <ui:Button name="rr-surf-fit" text="MASK" class="rr-surf-chip rr-mono" />
                         <ui:Button name="rr-surf-content" text="CAMERA" class="rr-surf-chip rr-mono" />
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-surf-prop-row">
@@ -75,6 +76,15 @@
                         <ui:Button name="rr-surf-rows-inc" text="+" class="rr-surf-step" />
                         <ui:VisualElement class="rr-spacer" />
                         <ui:Button name="rr-surf-remove" text="✕" class="rr-surf-remove" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-surf-prop-row">
+                        <ui:Label text="Scale" class="rr-surf-prop-label" />
+                        <ui:Button name="rr-surf-scale-dec" text="−" class="rr-surf-step" />
+                        <ui:Button name="rr-surf-scale-inc" text="+" class="rr-surf-step" />
+                        <ui:VisualElement class="rr-spacer" />
+                        <ui:Label text="Zoom" class="rr-surf-prop-label" />
+                        <ui:Slider name="rr-surf-zoom" low-value="0.2" high-value="5" class="rr-surf-slider" />
+                        <ui:Label name="rr-surf-zoom-val" text="1.0" class="rr-surf-prop-val rr-mono" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -129,6 +139,7 @@
                     <ui:VisualElement class="rr-viewport-overlay-tl">
                         <ui:Button name="rr-warp-toggle" text="◇ WARP" class="rr-warp-toggle" />
                         <ui:Button name="rr-warp-target" text="EMBED" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
+                        <ui:Button name="rr-warp-editmode" text="SHAPE" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
                         <ui:Button name="rr-warp-reset" text="RESET" class="rr-warp-toggle rr-warp-toggle--sub" style="display: none;" />
                     </ui:VisualElement>
                     <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />

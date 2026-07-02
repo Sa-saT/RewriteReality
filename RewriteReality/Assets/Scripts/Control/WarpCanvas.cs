@@ -15,9 +15,20 @@ namespace RewriteReality
     /// </summary>
     public sealed class WarpCanvas : VisualElement
     {
+        /// <summary>編集対象。Shape=窓の形（ハンドル＋窓ごと移動）／Content=枠内映像の pan。</summary>
+        public enum EditMode { Shape, Content }
+
         IWarpTarget _target;
         int _dragIndex = -1;
         int _selected = -1;
+
+        EditMode _mode = EditMode.Shape;
+        enum Drag { None, Handle, MoveAll, Content }
+        Drag _drag = Drag.None;
+        Vector2 _lastNorm;              // 直前ポインタ（正規化・delta 用）
+
+        /// <summary>Content モードのドラッグ量（画面正規化 delta）を通知。OperatorUI が surface へ反映。</summary>
+        public System.Action<Vector2> ContentPan;
 
         const float HandleHalf = 5f;    // ハンドル正方形の半辺（px）
         const float HitRadius = 14f;    // 掴み判定半径（px）
@@ -29,6 +40,8 @@ namespace RewriteReality
         static readonly Color HandleEdge = new Color(0.086f, 0.082f, 0.071f, 1f); // canvas（縁取り）
 
         public int SelectedIndex => _selected;
+
+        public void SetEditMode(EditMode m) { _mode = m; MarkDirtyRepaint(); }
 
         public WarpCanvas()
         {
@@ -48,6 +61,7 @@ namespace RewriteReality
             _target?.EnsureWarpPoints();
             _selected = -1;
             _dragIndex = -1;
+            _drag = Drag.None;
             MarkDirtyRepaint();
         }
 
@@ -58,6 +72,10 @@ namespace RewriteReality
             => new Vector2(
                 Mathf.Clamp01(w > 0f ? px.x / w : 0f),
                 Mathf.Clamp01(h > 0f ? 1f - px.y / h : 0f));
+
+        // クランプ無し（delta 計算用・y 上向き正規化）
+        static Vector2 ToNorm(Vector2 px, float w, float h)
+            => new Vector2(w > 0f ? px.x / w : 0f, h > 0f ? 1f - px.y / h : 0f);
 
         void OnGenerateVisualContent(MeshGenerationContext mgc)
         {
@@ -143,11 +161,20 @@ namespace RewriteReality
             if (_target == null) return;
             _target.EnsureWarpPoints();
             var r = contentRect;
-            int hit = PickHandle((Vector2)evt.localPosition, r.width, r.height);
-            if (hit < 0) return;
+            Vector2 px = (Vector2)evt.localPosition;
+            _lastNorm = ToNorm(px, r.width, r.height);
 
-            _dragIndex = hit;
-            _selected = hit;
+            if (_mode == EditMode.Content)
+            {
+                _drag = Drag.Content;                 // ドラッグで枠内映像を pan
+            }
+            else
+            {
+                int hit = PickHandle(px, r.width, r.height);
+                if (hit >= 0) { _dragIndex = hit; _selected = hit; _drag = Drag.Handle; }
+                else          { _drag = Drag.MoveAll; }   // 何もない所＝窓ごと移動
+            }
+
             this.CapturePointer(evt.pointerId);
             MarkDirtyRepaint();
             evt.StopPropagation();
@@ -155,23 +182,52 @@ namespace RewriteReality
 
         void OnPointerMove(PointerMoveEvent evt)
         {
-            if (_dragIndex < 0 || _target == null) return;
+            if (_drag == Drag.None || _target == null) return;
             var r = contentRect;
-            var local = ToLocal((Vector2)evt.localPosition, r.width, r.height);
-            int cols = _target.WarpCols;
-            int i = _dragIndex % cols, j = _dragIndex / cols;
-            _target.SetWarpPoint(i, j, local);
+            Vector2 px = (Vector2)evt.localPosition;
+
+            if (_drag == Drag.Handle)
+            {
+                var local = ToLocal(px, r.width, r.height);
+                int cols = _target.WarpCols;
+                _target.SetWarpPoint(_dragIndex % cols, _dragIndex / cols, local);
+            }
+            else if (_drag == Drag.MoveAll)
+            {
+                Vector2 nrm = ToNorm(px, r.width, r.height);
+                TranslateAll(nrm - _lastNorm);
+                _lastNorm = nrm;
+            }
+            else // Content
+            {
+                Vector2 nrm = ToNorm(px, r.width, r.height);
+                ContentPan?.Invoke(nrm - _lastNorm);
+                _lastNorm = nrm;
+            }
             MarkDirtyRepaint();
             evt.StopPropagation();
         }
 
         void OnPointerUp(PointerUpEvent evt)
         {
-            if (_dragIndex < 0) return;
+            if (_drag == Drag.None) return;
+            _drag = Drag.None;
             _dragIndex = -1;
             if (this.HasPointerCapture(evt.pointerId)) this.ReleasePointer(evt.pointerId);
             MarkDirtyRepaint();
             evt.StopPropagation();
+        }
+
+        /// <summary>全制御点を delta（正規化）だけ平行移動（窓ごと移動）。各点は [0,1] にクランプ。</summary>
+        void TranslateAll(Vector2 d)
+        {
+            int cols = _target.WarpCols, rows = _target.WarpRows;
+            for (int j = 0; j < rows; j++)
+                for (int i = 0; i < cols; i++)
+                {
+                    Vector2 p = _target.GetWarpPoint(i, j);
+                    _target.SetWarpPoint(i, j, new Vector2(Mathf.Clamp01(p.x + d.x), Mathf.Clamp01(p.y + d.y)));
+                }
         }
     }
 }

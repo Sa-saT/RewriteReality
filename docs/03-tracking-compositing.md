@@ -204,6 +204,29 @@ void Composite(Texture baseTex, Texture camTex, Corners c, RenderTexture outRT){
 
 操作UI（制御点ドラッグ／Surface 操作・MadMapper 参照）は `07-control-ui.md`。
 
+### Fit モード（Project / Mask-Crop）【#32・2026-07-03】
+
+per-surface で**内容を歪ませるかどうか**を選べる（`Surface.FitMode`）。MadMapper の Quad/Mesh vs Mask に対応。
+
+- **Mask（既定・歪ませない）**: 内容（カメラ等）を **sceneRT 全面に等倍**で置き、Surface のクアッド形状を
+  **窓（マスク）として切り抜く**。頂点 UV ＝ **スクリーン位置（q=1）**。三角形内で線形補間しても UV＝位置に
+  一致するため **1:1 identity＝内容は歪まない**。四隅/pin を動かしても「窓が動く／内容は据え置き」になる。
+  中心ユースケース（窓に人＝中身は歪ませたくない・後から微調整）向け＝[[surface-mask-vs-warp]]。
+- **Project（射影で流し込む）**: 従来どおり camera UV＝規則グリッド × H の同次分母 `q` で **クアッドへ射影**
+  （`uv/q` で perspective-correct）。角度のある平面に「貼り付いて」見せる用。内容は遠近変形する。
+
+実装＝`Compositor.WriteMesh(..., bool mask, contentOffset, contentZoom)` の UV 分岐のみ（ジオメトリは共通）。既定 Mask。
+
+**Surface/Content 変形（#32・MadMapper の Output/Input 2空間）**:
+- **Surface 変形（Output 側）**＝窓の形/位置/大きさ。WARP エディタの **SHAPE** モードで、ハンドル＝形、
+  何もない所ドラッグ＝**窓ごと移動**、props の **Scale −/+** ＝重心中心の拡大縮小（制御点操作・IWarpTarget 共通）。
+  小さいマッピング先へ素早く合わせる用。
+- **Content 変形（Input 側・Mask 時）**＝枠内で見せる映像の切り出し。`Surface.ContentOffset`(pan)＋
+  `ContentZoom`。WARP エディタの **CONTENT** モードで**ドラッグ＝pan**、props の **Zoom** スライダで拡大。
+  Mask UV に `u=(xp-0.5)/zoom+0.5-offset` として反映（**内容は歪まない**まま見せる箇所だけ動く）。
+
+故意の歪みは**エフェクト側**（#33）へ分離。
+
 ## 関連
 - 合成後フレームは `04-effects.md` のエフェクトチェーンへ
 - 手動領域指定 UI は `07-control-ui.md`

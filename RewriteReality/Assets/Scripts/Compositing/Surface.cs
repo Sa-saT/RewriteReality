@@ -15,6 +15,13 @@ namespace RewriteReality
         /// <summary>surface に流し込む内容の種別。</summary>
         public enum ContentKind { Camera, Video, None }
 
+        /// <summary>
+        /// 合成方式。<see cref="Mask"/>＝内容を等倍(full-frame)のまま表示し Surface 形状で窓抜き
+        /// （四隅/pin を動かしても内容は歪まない・枠内のみ表示）。<see cref="Project"/>＝内容を
+        /// クアッドへ射影で流し込む（角度平面に貼り付け・内容は遠近変形する）。既定は歪ませない Mask。
+        /// </summary>
+        public enum FitMode { Mask, Project }
+
         [SerializeField] int _id;
         [SerializeField] string _name = "Surface";
         [SerializeField] bool _enabled = true;
@@ -24,6 +31,16 @@ namespace RewriteReality
 
         [Tooltip("この面に流し込む内容（Camera=ライブカメラ・既定）")]
         [SerializeField] ContentKind _content = ContentKind.Camera;
+
+        [Tooltip("合成方式（Mask=歪まない窓抜き・既定／Project=射影で流し込む）")]
+        [SerializeField] FitMode _fit = FitMode.Mask;
+
+        [Header("Content 変形（Mask 時・枠内で見せる映像の切り出し）")]
+        [Tooltip("枠内で見せる content の平行移動（画面正規化・ドラッグで決める）")]
+        [SerializeField] Vector2 _contentOffset = Vector2.zero;
+        [Range(0.2f, 5f)]
+        [Tooltip("枠内 content のズーム（1=等倍・>1 で拡大）")]
+        [SerializeField] float _contentZoom = 1f;
 
         [Tooltip("この面の追従四隅を供給する ICornerSource（未設定＝全画面 FullFrame）")]
         [SerializeField] MonoBehaviour _cornerSourceBehaviour;
@@ -44,6 +61,10 @@ namespace RewriteReality
         public bool Enabled { get => _enabled; set => _enabled = value; }
         public float Opacity { get => _opacity; set => _opacity = Mathf.Clamp01(value); }
         public ContentKind Content { get => _content; set => _content = value; }
+        public FitMode Fit { get => _fit; set => _fit = value; }
+        public Vector2 ContentOffset { get => _contentOffset; set => _contentOffset = value; }
+        public float ContentZoom { get => _contentZoom; set => _contentZoom = Mathf.Clamp(value, 0.2f, 5f); }
+        public void ResetContent() { _contentOffset = Vector2.zero; _contentZoom = 1f; }
         public int WarpCols => _warpCols;
         public int WarpRows => _warpRows;
         public Corners CurrentCorners => _lastCorners;

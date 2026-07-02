@@ -93,7 +93,7 @@ namespace RewriteReality
             if (mat != null && camTex != null)
             {
                 EnsureGrid(); // 組込み単一 surface の制御点を保証
-                DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat);
+                DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat, false, Vector2.zero, 1f);
             }
             return _sceneRT;
         }
@@ -127,7 +127,9 @@ namespace RewriteReality
                         content = effectChain.ProcessSurface(crt, surf.Id, audio);
 
                     var corners = surf.UpdateCorners(time);
-                    DrawContent(content, corners, surf.WarpPoints, surf.WarpCols, surf.WarpRows, mat);
+                    bool mask = surf.Fit == Surface.FitMode.Mask;
+                    DrawContent(content, corners, surf.WarpPoints, surf.WarpCols, surf.WarpRows, mat, mask,
+                                surf.ContentOffset, surf.ContentZoom);
                 }
             }
             return _sceneRT;
@@ -140,11 +142,16 @@ namespace RewriteReality
             else                 ClearSceneRT();
         }
 
-        /// <summary>content を四隅＋多pin メッシュワープして sceneRT へ上書き描画する（surface 共通）。</summary>
-        void DrawContent(Texture content, in Corners corners, Vector2[] points, int cols, int rows, Material mat)
+        /// <summary>
+        /// content を四隅＋多pin メッシュで sceneRT へ上書き描画する（surface 共通）。
+        /// <paramref name="mask"/>=true なら Mask/Crop（内容を等倍のまま窓抜き・歪ませない）、
+        /// false なら Project（内容をクアッドへ射影で流し込む）。
+        /// </summary>
+        void DrawContent(Texture content, in Corners corners, Vector2[] points, int cols, int rows, Material mat,
+                         bool mask, Vector2 contentOffset, float contentZoom)
         {
             EnsureMeshTopology(cols, rows);
-            WriteMesh(corners, points, cols, rows);
+            WriteMesh(corners, points, cols, rows, mask, contentOffset, contentZoom);
             mat.SetTexture(MainTexID, content);
 
             var prev = RenderTexture.active;
@@ -222,29 +229,45 @@ namespace RewriteReality
         }
 
         /// <summary>
-        /// Corners から H を解き、各制御点を「手動ワープ → H 射影」して頂点位置と射影補間 uvq を書き込む。
-        /// camera UV は規則グリッド（手動ワープに依らない）。q は H の同次分母 w'。位相は事前に EnsureMeshTopology。
+        /// Corners から H を解き、各制御点を「手動ワープ → H 射影」して頂点位置と uvq を書き込む。
+        /// Project（<paramref name="mask"/>=false）: content UV は規則グリッド → クアッドへ射影で流し込む
+        /// （q は H の同次分母 w'・frag で /q で perspective-correct）。
+        /// Mask（<paramref name="mask"/>=true）: content UV = 頂点のスクリーン位置(q=1) → content を
+        /// sceneRT 全面に等倍で貼り、窓（クアッド）が切り抜くだけ＝内容は歪まない。位相は事前に EnsureMeshTopology。
         /// </summary>
-        void WriteMesh(in Corners c, Vector2[] points, int cols, int rows)
+        void WriteMesh(in Corners c, Vector2[] points, int cols, int rows, bool mask,
+                       Vector2 contentOffset, float contentZoom)
         {
             // 単位正方形→四隅 の射影変換（Heckbert）。数学は WarpMath に共通化（OutputWarp と共有）。
             var hmg = WarpMath.Solve(c.BottomLeft, c.BottomRight, c.TopRight, c.TopLeft);
 
             float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
+            float invZoom = 1f / Mathf.Max(0.0001f, contentZoom);
 
             for (int j = 0; j < rows; j++)
             {
                 for (int i = 0; i < cols; i++)
                 {
                     int idx = j * cols + i;
-                    float gu = i * invCx;          // camera UV（規則グリッド）
-                    float gv = j * invCy;
 
                     Vector2 p = points[idx];        // 手動ワープ後のローカル座標
                     WarpMath.Project(hmg, p.x, p.y, out float xp, out float yp, out float wp);
 
                     _verts[idx] = new Vector3(xp, yp, 0f);            // スクリーン位置（0..1）
-                    _uvq[idx]   = new Vector3(gu * wp, gv * wp, wp);  // 射影補間（frag で /q）
+                    if (mask)
+                    {
+                        // 窓抜き: content UV = スクリーン位置に content 変形（zoom 中心=0.5・pan=offset）を適用。
+                        // 内容は歪まず、枠内で見せる箇所だけ動く（q=1）。
+                        float u = (xp - 0.5f) * invZoom + 0.5f - contentOffset.x;
+                        float v = (yp - 0.5f) * invZoom + 0.5f - contentOffset.y;
+                        _uvq[idx] = new Vector3(u, v, 1f);
+                    }
+                    else
+                    {
+                        // 射影流し込み: content UV = 規則グリッド × 同次分母（frag で /q）
+                        float gu = i * invCx, gv = j * invCy;
+                        _uvq[idx] = new Vector3(gu * wp, gv * wp, wp);
+                    }
                 }
             }
 

@@ -62,20 +62,22 @@ namespace RewriteReality
 
         // WARP 編集オーバーレイ（#21・メッシュ制御点ドラッグ）
         WarpCanvas _warpCanvas;
-        Button _warpToggle, _warpReset, _warpTargetBtn;
+        Button _warpToggle, _warpReset, _warpTargetBtn, _warpEditModeBtn;
         bool _warpEditing;
         bool _warpOutputMode;   // true=OUTPUT(出力変形) を編集 / false=EMBED(埋め込み)
+        bool _warpContentMode;  // true=CONTENT(枠内映像 pan) / false=SHAPE(窓の形)
         readonly List<VisualElement> _cornerPins = new List<VisualElement>();  // 装飾ピン（編集中は隠す）
         IWarpTarget _warpTarget;   // 現在の warp 編集対象（選択 surface or Compositor）
 
         // Surface パネル（左ドック・#22）＋モード切替
         VisualElement _surfaceList, _surfaceProps;
         Label _surfaceEmpty;
-        Button _surfaceAdd, _surfContent, _surfRemove;
+        Button _surfaceAdd, _surfContent, _surfFit, _surfRemove;
         Button _surfColsDec, _surfColsInc, _surfRowsDec, _surfRowsInc;
-        Label _surfColsVal, _surfRowsVal, _surfOpacityVal;
+        Button _surfScaleDec, _surfScaleInc;
+        Label _surfColsVal, _surfRowsVal, _surfOpacityVal, _surfZoomVal;
         Toggle _surfEnabled;
-        Slider _surfOpacity;
+        Slider _surfOpacity, _surfZoom;
         VisualElement _modeEdit, _modeLive;
         readonly List<SurfRow> _surfRows = new List<SurfRow>();
         int _builtSurfaceCount = -1;
@@ -236,6 +238,7 @@ namespace RewriteReality
             _warpToggle = _root.Q<Button>("rr-warp-toggle");
             _warpReset = _root.Q<Button>("rr-warp-reset");
             _warpTargetBtn = _root.Q<Button>("rr-warp-target");
+            _warpEditModeBtn = _root.Q<Button>("rr-warp-editmode");
             if (viewport == null) return;
 
             if (_warpCanvas == null)
@@ -249,6 +252,7 @@ namespace RewriteReality
             // 装飾のコーナーピン（静的・非ドラッグ）は編集中に隠す。実ハンドルと紛らわしいため。
             _cornerPins.Clear();
             viewport.Query<VisualElement>(className: "rr-corner-pin").ForEach(e => _cornerPins.Add(e));
+            _warpCanvas.ContentPan = OnContentPan;     // CONTENT モードのドラッグ → 選択 surface の content pan
             SetWarpTarget(ResolveWarpTarget());       // 選択 surface or Compositor
             _warpEditing = false;
             ApplyWarpEditing();
@@ -256,7 +260,33 @@ namespace RewriteReality
             if (_warpToggle != null) _warpToggle.clicked += ToggleWarpEditing;
             if (_warpReset != null)  _warpReset.clicked  += () => { _warpTarget?.ResetWarp(); _warpCanvas?.MarkDirtyRepaint(); };
             if (_warpTargetBtn != null) _warpTargetBtn.clicked += ToggleWarpOutputMode;
+            if (_warpEditModeBtn != null) _warpEditModeBtn.clicked += ToggleWarpEditMode;
             RefreshWarpTargetBtn();
+            RefreshWarpEditModeBtn();
+        }
+
+        // CONTENT モードのドラッグ量（正規化 delta）を選択 surface の content offset に反映（Mask のみ意味を持つ）。
+        void OnContentPan(Vector2 delta)
+        {
+            if (_warpOutputMode) return;
+            var s = _surfaces?.Active;
+            if (s == null) return;
+            s.ContentOffset += delta;
+        }
+
+        // SHAPE（窓の形）⇄ CONTENT（枠内映像 pan）を切替。
+        void ToggleWarpEditMode()
+        {
+            _warpContentMode = !_warpContentMode;
+            _warpCanvas?.SetEditMode(_warpContentMode ? WarpCanvas.EditMode.Content : WarpCanvas.EditMode.Shape);
+            RefreshWarpEditModeBtn();
+        }
+
+        void RefreshWarpEditModeBtn()
+        {
+            if (_warpEditModeBtn == null) return;
+            _warpEditModeBtn.text = _warpContentMode ? "CONTENT" : "SHAPE";
+            EnableClass(_warpEditModeBtn, "rr-warp-toggle--content", _warpContentMode);
         }
 
         /// <summary>EMBED（埋め込み）⇄ OUTPUT（出力変形）を切替。OUTPUT では OutputWarp を有効化する。</summary>
@@ -309,6 +339,14 @@ namespace RewriteReality
             if (_warpToggle != null) EnableClass(_warpToggle, "rr-warp-toggle--active", _warpEditing);
             if (_warpReset != null)  _warpReset.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
             if (_warpTargetBtn != null) _warpTargetBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_warpEditModeBtn != null) _warpEditModeBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+
+            if (!_warpEditing && _warpContentMode)   // 編集終了時は SHAPE に戻す
+            {
+                _warpContentMode = false;
+                _warpCanvas?.SetEditMode(WarpCanvas.EditMode.Shape);
+                RefreshWarpEditModeBtn();
+            }
 
             // 装飾コーナーピンは編集中のみ隠す（プレビュー時は Claude Design 通り残す）
             for (int i = 0; i < _cornerPins.Count; i++)
@@ -326,12 +364,17 @@ namespace RewriteReality
             _surfOpacity = _root.Q<Slider>("rr-surf-opacity");
             _surfOpacityVal = _root.Q<Label>("rr-surf-opacity-val");
             _surfContent = _root.Q<Button>("rr-surf-content");
+            _surfFit = _root.Q<Button>("rr-surf-fit");
             _surfColsDec = _root.Q<Button>("rr-surf-cols-dec");
             _surfColsInc = _root.Q<Button>("rr-surf-cols-inc");
             _surfColsVal = _root.Q<Label>("rr-surf-cols-val");
             _surfRowsDec = _root.Q<Button>("rr-surf-rows-dec");
             _surfRowsInc = _root.Q<Button>("rr-surf-rows-inc");
             _surfRowsVal = _root.Q<Label>("rr-surf-rows-val");
+            _surfScaleDec = _root.Q<Button>("rr-surf-scale-dec");
+            _surfScaleInc = _root.Q<Button>("rr-surf-scale-inc");
+            _surfZoom = _root.Q<Slider>("rr-surf-zoom");
+            _surfZoomVal = _root.Q<Label>("rr-surf-zoom-val");
             _surfRemove = _root.Q<Button>("rr-surf-remove");
 
             if (_surfaceAdd != null) _surfaceAdd.clicked += () =>
@@ -351,10 +394,42 @@ namespace RewriteReality
                 if (_surfOpacityVal != null) _surfOpacityVal.text = evt.newValue.ToString("F2");
             });
             if (_surfContent != null) _surfContent.clicked += CycleContent;
+            if (_surfFit != null) _surfFit.clicked += ToggleFit;
             if (_surfColsDec != null) _surfColsDec.clicked += () => NudgeGrid(-1, 0);
             if (_surfColsInc != null) _surfColsInc.clicked += () => NudgeGrid(+1, 0);
             if (_surfRowsDec != null) _surfRowsDec.clicked += () => NudgeGrid(0, -1);
             if (_surfRowsInc != null) _surfRowsInc.clicked += () => NudgeGrid(0, +1);
+            if (_surfScaleDec != null) _surfScaleDec.clicked += () => ScaleWarpTarget(1f / 1.1f);
+            if (_surfScaleInc != null) _surfScaleInc.clicked += () => ScaleWarpTarget(1.1f);
+            if (_surfZoom != null) _surfZoom.RegisterValueChangedCallback(evt =>
+            {
+                if (_surfaces?.Active != null) _surfaces.Active.ContentZoom = evt.newValue;
+                if (_surfZoomVal != null) _surfZoomVal.text = evt.newValue.ToString("F1");
+            });
+        }
+
+        /// <summary>現在の warp 対象（選択 surface / Compositor）の制御点を重心中心に拡大縮小（窓自体のスケール）。</summary>
+        void ScaleWarpTarget(float factor)
+        {
+            var t = _warpTarget;
+            if (t == null) return;
+            t.EnsureWarpPoints();
+            int cols = t.WarpCols, rows = t.WarpRows;
+
+            Vector2 c = Vector2.zero; int n = 0;
+            for (int j = 0; j < rows; j++)
+                for (int i = 0; i < cols; i++) { c += t.GetWarpPoint(i, j); n++; }
+            if (n == 0) return;
+            c /= n;
+
+            for (int j = 0; j < rows; j++)
+                for (int i = 0; i < cols; i++)
+                {
+                    Vector2 p = t.GetWarpPoint(i, j);
+                    Vector2 np = c + (p - c) * factor;
+                    t.SetWarpPoint(i, j, new Vector2(Mathf.Clamp01(np.x), Mathf.Clamp01(np.y)));
+                }
+            _warpCanvas?.MarkDirtyRepaint();
         }
 
         void CycleContent()
@@ -363,6 +438,23 @@ namespace RewriteReality
             if (s == null) return;
             s.Content = (Surface.ContentKind)(((int)s.Content + 1) % 3);
             if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
+        }
+
+        // Mask（歪まない窓抜き）⇄ Project（射影で流し込む）を切替
+        void ToggleFit()
+        {
+            var s = _surfaces?.Active;
+            if (s == null) return;
+            s.Fit = s.Fit == Surface.FitMode.Mask ? Surface.FitMode.Project : Surface.FitMode.Mask;
+            RefreshFitBtn(s);
+        }
+
+        void RefreshFitBtn(Surface s)
+        {
+            if (_surfFit == null) return;
+            bool project = s != null && s.Fit == Surface.FitMode.Project;
+            _surfFit.text = project ? "PROJECT" : "MASK";
+            EnableClass(_surfFit, "rr-surf-chip--project", project);   // Project=歪む=アンバー強調
         }
 
         void NudgeGrid(int dCols, int dRows)
@@ -450,8 +542,11 @@ namespace RewriteReality
             if (_surfOpacity != null) _surfOpacity.SetValueWithoutNotify(s.Opacity);
             if (_surfOpacityVal != null) _surfOpacityVal.text = s.Opacity.ToString("F2");
             if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
+            RefreshFitBtn(s);
             if (_surfColsVal != null) _surfColsVal.text = s.WarpCols.ToString();
             if (_surfRowsVal != null) _surfRowsVal.text = s.WarpRows.ToString();
+            if (_surfZoom != null) _surfZoom.SetValueWithoutNotify(s.ContentZoom);
+            if (_surfZoomVal != null) _surfZoomVal.text = s.ContentZoom.ToString("F1");
         }
 
         // -------------------------------------------------- mode switch (#22)
