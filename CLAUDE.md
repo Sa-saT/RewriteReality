@@ -92,6 +92,10 @@ RewriteRealityProject/        ← git repo ルート
     新コントロール用テンプレ＋バインドを用意する役で、**ビジュアルの作り込みはユーザーに委ねる**。
     **デザイン確定（タスク#24）後に #21→#22→#18（領域マッピングUI）へ着手**。詳細＝`docs/07-control-ui.md`。
   - **デザインブリーフ＝`docs/07b-operator-ui-brief.md`**（#24 用・Claude Design に貼る一枚仕様・MadMapper 参照）。
+  - **Claude Design 連携**（見た目の前段ツール・`claude.ai/design`）: 使い方・扱い・合意フローは
+    **`docs/07-control-ui.md`「見た目の前段に Claude Design を使う」**＋**`docs/07b` §0/§7**（貼付プロンプト雛形）が正本。
+    運用＝**大改修は Claude Design で生成→UXML/USS へ移植／微調整は Unity 直**。DesignSync MCP（`/design-login`）で
+    プロジェクトを読み書きでき、#24 で operator console キットを取り込み移植済（現デザイン再現に新規生成は不要）。
 - **AV ショー化の拡張（決定 2026-06-30・段階的実装）**: 「カメラ埋め込み VJ」→ **タイムライン＋音声ミックスを持つ
   AV ショー・ツール**へ拡張。①下部＝**マルチトラック・タイムライン**（映像/音声）②音声＝**内部再生＋外部解析の両対応**
   （fade/mute・解析は最終ミックス）③**準備 Edit / 本番 Live の 2 モード**（準備で surface・エフェクト範囲[surface/全体]・
@@ -112,6 +116,15 @@ RewriteRealityProject/        ← git repo ルート
     `Manager` は `SurfaceManager` 配置時のみ多surface経路・未配置なら従来経路にフォールバック（**非破壊**）。
     warp グリッド生成は `WarpMath.FillRegularGrid` に統一（Compositor/Surface/OutputWarp）。
     **Unityコンパイル/シーン配線は未検証**（シーンに SurfaceManager 配置＋surface 追加は #22 で）。UI は #22。
+  - **オペレータUI＋マッピング機能 実装＆実機検証済（2026-07-02〜03・すべて push 済）**:
+    **#21** WARP 制御点ドラッグ＋メッシュ線（`WarpCanvas`＋`IWarpTarget`）。**#22** M11 UI（Surface 一覧/選択/追加削除/
+    per-surface プロパティ/準備 Edit・本番 Live モード切替）＋シーンに `Surfaces`(AppMode＋SurfaceManager) 配置。
+    **#25** 出力変形を UI 編集（EMBED⇄OUTPUT・WYSIWYG）。**#32** Surface **Mask/Crop モード**（既定＝歪めない窓抜き）
+    ＋Surface/Content 変形（SHAPE=窓移動/Scale・CONTENT=枠内映像 pan/Zoom）。設計判断＝Surface は「歪めない Mask 」が本命、
+    歪みは別建て（`surface-mask-vs-warp` メモ・`docs/03`）。
+  - **次の一手（マッピング品質・決定 2026-07-03）**: **#34 Grid/Bezier モード**（Project 2×2 を廃止し「歪ませる面」を
+    Bezier グリッドに一本化＝MadMapper GridGenerator 手本・テストパターン校正→カメラ差替）＋**#35 OUTPUT グリッド校正**
+    （格子オーバーレイ＋投影キャリブレーション表示）。故意の局所歪みは **#33**（パペットpin エフェクト）。詳細＝`docs/03`・`06`。
 
 ## 作業上の注意
 
