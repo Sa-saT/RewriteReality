@@ -238,6 +238,75 @@
     -unity-text-align: middle-right;
     flex-shrink: 0;
 }
+.rr-list-label--off { color: var(--rr-muted); }
+
+/* Surface パネル（左ドック・#22）— 一覧＋選択 surface のプロパティ */
+.rr-surface-list { flex-direction: column; }
+.rr-surface-empty {
+    color: var(--rr-muted);
+    font-size: 10px;
+    padding-left: 10px; padding-right: 10px;
+    padding-top: 4px; padding-bottom: 6px;
+    white-space: normal;
+}
+.rr-surface-props {
+    flex-direction: column;
+    margin-top: 4px;
+    padding: 6px 8px;
+    background-color: var(--rr-surface-inset);
+    border-top-width: 1px; border-bottom-width: 1px;
+    border-color: var(--rr-hairline-soft);
+}
+.rr-surf-prop-row {
+    flex-direction: row;
+    align-items: center;
+    height: 24px;
+}
+.rr-surf-prop-label {
+    color: var(--rr-body);
+    font-size: 11px;
+    margin-right: 6px;
+}
+.rr-surf-prop-val {
+    color: var(--rr-text);
+    font-size: 11px;
+    min-width: 26px;
+    -unity-text-align: middle-center;
+}
+.rr-surf-slider { flex-grow: 1; margin-right: 6px; }
+.rr-surf-chip {
+    height: 18px;
+    padding-left: 6px; padding-right: 6px;
+    font-size: 9px;
+    color: var(--rr-selection);
+    background-color: var(--rr-canvas-soft);
+    border-width: 1px; border-color: var(--rr-hairline-strong);
+    border-radius: 3px;
+}
+.rr-surf-chip:hover { border-color: var(--rr-selection); }
+.rr-surf-step {
+    width: 18px; height: 18px;
+    font-size: 12px;
+    color: var(--rr-body);
+    background-color: var(--rr-surface-raised);
+    border-width: 1px; border-color: var(--rr-hairline-strong);
+    border-radius: 3px;
+    margin-left: 2px; margin-right: 2px;
+    -unity-text-align: middle-center;
+    padding: 0;
+}
+.rr-surf-step:hover { color: var(--rr-text); border-color: var(--rr-selection); }
+.rr-surf-step:disabled { opacity: 0.4; }
+.rr-surf-remove {
+    width: 20px; height: 18px;
+    font-size: 10px;
+    color: var(--rr-muted);
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px; border-color: var(--rr-hairline-strong);
+    border-radius: 3px;
+}
+.rr-surf-remove:hover { color: var(--rr-primary); border-color: var(--rr-primary); }
+.rr-surf-remove:disabled { opacity: 0.4; }
 
 /* ---------------------------------------------------------- Center stage */
 .rr-center {

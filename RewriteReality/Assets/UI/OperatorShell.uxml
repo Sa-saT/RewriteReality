@@ -44,22 +44,38 @@
             <ui:VisualElement name="rr-dock-left" class="rr-dock rr-dock-left">
                 <ui:VisualElement class="rr-section-label">
                     <ui:Label text="SURFACES" class="rr-section-label__text" />
-                    <ui:Button text="+ Surface" class="rr-add-btn" />
+                    <ui:Button name="rr-surface-add" text="+ Surface" class="rr-add-btn" />
                 </ui:VisualElement>
-                <ui:VisualElement class="rr-list-item rr-list-item--active">
-                    <ui:VisualElement class="rr-list-dot rr-list-dot--tracking" />
-                    <ui:Label text="Surf 1 · center" class="rr-list-label" />
-                    <ui:Label text="4×3" class="rr-list-meta rr-mono" />
-                </ui:VisualElement>
-                <ui:VisualElement class="rr-list-item">
-                    <ui:VisualElement class="rr-list-dot rr-list-dot--tracking" />
-                    <ui:Label text="Surf 2 · left wall" class="rr-list-label" />
-                    <ui:Label text="3×3" class="rr-list-meta rr-mono" />
-                </ui:VisualElement>
-                <ui:VisualElement class="rr-list-item">
-                    <ui:VisualElement class="rr-list-dot rr-list-dot--output" />
-                    <ui:Label text="Projector A" class="rr-list-label" />
-                    <ui:Label text="6×4" class="rr-list-meta rr-mono" />
+                <!-- Surface 一覧（OperatorUI が SurfaceManager から動的生成・#22）。
+                     SurfaceManager 未配置なら空＝従来の単一 Compositor 経路（非破壊）。 -->
+                <ui:VisualElement name="rr-surface-list" class="rr-surface-list" />
+                <ui:Label name="rr-surface-empty" text="No surfaces · uses single Compositor" class="rr-surface-empty rr-mono" />
+
+                <!-- 選択中 surface のプロパティ（OperatorUI が bind・active 無しなら非表示） -->
+                <ui:VisualElement name="rr-surface-props" class="rr-surface-props" style="display: none;">
+                    <ui:VisualElement class="rr-surf-prop-row">
+                        <ui:Toggle name="rr-surf-enabled" class="rr-fx-toggle" />
+                        <ui:Label text="Enabled" class="rr-surf-prop-label" />
+                        <ui:VisualElement class="rr-spacer" />
+                        <ui:Button name="rr-surf-content" text="CAMERA" class="rr-surf-chip rr-mono" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-surf-prop-row">
+                        <ui:Label text="Opacity" class="rr-surf-prop-label" />
+                        <ui:Slider name="rr-surf-opacity" low-value="0" high-value="1" class="rr-surf-slider" />
+                        <ui:Label name="rr-surf-opacity-val" text="1.00" class="rr-surf-prop-val rr-mono" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-surf-prop-row">
+                        <ui:Label text="Grid" class="rr-surf-prop-label" />
+                        <ui:Button name="rr-surf-cols-dec" text="−" class="rr-surf-step" />
+                        <ui:Label name="rr-surf-cols-val" text="2" class="rr-surf-prop-val rr-mono" />
+                        <ui:Button name="rr-surf-cols-inc" text="+" class="rr-surf-step" />
+                        <ui:Label text="×" class="rr-surf-prop-label rr-mono" />
+                        <ui:Button name="rr-surf-rows-dec" text="−" class="rr-surf-step" />
+                        <ui:Label name="rr-surf-rows-val" text="2" class="rr-surf-prop-val rr-mono" />
+                        <ui:Button name="rr-surf-rows-inc" text="+" class="rr-surf-step" />
+                        <ui:VisualElement class="rr-spacer" />
+                        <ui:Button name="rr-surf-remove" text="✕" class="rr-surf-remove" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
 
                 <ui:VisualElement class="rr-section-label">

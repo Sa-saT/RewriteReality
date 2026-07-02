@@ -82,8 +82,16 @@
 > **M10（`OutputWarp`）／M11 backend（`AppMode`/`SurfaceManager`/`Surface`＋`EffectBase.scope`）は実装済**
 > （2026-07-01）。`EffectBase` は範囲指定 **scope（Global / Surface）＋targetSurfaceId** を持ち、`EffectChain` が
 > `Process`(Global) / `ProcessSurface`(Surface) で範囲別適用。`Manager` は `SurfaceManager` 配置時のみ多surface経路、
-> 未配置なら従来の単一 surface 経路にフォールバック（非破壊）。UI（Surface一覧/IO分割）は #22。
+> 未配置なら従来の単一 surface 経路にフォールバック（非破壊）。**UI（Surface一覧/選択/追加削除/per-surface プロパティ/
+> モード切替/WARP ドラッグ）は #21・#22 で実装済**（Input/Output 分割ペインの見た目は page 切替 #31 へ）。
 > `OutputManager` は**出力変形（Output Surface）**を持つ（旧 B4 出力段コーナーピンを内包）。仕様＝`07b`、決定＝`11` B9。
+
+> **シーン配置（`Main.unity`・2026-07-03）**: `AppMode` と `SurfaceManager` を1つの GameObject **`Surfaces`** に
+> 同居させて配置。`SurfaceManager.Mode` ← 同 GameObject の `AppMode`、`Manager.Surfaces` ← `SurfaceManager` を配線。
+> `SurfaceManager.Surfaces` リストが**空のうちは Count==0 で従来の単一 Compositor 経路にフォールバック**（＝挙動不変）。
+> オペレータUI の **＋Surface**（`SurfaceManager.Add`・準備 Edit のみ）で面を足すと多surface 合成に切替。
+> 本番用に面を固定したい場合は停止状態で `SurfaceManager.Surfaces` に追加して保存（Play 中の追加は非永続）。
+> `OperatorUI` は `SurfaceManager`/`AppMode`/`Compositor` を未指定時 `FindFirstObjectByType` で自動取得する。
 
 > **四隅供給の抽象化（重要な設計判断・2026-06）**: 旧 `Tracker` は `ICornerSource` に一般化。
 > ベース動画は事前固定なので、初期は **`BakedCornerSource`（オフラインで焼いた `track.json` を読むだけ）**

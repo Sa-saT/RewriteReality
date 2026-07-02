@@ -10,7 +10,7 @@ namespace RewriteReality
     /// warp グリッドの規約は <see cref="Compositor"/> と同一（row-major j*cols+i・各点 [0,1]²）。
     /// </summary>
     [Serializable]
-    public sealed class Surface
+    public sealed class Surface : IWarpTarget
     {
         /// <summary>surface に流し込む内容の種別。</summary>
         public enum ContentKind { Camera, Video, None }
@@ -78,6 +78,9 @@ namespace RewriteReality
                 WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
             }
         }
+
+        /// <summary>制御点配列を保証（IWarpTarget・UI 読み取り前に呼ぶ）。</summary>
+        public void EnsureWarpPoints() => EnsureGrid();
 
         /// <summary>制御点配列（内部バッファをそのまま返す・EnsureGrid 済み）。</summary>
         public Vector2[] WarpPoints { get { EnsureGrid(); return _warpPoints; } }

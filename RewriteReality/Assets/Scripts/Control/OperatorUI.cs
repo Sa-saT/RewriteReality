@@ -23,6 +23,10 @@ namespace RewriteReality
         [SerializeField] OutputManager _output;
         [Tooltip("WARP 編集オーバーレイの対象（埋め込み合成・未指定なら自動取得）")]
         [SerializeField] Compositor _compositor;
+        [Tooltip("複数 Input Surface（M11・未配置なら単一 Compositor 経路にフォールバック）")]
+        [SerializeField] SurfaceManager _surfaces;
+        [Tooltip("準備 Edit / 本番 Live のモード状態（未指定なら自動取得）")]
+        [SerializeField] AppMode _appMode;
 
         [Header("Assets (UIDocument に未設定なら使うフォールバック)")]
         [SerializeField] VisualTreeAsset _shellUxml;
@@ -59,6 +63,22 @@ namespace RewriteReality
         Button _warpToggle, _warpReset;
         bool _warpEditing;
         readonly List<VisualElement> _cornerPins = new List<VisualElement>();  // 装飾ピン（編集中は隠す）
+        IWarpTarget _warpTarget;   // 現在の warp 編集対象（選択 surface or Compositor）
+
+        // Surface パネル（左ドック・#22）＋モード切替
+        VisualElement _surfaceList, _surfaceProps;
+        Label _surfaceEmpty;
+        Button _surfaceAdd, _surfContent, _surfRemove;
+        Button _surfColsDec, _surfColsInc, _surfRowsDec, _surfRowsInc;
+        Label _surfColsVal, _surfRowsVal, _surfOpacityVal;
+        Toggle _surfEnabled;
+        Slider _surfOpacity;
+        VisualElement _modeEdit, _modeLive;
+        readonly List<SurfRow> _surfRows = new List<SurfRow>();
+        int _builtSurfaceCount = -1;
+        int _selectedSurfaceId = int.MinValue;   // 選択反映の変化検出用
+
+        sealed class SurfRow { public VisualElement root; public VisualElement dot; public Label name; public Label meta; public int id; }
 
         // FX 行・パラメータ行のバインド保持（再構築判定/毎フレーム同期用）
         readonly List<FxRow> _fxRows = new List<FxRow>();
@@ -76,6 +96,8 @@ namespace RewriteReality
             if (_chain == null) _chain = FindFirstObjectByType<EffectChain>();
             if (_output == null) _output = FindFirstObjectByType<OutputManager>();
             if (_compositor == null) _compositor = FindFirstObjectByType<Compositor>();
+            if (_surfaces == null) _surfaces = FindFirstObjectByType<SurfaceManager>();
+            if (_appMode == null) _appMode = FindFirstObjectByType<AppMode>();
         }
 
         void OnEnable()
@@ -112,9 +134,13 @@ namespace RewriteReality
 
             BuildOutputControls();
             BuildWarpEditor();
+            BuildSurfacePanel();
+            BuildModeSwitch();
 
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
+            _builtSurfaceCount = -1;
+            _selectedSurfaceId = int.MinValue;
             _inspectorEffect = -1;
             ApplyVisibility();
         }
@@ -218,12 +244,27 @@ namespace RewriteReality
             // 装飾のコーナーピン（静的・非ドラッグ）は編集中に隠す。実ハンドルと紛らわしいため。
             _cornerPins.Clear();
             viewport.Query<VisualElement>(className: "rr-corner-pin").ForEach(e => _cornerPins.Add(e));
-            _warpCanvas.Bind(_compositor);            // Compositor は IWarpTarget
+            SetWarpTarget(ResolveWarpTarget());       // 選択 surface or Compositor
             _warpEditing = false;
             ApplyWarpEditing();
 
             if (_warpToggle != null) _warpToggle.clicked += ToggleWarpEditing;
-            if (_warpReset != null)  _warpReset.clicked  += () => { _compositor?.ResetWarp(); _warpCanvas?.MarkDirtyRepaint(); };
+            if (_warpReset != null)  _warpReset.clicked  += () => { _warpTarget?.ResetWarp(); _warpCanvas?.MarkDirtyRepaint(); };
+        }
+
+        /// <summary>現在の warp 編集対象。surface があれば選択 surface、無ければ単一 Compositor。</summary>
+        IWarpTarget ResolveWarpTarget()
+        {
+            if (_surfaces != null && _surfaces.Count > 0 && _surfaces.Active != null)
+                return _surfaces.Active;
+            return _compositor;
+        }
+
+        void SetWarpTarget(IWarpTarget t)
+        {
+            if (ReferenceEquals(_warpTarget, t)) return;
+            _warpTarget = t;
+            _warpCanvas?.Bind(t);
         }
 
         void ToggleWarpEditing()
@@ -247,6 +288,173 @@ namespace RewriteReality
                 _cornerPins[i].style.display = _warpEditing ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
+        // -------------------------------------------------- surface panel (#22)
+        void BuildSurfacePanel()
+        {
+            _surfaceList = _root.Q<VisualElement>("rr-surface-list");
+            _surfaceEmpty = _root.Q<Label>("rr-surface-empty");
+            _surfaceProps = _root.Q<VisualElement>("rr-surface-props");
+            _surfaceAdd = _root.Q<Button>("rr-surface-add");
+            _surfEnabled = _root.Q<Toggle>("rr-surf-enabled");
+            _surfOpacity = _root.Q<Slider>("rr-surf-opacity");
+            _surfOpacityVal = _root.Q<Label>("rr-surf-opacity-val");
+            _surfContent = _root.Q<Button>("rr-surf-content");
+            _surfColsDec = _root.Q<Button>("rr-surf-cols-dec");
+            _surfColsInc = _root.Q<Button>("rr-surf-cols-inc");
+            _surfColsVal = _root.Q<Label>("rr-surf-cols-val");
+            _surfRowsDec = _root.Q<Button>("rr-surf-rows-dec");
+            _surfRowsInc = _root.Q<Button>("rr-surf-rows-inc");
+            _surfRowsVal = _root.Q<Label>("rr-surf-rows-val");
+            _surfRemove = _root.Q<Button>("rr-surf-remove");
+
+            if (_surfaceAdd != null) _surfaceAdd.clicked += () =>
+            {
+                if (_surfaces == null) return;
+                if (_surfaces.Add("Surface") != null) _builtSurfaceCount = -1; // 再構築＋選択反映
+            };
+            if (_surfRemove != null) _surfRemove.clicked += () =>
+            {
+                if (_surfaces?.Active != null && _surfaces.Remove(_surfaces.Active)) _builtSurfaceCount = -1;
+            };
+            if (_surfEnabled != null) _surfEnabled.RegisterValueChangedCallback(evt =>
+            { if (_surfaces?.Active != null) _surfaces.Active.Enabled = evt.newValue; });
+            if (_surfOpacity != null) _surfOpacity.RegisterValueChangedCallback(evt =>
+            {
+                if (_surfaces?.Active != null) _surfaces.Active.Opacity = evt.newValue;
+                if (_surfOpacityVal != null) _surfOpacityVal.text = evt.newValue.ToString("F2");
+            });
+            if (_surfContent != null) _surfContent.clicked += CycleContent;
+            if (_surfColsDec != null) _surfColsDec.clicked += () => NudgeGrid(-1, 0);
+            if (_surfColsInc != null) _surfColsInc.clicked += () => NudgeGrid(+1, 0);
+            if (_surfRowsDec != null) _surfRowsDec.clicked += () => NudgeGrid(0, -1);
+            if (_surfRowsInc != null) _surfRowsInc.clicked += () => NudgeGrid(0, +1);
+        }
+
+        void CycleContent()
+        {
+            var s = _surfaces?.Active;
+            if (s == null) return;
+            s.Content = (Surface.ContentKind)(((int)s.Content + 1) % 3);
+            if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
+        }
+
+        void NudgeGrid(int dCols, int dRows)
+        {
+            var s = _surfaces?.Active;
+            if (s == null) return;
+            s.SetGridResolution(s.WarpCols + dCols, s.WarpRows + dRows);
+            if (_surfColsVal != null) _surfColsVal.text = s.WarpCols.ToString();
+            if (_surfRowsVal != null) _surfRowsVal.text = s.WarpRows.ToString();
+            _warpCanvas?.Bind(s);   // グリッド解像度が変わったので再バインド＋再描画
+        }
+
+        void SyncSurfaces()
+        {
+            int count = _surfaces != null ? _surfaces.Count : 0;
+            if (count != _builtSurfaceCount) RebuildSurfaceList();
+
+            int activeId = _surfaces?.Active?.Id ?? int.MinValue;
+            if (activeId != _selectedSurfaceId)
+            {
+                _selectedSurfaceId = activeId;
+                SyncSurfaceProps();
+                SetWarpTarget(ResolveWarpTarget());   // 選択が変われば WARP 対象も切替
+            }
+            SyncSurfaceRows();
+        }
+
+        void RebuildSurfaceList()
+        {
+            _surfRows.Clear();
+            if (_surfaceList != null) _surfaceList.Clear();
+
+            int count = _surfaces != null ? _surfaces.Count : 0;
+            if (_surfaceEmpty != null) _surfaceEmpty.style.display = count == 0 ? DisplayStyle.Flex : DisplayStyle.None;
+
+            if (_surfaceList != null && _surfaces != null)
+            {
+                var list = _surfaces.Surfaces;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var s = list[i];
+                    if (s == null) continue;
+                    int index = i;
+
+                    var row = new VisualElement(); row.AddToClassList("rr-list-item");
+                    var dot = new VisualElement(); dot.AddToClassList("rr-list-dot"); dot.AddToClassList("rr-list-dot--tracking");
+                    var name = new Label(); name.AddToClassList("rr-list-label");
+                    var meta = new Label(); meta.AddToClassList("rr-list-meta"); meta.AddToClassList("rr-mono");
+                    row.Add(dot); row.Add(name); row.Add(meta);
+                    row.RegisterCallback<MouseDownEvent>(_ => { if (_surfaces != null) _surfaces.ActiveIndex = index; });
+
+                    _surfaceList.Add(row);
+                    _surfRows.Add(new SurfRow { root = row, dot = dot, name = name, meta = meta, id = s.Id });
+                }
+            }
+            _builtSurfaceCount = count;
+            _selectedSurfaceId = int.MinValue; // 次の同期で props/target を作り直す
+        }
+
+        void SyncSurfaceRows()
+        {
+            if (_surfaces == null) return;
+            var list = _surfaces.Surfaces;
+            int active = _surfaces.ActiveIndex;
+            for (int i = 0; i < _surfRows.Count && i < list.Count; i++)
+            {
+                var s = list[i];
+                if (s == null) continue;
+                var r = _surfRows[i];
+                r.name.text = $"{s.Id + 1}. {s.Name}";
+                r.meta.text = $"{s.WarpCols}×{s.WarpRows}";
+                EnableClass(r.root, "rr-list-item--active", i == active);
+                EnableClass(r.name, "rr-list-label--off", !s.Enabled && i != active);
+            }
+        }
+
+        void SyncSurfaceProps()
+        {
+            var s = _surfaces?.Active;
+            bool show = s != null;
+            if (_surfaceProps != null) _surfaceProps.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!show) return;
+
+            if (_surfEnabled != null) _surfEnabled.SetValueWithoutNotify(s.Enabled);
+            if (_surfOpacity != null) _surfOpacity.SetValueWithoutNotify(s.Opacity);
+            if (_surfOpacityVal != null) _surfOpacityVal.text = s.Opacity.ToString("F2");
+            if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
+            if (_surfColsVal != null) _surfColsVal.text = s.WarpCols.ToString();
+            if (_surfRowsVal != null) _surfRowsVal.text = s.WarpRows.ToString();
+        }
+
+        // -------------------------------------------------- mode switch (#22)
+        void BuildModeSwitch()
+        {
+            _modeEdit = _root.Q<VisualElement>("rr-mode-edit");
+            _modeLive = _root.Q<VisualElement>("rr-mode-live");
+            if (_modeEdit != null) _modeEdit.RegisterCallback<MouseDownEvent>(_ => _appMode?.SetMode(AppMode.Mode.Edit));
+            if (_modeLive != null) _modeLive.RegisterCallback<MouseDownEvent>(_ => _appMode?.SetMode(AppMode.Mode.Live));
+            if (_appMode != null) { _appMode.ModeChanged -= OnModeChanged; _appMode.ModeChanged += OnModeChanged; }
+            RefreshModeUI();
+        }
+
+        void OnModeChanged(AppMode.Mode m) => RefreshModeUI();
+
+        void RefreshModeUI()
+        {
+            bool edit = _appMode == null || _appMode.IsEdit;
+            if (_modeEdit != null) EnableClass(_modeEdit, "rr-mode-opt--active", edit);
+            if (_modeLive != null) EnableClass(_modeLive, "rr-mode-opt--live-active", !edit);
+            // 構成変更（追加/削除）は準備 Edit のみ許可
+            if (_surfaceAdd != null) _surfaceAdd.SetEnabled(edit);
+            if (_surfRemove != null) _surfRemove.SetEnabled(edit);
+        }
+
+        void OnDisable()
+        {
+            if (_appMode != null) _appMode.ModeChanged -= OnModeChanged;
+        }
+
         void Update()
         {
             var kb = Keyboard.current;
@@ -267,6 +475,7 @@ namespace RewriteReality
             // （動画プレビュー確認が ControlHub の配線に依存しないよう堅牢化）。
             UpdatePreview();
             UpdateFps();
+            SyncSurfaces();
 
             if (_hub == null) return; // 以降（FX 一覧 / inspector）は ControlHub が必要
 

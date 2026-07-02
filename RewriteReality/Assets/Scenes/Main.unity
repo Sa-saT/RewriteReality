@@ -203,7 +203,7 @@ MonoBehaviour:
   _effectChain: {fileID: 153291987}
   _audio: {fileID: 1427075338}
   _output: {fileID: 1074070486}
-  _surfaces: {fileID: 0}
+  _surfaces: {fileID: 203153260}
 --- !u!4 &126582639
 Transform:
   m_ObjectHideFlags: 0
@@ -344,6 +344,67 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 503.80432, y: 250.54628, z: 52.74408}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &203153259
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 203153262}
+  - component: {fileID: 203153261}
+  - component: {fileID: 203153260}
+  m_Layer: 0
+  m_Name: Surfaces
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &203153260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 203153259}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9d3e4f50647283940a5b6c7d8e9f012, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _mode: {fileID: 203153261}
+  _surfaces: []
+  _activeIndex: 0
+--- !u!114 &203153261
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 203153259}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7b1c2d3e4f5461728394a5b6c7d8e9f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _mode: 0
+--- !u!4 &203153262
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 203153259}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 450.67044, y: 285.58008, z: -29.053665}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -959,6 +1020,9 @@ MonoBehaviour:
   _hub: {fileID: 0}
   _chain: {fileID: 0}
   _output: {fileID: 0}
+  _compositor: {fileID: 0}
+  _surfaces: {fileID: 0}
+  _appMode: {fileID: 0}
   _shellUxml: {fileID: 0}
   _styleSheet: {fileID: 0}
   _fxRowTemplate: {fileID: 0}
@@ -1454,3 +1518,4 @@ SceneRoots:
   - {fileID: 126582639}
   - {fileID: 338224593}
   - {fileID: 1122709542}
+  - {fileID: 203153262}
