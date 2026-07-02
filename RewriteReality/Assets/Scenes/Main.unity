@@ -203,6 +203,7 @@ MonoBehaviour:
   _effectChain: {fileID: 153291987}
   _audio: {fileID: 1427075338}
   _output: {fileID: 1074070486}
+  _surfaces: {fileID: 0}
 --- !u!4 &126582639
 Transform:
   m_ObjectHideFlags: 0
@@ -269,6 +270,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mix: 1
+  scope: 0
+  targetSurfaceId: 0
   decay: 0.9
   zoom: 1
   rotate: 0
@@ -286,6 +289,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mix: 1
+  scope: 0
+  targetSurfaceId: 0
   _blocks: {x: 24, y: 14}
   _intensity: 0
   _audioGain: 0.6
@@ -304,6 +309,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mix: 1
+  scope: 0
+  targetSurfaceId: 0
   _amount: 0.004
   _audioGain: 0.012
   _angle: 0
@@ -320,6 +327,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mix: 1
+  scope: 0
+  targetSurfaceId: 0
   _exposure: 1
   _contrast: 1
   _saturation: 1
@@ -815,6 +824,9 @@ MonoBehaviour:
   _syphonServer: {fileID: 1074070488}
   _ndiSender: {fileID: 1074070487}
   _outputWarp: {fileID: 0}
+  _fullscreenEnabled: 1
+  _syphonEnabled: 1
+  _ndiEnabled: 1
 --- !u!114 &1074070487
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -946,6 +958,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _hub: {fileID: 0}
   _chain: {fileID: 0}
+  _output: {fileID: 0}
   _shellUxml: {fileID: 0}
   _styleSheet: {fileID: 0}
   _fxRowTemplate: {fileID: 0}
@@ -1020,7 +1033,7 @@ MonoBehaviour:
   _lowSplit: 0.08
   _midSplit: 0.35
   _onsetThreshold: 0.04
-  _logLevels: 1
+  _logLevels: 0
 --- !u!4 &1427075339
 Transform:
   m_ObjectHideFlags: 0
@@ -1062,8 +1075,8 @@ AudioSource:
   m_Enabled: 1
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
-  m_audioClip: {fileID: 0}
-  m_Resource: {fileID: 0}
+  m_audioClip: {fileID: 8300000, guid: e1a13381b8cd641048c754c86e08cbee, type: 3}
+  m_Resource: {fileID: 8300000, guid: e1a13381b8cd641048c754c86e08cbee, type: 3}
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1

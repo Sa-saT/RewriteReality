@@ -284,6 +284,32 @@
     color: var(--rr-muted);
     font-size: 11px;
 }
+/* WARP 編集トグル（ビューポート左上・#21）。制御点ドラッグ用オーバーレイの ON/OFF。 */
+.rr-viewport-overlay-tl {
+    position: absolute;
+    top: 8px; left: 10px;
+    flex-direction: row;
+    align-items: center;
+}
+.rr-warp-toggle {
+    height: 22px;
+    padding-left: 8px; padding-right: 8px;
+    font-size: 10px;
+    -unity-font-style: bold;
+    color: var(--rr-body);
+    background-color: var(--rr-surface-panel);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 4px;
+    margin-right: 6px;
+}
+.rr-warp-toggle:hover { color: var(--rr-text); border-color: var(--rr-selection); }
+.rr-warp-toggle--active {
+    color: var(--rr-selection);
+    border-color: var(--rr-selection);
+    background-color: var(--rr-canvas-soft);
+}
+.rr-warp-toggle--sub { color: var(--rr-muted); }
 
 /* Mapping（TRACK=Input/Output 分割・OUTPUT=単一 warp）— warp のドラッグ/メッシュ線は #21 */
 .rr-map-col { flex-grow: 1; flex-direction: column; }

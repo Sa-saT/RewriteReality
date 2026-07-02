@@ -15,7 +15,7 @@ namespace RewriteReality
     /// ※ 現状はバックエンド（Inspector 駆動）。編集UIは #22（Surface UI）で本UIへ畳み込む。
     /// 将来 M11 の SurfaceManager で Compositor と統合予定。
     /// </summary>
-    public sealed class OutputWarp : MonoBehaviour
+    public sealed class OutputWarp : MonoBehaviour, IWarpTarget
     {
         [Tooltip("出力変形を有効化する。OFF なら finalRT を素通し（既定）。")]
         [SerializeField] bool _enabled = false;
@@ -73,7 +73,21 @@ namespace RewriteReality
         {
             _bl = new Vector2(0f, 0f); _br = new Vector2(1f, 0f);
             _tr = new Vector2(1f, 1f); _tl = new Vector2(0f, 1f);
-            if (_warpPoints != null) WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
+            EnsureWarpPoints();
+            WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
+        }
+
+        /// <summary>制御点配列を保証（未生成/解像度不一致なら等間隔で確保）。UI 読み取り前に呼ぶ。</summary>
+        public void EnsureWarpPoints()
+        {
+            _warpCols = Mathf.Max(2, _warpCols);
+            _warpRows = Mathf.Max(2, _warpRows);
+            int need = _warpCols * _warpRows;
+            if (_warpPoints == null || _warpPoints.Length != need)
+            {
+                _warpPoints = new Vector2[need];
+                WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
+            }
         }
 
         public void SetGridResolution(int cols, int rows)
@@ -144,15 +158,7 @@ namespace RewriteReality
 
         void EnsureGrid()
         {
-            _warpCols = Mathf.Max(2, _warpCols);
-            _warpRows = Mathf.Max(2, _warpRows);
-
-            int need = _warpCols * _warpRows;
-            if (_warpPoints == null || _warpPoints.Length != need)
-            {
-                _warpPoints = new Vector2[need];
-                WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
-            }
+            EnsureWarpPoints(); // 制御点が未生成/解像度不一致なら等間隔で確保
 
             if (_mesh != null && _builtCols == _warpCols && _builtRows == _warpRows) return;
 

@@ -9,7 +9,7 @@ namespace RewriteReality
     /// 段2: 埋め込みを N×M の制御点グリッドで細分化し、各頂点のローカル座標を手動ワープ → H で射影。
     /// 2×2・手動ワープ無しなら従来の 4pin と同結果（後方互換）。四隅の出所は ICornerSource 経由で知らない。
     /// </summary>
-    public sealed class Compositor : MonoBehaviour
+    public sealed class Compositor : MonoBehaviour, IWarpTarget
     {
         [Tooltip("カメラを射影合成するマテリアル（CornerPin シェーダ）。未設定なら実行時に自動生成する。")]
         [SerializeField] Material _warpMaterial;
@@ -42,7 +42,19 @@ namespace RewriteReality
         public int WarpRows => _warpRows;
         public Vector2 GetWarpPoint(int i, int j) => _warpPoints[j * _warpCols + i];
         public void SetWarpPoint(int i, int j, Vector2 local) => _warpPoints[j * _warpCols + i] = local;
-        public void ResetWarp() { if (_warpPoints != null) WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows); }
+        public void ResetWarp() { EnsureWarpPoints(); WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows); }
+        /// <summary>制御点配列を保証（未生成/解像度不一致なら等間隔で確保）。UI 読み取り前に呼ぶ。</summary>
+        public void EnsureWarpPoints()
+        {
+            _warpCols = Mathf.Max(2, _warpCols);
+            _warpRows = Mathf.Max(2, _warpRows);
+            int need = _warpCols * _warpRows;
+            if (_warpPoints == null || _warpPoints.Length != need)
+            {
+                _warpPoints = new Vector2[need];
+                WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
+            }
+        }
         public void SetGridResolution(int cols, int rows)
         {
             _warpCols = Mathf.Max(2, cols);
@@ -159,17 +171,7 @@ namespace RewriteReality
         /// <summary>組込み単一 surface の制御点＋メッシュ位相を保証する（従来経路）。</summary>
         void EnsureGrid()
         {
-            _warpCols = Mathf.Max(2, _warpCols);
-            _warpRows = Mathf.Max(2, _warpRows);
-
-            // 制御点が未生成/解像度不一致なら等間隔で作り直す
-            int need = _warpCols * _warpRows;
-            if (_warpPoints == null || _warpPoints.Length != need)
-            {
-                _warpPoints = new Vector2[need];
-                WarpMath.FillRegularGrid(_warpPoints, _warpCols, _warpRows);
-            }
-
+            EnsureWarpPoints(); // 制御点が未生成/解像度不一致なら等間隔で確保
             EnsureMeshTopology(_warpCols, _warpRows);
         }
 

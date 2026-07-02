@@ -21,6 +21,8 @@ namespace RewriteReality
         [SerializeField] EffectChain _chain;
         [Tooltip("上バー OUTPUT メニューの対象（未指定なら自動取得）")]
         [SerializeField] OutputManager _output;
+        [Tooltip("WARP 編集オーバーレイの対象（埋め込み合成・未指定なら自動取得）")]
+        [SerializeField] Compositor _compositor;
 
         [Header("Assets (UIDocument に未設定なら使うフォールバック)")]
         [SerializeField] VisualTreeAsset _shellUxml;
@@ -52,6 +54,12 @@ namespace RewriteReality
         Button _chipFs, _chipSyphon, _chipNdi;   // OUTPUT 右の状態チップ（クリックで切替）
         Toggle _outFs, _outSyphon, _outNdi;       // メニュー内トグル
 
+        // WARP 編集オーバーレイ（#21・メッシュ制御点ドラッグ）
+        WarpCanvas _warpCanvas;
+        Button _warpToggle, _warpReset;
+        bool _warpEditing;
+        readonly List<VisualElement> _cornerPins = new List<VisualElement>();  // 装飾ピン（編集中は隠す）
+
         // FX 行・パラメータ行のバインド保持（再構築判定/毎フレーム同期用）
         readonly List<FxRow> _fxRows = new List<FxRow>();
         readonly List<ParamRow> _paramRows = new List<ParamRow>();
@@ -67,6 +75,7 @@ namespace RewriteReality
             if (_hub == null) _hub = FindFirstObjectByType<ControlHub>();
             if (_chain == null) _chain = FindFirstObjectByType<EffectChain>();
             if (_output == null) _output = FindFirstObjectByType<OutputManager>();
+            if (_compositor == null) _compositor = FindFirstObjectByType<Compositor>();
         }
 
         void OnEnable()
@@ -102,6 +111,7 @@ namespace RewriteReality
             }
 
             BuildOutputControls();
+            BuildWarpEditor();
 
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
@@ -186,6 +196,55 @@ namespace RewriteReality
                 t.SetEnabled(available);
                 t.SetValueWithoutNotify(on);
             }
+        }
+
+        // -------------------------------------------------- warp editor (#21)
+        // ビューポート上に WarpCanvas を重ね、WARP トグルで編集モードに入る（既定はプレビュー）。
+        void BuildWarpEditor()
+        {
+            var viewport = _root.Q<VisualElement>("rr-viewport");
+            _warpToggle = _root.Q<Button>("rr-warp-toggle");
+            _warpReset = _root.Q<Button>("rr-warp-reset");
+            if (viewport == null) return;
+
+            if (_warpCanvas == null)
+            {
+                _warpCanvas = new WarpCanvas { name = "rr-warp-canvas" };
+                viewport.Add(_warpCanvas);            // 最前面（ピン等より上）に重ねる
+                // WARP/RESET ボタンはキャンバスより前面に保つ（編集中でも押せるように）
+                _warpToggle?.parent?.BringToFront();
+            }
+
+            // 装飾のコーナーピン（静的・非ドラッグ）は編集中に隠す。実ハンドルと紛らわしいため。
+            _cornerPins.Clear();
+            viewport.Query<VisualElement>(className: "rr-corner-pin").ForEach(e => _cornerPins.Add(e));
+            _warpCanvas.Bind(_compositor);            // Compositor は IWarpTarget
+            _warpEditing = false;
+            ApplyWarpEditing();
+
+            if (_warpToggle != null) _warpToggle.clicked += ToggleWarpEditing;
+            if (_warpReset != null)  _warpReset.clicked  += () => { _compositor?.ResetWarp(); _warpCanvas?.MarkDirtyRepaint(); };
+        }
+
+        void ToggleWarpEditing()
+        {
+            _warpEditing = !_warpEditing;
+            ApplyWarpEditing();
+        }
+
+        void ApplyWarpEditing()
+        {
+            if (_warpCanvas != null)
+            {
+                _warpCanvas.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+                _warpCanvas.pickingMode = _warpEditing ? PickingMode.Position : PickingMode.Ignore;
+            }
+            if (_warpToggle != null) EnableClass(_warpToggle, "rr-warp-toggle--active", _warpEditing);
+            if (_warpReset != null)  _warpReset.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+
+            // 装飾コーナーピンは編集中のみ隠す（プレビュー時は Claude Design 通り残す）
+            for (int i = 0; i < _cornerPins.Count; i++)
+                _cornerPins[i].style.display = _warpEditing ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         void Update()
