@@ -128,6 +128,7 @@
                     <!-- WARP 編集トグル（#21・押下で制御点ドラッグ用 WarpCanvas をこのビューポート上に重ねる） -->
                     <ui:VisualElement class="rr-viewport-overlay-tl">
                         <ui:Button name="rr-warp-toggle" text="◇ WARP" class="rr-warp-toggle" />
+                        <ui:Button name="rr-warp-target" text="EMBED" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
                         <ui:Button name="rr-warp-reset" text="RESET" class="rr-warp-toggle rr-warp-toggle--sub" style="display: none;" />
                     </ui:VisualElement>
                     <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />

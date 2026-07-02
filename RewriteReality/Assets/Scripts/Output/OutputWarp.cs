@@ -52,6 +52,8 @@ namespace RewriteReality
         // ---- 公開 API（OutputManager / 将来 UI から使う）----
         public bool Active => _enabled;
         public void SetEnabled(bool on) => _enabled = on;
+        /// <summary>直近の変形結果 RT（プレビュー用・未適用/無効なら null）。</summary>
+        public RenderTexture Output => _outRT;
         public int WarpCols => _warpCols;
         public int WarpRows => _warpRows;
         public Vector2 GetWarpPoint(int i, int j) => _warpPoints[j * _warpCols + i];

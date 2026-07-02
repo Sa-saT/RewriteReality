@@ -379,6 +379,11 @@
     background-color: var(--rr-canvas-soft);
 }
 .rr-warp-toggle--sub { color: var(--rr-muted); }
+.rr-warp-toggle--output {
+    color: var(--rr-primary);
+    border-color: var(--rr-primary);
+    background-color: var(--rr-canvas-soft);
+}
 
 /* Mapping（TRACK=Input/Output 分割・OUTPUT=単一 warp）— warp のドラッグ/メッシュ線は #21 */
 .rr-map-col { flex-grow: 1; flex-direction: column; }

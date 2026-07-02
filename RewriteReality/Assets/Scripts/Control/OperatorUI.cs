@@ -25,6 +25,8 @@ namespace RewriteReality
         [SerializeField] Compositor _compositor;
         [Tooltip("複数 Input Surface（M11・未配置なら単一 Compositor 経路にフォールバック）")]
         [SerializeField] SurfaceManager _surfaces;
+        [Tooltip("出力変形（M10・OUTPUT warp モードの対象・未指定なら自動取得）")]
+        [SerializeField] OutputWarp _outputWarp;
         [Tooltip("準備 Edit / 本番 Live のモード状態（未指定なら自動取得）")]
         [SerializeField] AppMode _appMode;
 
@@ -60,8 +62,9 @@ namespace RewriteReality
 
         // WARP 編集オーバーレイ（#21・メッシュ制御点ドラッグ）
         WarpCanvas _warpCanvas;
-        Button _warpToggle, _warpReset;
+        Button _warpToggle, _warpReset, _warpTargetBtn;
         bool _warpEditing;
+        bool _warpOutputMode;   // true=OUTPUT(出力変形) を編集 / false=EMBED(埋め込み)
         readonly List<VisualElement> _cornerPins = new List<VisualElement>();  // 装飾ピン（編集中は隠す）
         IWarpTarget _warpTarget;   // 現在の warp 編集対象（選択 surface or Compositor）
 
@@ -98,6 +101,7 @@ namespace RewriteReality
             if (_compositor == null) _compositor = FindFirstObjectByType<Compositor>();
             if (_surfaces == null) _surfaces = FindFirstObjectByType<SurfaceManager>();
             if (_appMode == null) _appMode = FindFirstObjectByType<AppMode>();
+            if (_outputWarp == null) _outputWarp = FindFirstObjectByType<OutputWarp>();
         }
 
         void OnEnable()
@@ -231,6 +235,7 @@ namespace RewriteReality
             var viewport = _root.Q<VisualElement>("rr-viewport");
             _warpToggle = _root.Q<Button>("rr-warp-toggle");
             _warpReset = _root.Q<Button>("rr-warp-reset");
+            _warpTargetBtn = _root.Q<Button>("rr-warp-target");
             if (viewport == null) return;
 
             if (_warpCanvas == null)
@@ -250,11 +255,32 @@ namespace RewriteReality
 
             if (_warpToggle != null) _warpToggle.clicked += ToggleWarpEditing;
             if (_warpReset != null)  _warpReset.clicked  += () => { _warpTarget?.ResetWarp(); _warpCanvas?.MarkDirtyRepaint(); };
+            if (_warpTargetBtn != null) _warpTargetBtn.clicked += ToggleWarpOutputMode;
+            RefreshWarpTargetBtn();
         }
 
-        /// <summary>現在の warp 編集対象。surface があれば選択 surface、無ければ単一 Compositor。</summary>
+        /// <summary>EMBED（埋め込み）⇄ OUTPUT（出力変形）を切替。OUTPUT では OutputWarp を有効化する。</summary>
+        void ToggleWarpOutputMode()
+        {
+            if (_outputWarp == null) return;
+            _warpOutputMode = !_warpOutputMode;
+            if (_warpOutputMode) _outputWarp.SetEnabled(true);   // 見たまま反映されるよう有効化
+            SetWarpTarget(ResolveWarpTarget());
+            RefreshWarpTargetBtn();
+        }
+
+        void RefreshWarpTargetBtn()
+        {
+            if (_warpTargetBtn == null) return;
+            _warpTargetBtn.SetEnabled(_outputWarp != null);
+            _warpTargetBtn.text = _warpOutputMode ? "OUTPUT" : "EMBED";
+            EnableClass(_warpTargetBtn, "rr-warp-toggle--output", _warpOutputMode);
+        }
+
+        /// <summary>現在の warp 編集対象。OUTPUT モード=OutputWarp、そうでなければ選択 surface or 単一 Compositor。</summary>
         IWarpTarget ResolveWarpTarget()
         {
+            if (_warpOutputMode && _outputWarp != null) return _outputWarp;
             if (_surfaces != null && _surfaces.Count > 0 && _surfaces.Active != null)
                 return _surfaces.Active;
             return _compositor;
@@ -282,6 +308,7 @@ namespace RewriteReality
             }
             if (_warpToggle != null) EnableClass(_warpToggle, "rr-warp-toggle--active", _warpEditing);
             if (_warpReset != null)  _warpReset.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_warpTargetBtn != null) _warpTargetBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
 
             // 装飾コーナーピンは編集中のみ隠す（プレビュー時は Claude Design 通り残す）
             for (int i = 0; i < _cornerPins.Count; i++)
@@ -491,8 +518,11 @@ namespace RewriteReality
         // -------------------------------------------------- preview / fps
         void UpdatePreview()
         {
-            if (_preview == null || _chain == null) return;
-            var rt = _chain.FinalTexture;
+            if (_preview == null) return;
+            // OUTPUT warp 編集中は、見たまま調整できるよう変形後 RT を表示（無ければ Final RT）。
+            Texture rt = null;
+            if (_warpOutputMode && _outputWarp != null && _outputWarp.Active) rt = _outputWarp.Output;
+            if (rt == null && _chain != null) rt = _chain.FinalTexture;
             if (rt != null && _preview.image != rt) _preview.image = rt;
         }
 
