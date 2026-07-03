@@ -7,6 +7,7 @@ Shader "Hidden/RewriteReality/CornerPin"
     {
         _MainTex ("Camera", 2D) = "black" {}
         _Feather ("Edge Feather", Range(0, 0.5)) = 0
+        _Opacity ("Opacity", Range(0, 1)) = 1
     }
     SubShader
     {
@@ -37,6 +38,7 @@ Shader "Hidden/RewriteReality/CornerPin"
 
             sampler2D _MainTex;
             float _Feather;
+            float _Opacity;
 
             v2f vert (appdata v)
             {
@@ -55,7 +57,7 @@ Shader "Hidden/RewriteReality/CornerPin"
                 float e = max(_Feather, 1e-5);
                 float fx = smoothstep(0.0, e, uv.x) * smoothstep(0.0, e, 1.0 - uv.x);
                 float fy = smoothstep(0.0, e, uv.y) * smoothstep(0.0, e, 1.0 - uv.y);
-                col.a *= fx * fy;
+                col.a *= fx * fy * _Opacity;
                 return col;
             }
             ENDCG

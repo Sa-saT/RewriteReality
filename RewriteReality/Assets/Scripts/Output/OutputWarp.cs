@@ -48,6 +48,7 @@ namespace RewriteReality
         int _builtCols, _builtRows;
 
         static readonly int MainTexID = Shader.PropertyToID("_MainTex");
+        static readonly int OpacityID = Shader.PropertyToID("_Opacity");
 
         // ---- 公開 API（OutputManager / 将来 UI から使う）----
         public bool Active => _enabled;
@@ -133,6 +134,7 @@ namespace RewriteReality
             EnsureGrid();
             UpdateMesh();
             mat.SetTexture(MainTexID, src);
+            mat.SetFloat(OpacityID, 1f);   // 出力全体は常に不透明（Compositor と material 共有時の漏れ防止）
 
             var prev = RenderTexture.active;
             RenderTexture.active = _outRT;

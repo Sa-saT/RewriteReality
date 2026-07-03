@@ -33,6 +33,7 @@ namespace RewriteReality
         int _builtCols, _builtRows;
 
         static readonly int MainTexID = Shader.PropertyToID("_MainTex");
+        static readonly int OpacityID = Shader.PropertyToID("_Opacity");
 
         /// <summary>合成結果（EffectChain への入力）。</summary>
         public RenderTexture SceneTexture => _sceneRT;
@@ -93,7 +94,7 @@ namespace RewriteReality
             if (mat != null && camTex != null)
             {
                 EnsureGrid(); // 組込み単一 surface の制御点を保証
-                DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat, false, Vector2.zero, 1f);
+                DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat, false, Vector2.zero, 1f, 1f);
             }
             return _sceneRT;
         }
@@ -129,7 +130,7 @@ namespace RewriteReality
                     var corners = surf.UpdateCorners(time);
                     bool mask = surf.Fit == Surface.FitMode.Mask;
                     DrawContent(content, corners, surf.WarpPoints, surf.WarpCols, surf.WarpRows, mat, mask,
-                                surf.ContentOffset, surf.ContentZoom);
+                                surf.ContentOffset, surf.ContentZoom, surf.Opacity);
                 }
             }
             return _sceneRT;
@@ -148,11 +149,12 @@ namespace RewriteReality
         /// false なら Project（内容をクアッドへ射影で流し込む）。
         /// </summary>
         void DrawContent(Texture content, in Corners corners, Vector2[] points, int cols, int rows, Material mat,
-                         bool mask, Vector2 contentOffset, float contentZoom)
+                         bool mask, Vector2 contentOffset, float contentZoom, float opacity)
         {
             EnsureMeshTopology(cols, rows);
             WriteMesh(corners, points, cols, rows, mask, contentOffset, contentZoom);
             mat.SetTexture(MainTexID, content);
+            mat.SetFloat(OpacityID, opacity);
 
             var prev = RenderTexture.active;
             RenderTexture.active = _sceneRT;

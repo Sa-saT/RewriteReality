@@ -26,7 +26,7 @@ namespace RewriteReality
         [SerializeField] string _name = "Surface";
         [SerializeField] bool _enabled = true;
         [Range(0f, 1f)]
-        [Tooltip("重ね合成時の不透明度（合成シェーダのブレンド対応は段階的）")]
+        [Tooltip("重ね合成時の不透明度（CornerPin の _Opacity としてブレンド）")]
         [SerializeField] float _opacity = 1f;
 
         [Tooltip("この面に流し込む内容（Camera=ライブカメラ・既定）")]
