@@ -862,6 +862,7 @@ GameObject:
   - component: {fileID: 1074070486}
   - component: {fileID: 1074070488}
   - component: {fileID: 1074070487}
+  - component: {fileID: 1074070490}
   m_Layer: 0
   m_Name: Output
   m_TagString: Untagged
@@ -884,7 +885,7 @@ MonoBehaviour:
   _fullscreenTarget: {fileID: 618507207}
   _syphonServer: {fileID: 1074070488}
   _ndiSender: {fileID: 1074070487}
-  _outputWarp: {fileID: 0}
+  _outputWarp: {fileID: 1074070490}
   _fullscreenEnabled: 1
   _syphonEnabled: 1
   _ndiEnabled: 1
@@ -939,6 +940,27 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1074070490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1074070485}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58b79505f99e4e6bbaa6f4a285eaf793, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _enabled: 0
+  _warpMaterial: {fileID: 0}
+  _bl: {x: 0, y: 0}
+  _br: {x: 1, y: 0}
+  _tr: {x: 1, y: 1}
+  _tl: {x: 0, y: 1}
+  _warpCols: 2
+  _warpRows: 2
+  _warpPoints: []
 --- !u!1 &1089013163
 GameObject:
   m_ObjectHideFlags: 0
@@ -1022,6 +1044,7 @@ MonoBehaviour:
   _output: {fileID: 0}
   _compositor: {fileID: 0}
   _surfaces: {fileID: 0}
+  _outputWarp: {fileID: 0}
   _appMode: {fileID: 0}
   _shellUxml: {fileID: 0}
   _styleSheet: {fileID: 0}

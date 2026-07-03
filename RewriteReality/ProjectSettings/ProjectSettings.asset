@@ -559,7 +559,7 @@ PlayerSettings:
   logObjCUncaughtExceptions: 1
   enableCrashReportAPI: 0
   cameraUsageDescription: Live camera input for VJ
-  locationUsageDescription:
+  locationUsageDescription: 
   microphoneUsageDescription: Live audio input for audio-reactive visuals
   bluetoothUsageDescription: 
   macOSTargetOSVersion: 11.0
