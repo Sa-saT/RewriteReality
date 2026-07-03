@@ -83,7 +83,12 @@ namespace RewriteReality
         int _builtSurfaceCount = -1;
         int _selectedSurfaceId = int.MinValue;   // 選択反映の変化検出用
 
-        sealed class SurfRow { public VisualElement root; public VisualElement dot; public Label name; public Label meta; public int id; }
+        sealed class SurfRow
+        {
+            public VisualElement root; public VisualElement dot; public Label name; public Label meta; public int id;
+            // 毎フレームの文字列生成を避けるための直近値キャッシュ（変化時のみ .text 更新）
+            public int lastId = int.MinValue, lastCols = -1, lastRows = -1; public string lastName;
+        }
 
         // FX 行・パラメータ行のバインド保持（再構築判定/毎フレーム同期用）
         readonly List<FxRow> _fxRows = new List<FxRow>();
@@ -91,9 +96,10 @@ namespace RewriteReality
         int _builtEffectCount = -1;
         int _inspectorEffect = -1;
         float _smoothedDt;
+        int _lastFpsShown = -1;
 
         sealed class FxRow { public VisualElement root; public Toggle toggle; public Label name; }
-        sealed class ParamRow { public VisualElement root; public Slider slider; public Label value; public EffectParameter param; }
+        sealed class ParamRow { public VisualElement root; public Slider slider; public Label value; public EffectParameter param; public int lastCenti = int.MinValue; }
 
         void Awake()
         {
@@ -524,8 +530,16 @@ namespace RewriteReality
                 var s = list[i];
                 if (s == null) continue;
                 var r = _surfRows[i];
-                r.name.text = $"{s.Id + 1}. {s.Name}";
-                r.meta.text = $"{s.WarpCols}×{s.WarpRows}";
+                if (r.lastId != s.Id || !ReferenceEquals(r.lastName, s.Name))
+                {
+                    r.name.text = $"{s.Id + 1}. {s.Name}";
+                    r.lastId = s.Id; r.lastName = s.Name;
+                }
+                if (r.lastCols != s.WarpCols || r.lastRows != s.WarpRows)
+                {
+                    r.meta.text = $"{s.WarpCols}×{s.WarpRows}";
+                    r.lastCols = s.WarpCols; r.lastRows = s.WarpRows;
+                }
                 EnableClass(r.root, "rr-list-item--active", i == active);
                 EnableClass(r.name, "rr-list-label--off", !s.Enabled && i != active);
             }
@@ -626,7 +640,8 @@ namespace RewriteReality
             if (_fps == null) return;
             _smoothedDt = Mathf.Lerp(_smoothedDt, Time.unscaledDeltaTime, 0.1f);
             float fps = _smoothedDt > 0f ? 1f / _smoothedDt : 0f;
-            _fps.text = Mathf.RoundToInt(fps) + " FPS";
+            int shown = Mathf.RoundToInt(fps);
+            if (shown != _lastFpsShown) { _fps.text = shown + " FPS"; _lastFpsShown = shown; }
             EnableClass(_fps, "rr-fps--warn", fps < 58f);
         }
 
@@ -758,7 +773,9 @@ namespace RewriteReality
                 {
                     if (!Mathf.Approximately(r.slider.value, v)) r.slider.SetValueWithoutNotify(v);
                 }
-                r.value.text = v.ToString("F2");
+                // F2 表示（小数2桁）は centi 単位で変化した時だけ更新（毎フレームの ToString を避ける）
+                int centi = Mathf.RoundToInt(v * 100f);
+                if (centi != r.lastCenti) { r.value.text = v.ToString("F2"); r.lastCenti = centi; }
                 EnableClass(r.root, "rr-param-row--selected", j == _hub.SelectedParam);
             }
         }

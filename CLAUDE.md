@@ -68,15 +68,11 @@ RewriteRealityProject/        ← git repo ルート
   fix: SourceVideo.OnDisable の停止時 Pause ガード済み。`baseRT` 追加。
   ※ Main.unity の clip は `_Test/IMG_0016.MOV`(gitignore)参照のためクローン環境では未解決。
   ※ track.json 未配置のため BakedCornerSource は毎回 FullFrame 据え置き（警告は正常）。
-  → **次回ここから**: **Compositor のコーナーピン合成**（カメラを四隅へ射影合成・Task#5）
-  → **初期エフェクトのシェーダ**を1つ実装（RGBShift か ColorGrade・Task#6）。
-  以降の関門は **OpenCvSharp の arm64 ビルド**（go/no-go・`docs/12`・方式C採用でM0対象外）。
-- 次の一手（`docs/08` M0 の続き）:
-  1. **Compositor コーナーピン合成**（_warpMaterial+四隅クアッドで camTex を sceneRT へ）← 次回ここから
-  2. **初期エフェクトのシェーダ**実装（まず1種）→ 残り3種
-  3. **OpenCvSharp の arm64 動作確認**（将来 LiveCv 時の関門・go/no-go）
-     → 公式 NuGet に macOS arm64 ネイティブは無い。**contrib(aruco)込みの自前ビルドが本命**（`docs/12`）
-  3. C# スケルトン生成（`docs/01` のモジュール構成）
+- **M0 コア完了**: Compositor のコーナーピン合成（四隅＋多pin メッシュ）＋カスタムシェーダ5本
+  （CornerPin/RgbShift/ColorGrade/BlockGlitch/Feedback）を実装・実機確認済。現在の「次の一手」は
+  下部 §「次の一手（マッピング品質）」の **#34/#35** を参照（M10/M11 まで実装済み）。
+  - 残る将来関門: **OpenCvSharp の arm64 ビルド**（LiveCv 時・go/no-go・`docs/12`）。
+    公式 NuGet に macOS arm64 ネイティブは無く、**contrib(aruco)込みの自前ビルドが本命**（方式C採用でコアは対象外）。
 - 同じ親フォルダにある `My project`(HDRP/2022.3) は**本プロジェクトとは別物**。
 - **将来の深度レイヤー(M9)＝深度カメラ（深度センサー・例: Orbbec Femto / RealSense）**を `IDepthSource`
   （`DepthCameraSource`）で供給（`docs/04`・`08`・`11`・`12`）。**旧案の iPhone/iPad Pro LiDAR 前提は撤回**
