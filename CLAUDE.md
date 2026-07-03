@@ -118,6 +118,8 @@ RewriteRealityProject/        ← git repo ルート
     **#25** 出力変形を UI 編集（EMBED⇄OUTPUT・WYSIWYG）。**#32** Surface **Mask/Crop モード**（既定＝歪めない窓抜き）
     ＋Surface/Content 変形（SHAPE=窓移動/Scale・CONTENT=枠内映像 pan/Zoom）。設計判断＝Surface は「歪めない Mask 」が本命、
     歪みは別建て（`surface-mask-vs-warp` メモ・`docs/03`）。
+    **アイコン**＝`RrIcon`（painter2D ベクター描画・`[UxmlElement]`・素材同梱ゼロ）でトランスポート/mute の絵文字・
+    文字グリフを置換（色は継承 color でボタン状態[通常/hover/active]に追従・UI Builder で配置/リサイズ可・2026-07-04）。
   - **次の一手（マッピング品質・決定 2026-07-03）**: **#34 Grid/Bezier モード**（Project 2×2 を廃止し「歪ませる面」を
     Bezier グリッドに一本化＝MadMapper GridGenerator 手本・テストパターン校正→カメラ差替）＋**#35 OUTPUT グリッド校正**
     （格子オーバーレイ＋投影キャリブレーション表示）。故意の局所歪みは **#33**（パペットpin エフェクト）。詳細＝`docs/03`・`06`。

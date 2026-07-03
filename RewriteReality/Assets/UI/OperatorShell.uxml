@@ -20,9 +20,9 @@
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:VisualElement class="rr-transport">
-                <ui:Button name="rr-transport-prev" text="⏮" class="rr-transport-btn" />
-                <ui:Button name="rr-transport-play" text="⏸" class="rr-transport-btn rr-transport-btn--active" />
-                <ui:Button name="rr-transport-loop" text="⟳" class="rr-transport-btn" />
+                <ui:Button name="rr-transport-prev" class="rr-transport-btn"><RewriteReality.RrIcon icon="Prev" /></ui:Button>
+                <ui:Button name="rr-transport-play" class="rr-transport-btn rr-transport-btn--active"><RewriteReality.RrIcon icon="Pause" /></ui:Button>
+                <ui:Button name="rr-transport-loop" class="rr-transport-btn"><RewriteReality.RrIcon icon="Loop" /></ui:Button>
                 <ui:Label text="01:12.40" class="rr-time rr-mono" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
@@ -249,9 +249,9 @@
         <!-- ============================================ Timeline（マルチトラック・#27/#28） -->
         <ui:VisualElement name="rr-timeline" class="rr-timeline">
             <ui:VisualElement class="rr-timeline-head">
-                <ui:Button name="rr-tl-prev" text="⏮" class="rr-transport-btn" />
-                <ui:Button name="rr-tl-play" text="⏸" class="rr-transport-btn rr-transport-btn--active" />
-                <ui:Button name="rr-tl-loop" text="⟳" class="rr-transport-btn" />
+                <ui:Button name="rr-tl-prev" class="rr-transport-btn"><RewriteReality.RrIcon icon="Prev" /></ui:Button>
+                <ui:Button name="rr-tl-play" class="rr-transport-btn rr-transport-btn--active"><RewriteReality.RrIcon icon="Pause" /></ui:Button>
+                <ui:Button name="rr-tl-loop" class="rr-transport-btn"><RewriteReality.RrIcon icon="Loop" /></ui:Button>
                 <ui:Label text="01:12.40" class="rr-timeline-time rr-mono" />
                 <ui:Label text="/ 03:20.00" class="rr-timeline-total rr-mono" />
                 <ui:VisualElement class="rr-spacer" />
@@ -306,7 +306,7 @@
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-tail">
                         <ui:Label text="FADE" class="rr-track-tail__label rr-mono" />
-                        <ui:Label text="🔊" class="rr-track-tail__label" />
+                        <RewriteReality.RrIcon icon="SpeakerOn" class="rr-icon rr-track-icon" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 
@@ -320,7 +320,7 @@
                         <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 40%; width: 12%;"><ui:Label text="SFX" class="rr-clip__label" /></ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-tail">
-                        <ui:Label text="🔇" class="rr-track-tail__label" />
+                        <RewriteReality.RrIcon icon="SpeakerMute" class="rr-icon rr-track-icon" />
                     </ui:VisualElement>
                 </ui:VisualElement>
 

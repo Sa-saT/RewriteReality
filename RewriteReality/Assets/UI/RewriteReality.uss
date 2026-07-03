@@ -115,12 +115,28 @@
 .rr-transport-btn {
     width: 26px; height: 26px;
     -unity-text-align: middle-center;
+    align-items: center;
+    justify-content: center;
     color: var(--rr-body);
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
     border-radius: 4px;
     font-size: 12px;
     margin-right: 2px;
+}
+
+/* ベクターアイコン（RrIcon・painter2D 描画）。色は継承 color を読むので親状態に追従 */
+.rr-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+/* タイムライン track tail の mute/solo アイコン（muted・やや大きめ） */
+.rr-track-icon {
+    width: 15px;
+    height: 15px;
+    color: var(--rr-muted);
+    margin-left: 4px;
 }
 .rr-transport-btn:hover { background-color: var(--rr-surface-raised); }
 .rr-transport-btn--active {
