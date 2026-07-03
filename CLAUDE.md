@@ -120,6 +120,9 @@ RewriteRealityProject/        ← git repo ルート
     歪みは別建て（`surface-mask-vs-warp` メモ・`docs/03`）。
     **アイコン**＝`RrIcon`（painter2D ベクター描画・`[UxmlElement]`・素材同梱ゼロ）でトランスポート/mute の絵文字・
     文字グリフを置換（色は継承 color でボタン状態[通常/hover/active]に追従・UI Builder で配置/リサイズ可・2026-07-04）。
+    **タイムライン song/short タブ UI＝移植済（2026-07-04・Claude Design Timeline.jsx→UXML/USS）**: タブバー
+    （SONG=緑/SHORT=アンバー・バッジ・P1 パッドチップ）＋タブ切替（OperatorUI）＋short ボディ（KEY 行＋⚡ホールド
+    発火レーン＝押下中クリップ全幅のプレビュー表現）。バンク追加(+)/パッド割当マトリクス/実再生は #27（現状 disabled）。
   - **次の一手（マッピング品質・決定 2026-07-03）**: **#34 Grid/Bezier モード**（Project 2×2 を廃止し「歪ませる面」を
     Bezier グリッドに一本化＝MadMapper GridGenerator 手本・テストパターン校正→カメラ差替）＋**#35 OUTPUT グリッド校正**
     （格子オーバーレイ＋投影キャリブレーション表示）。故意の局所歪みは **#33**（パペットpin エフェクト）。詳細＝`docs/03`・`06`。

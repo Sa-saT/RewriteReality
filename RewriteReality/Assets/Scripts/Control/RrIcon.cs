@@ -14,7 +14,7 @@ namespace RewriteReality
     [UxmlElement]
     public partial class RrIcon : VisualElement
     {
-        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond }
+        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap }
 
         Kind _icon = Kind.Play;
 
@@ -66,6 +66,7 @@ namespace RewriteReality
                 case Kind.SpeakerOn:   Speaker(p, ox, oy, s, true); break;
                 case Kind.SpeakerMute: Speaker(p, ox, oy, s, false); break;
                 case Kind.Diamond:     Diamond(p, ox, oy, s); break;
+                case Kind.Zap:         Zap(p, ox, oy, s); break;
             }
         }
 
@@ -201,6 +202,20 @@ namespace RewriteReality
                 if (k == 0) p.MoveTo(pt); else p.LineTo(pt);
             }
             p.Stroke();
+        }
+
+        // 稲妻（short のホールド発火・lucide "zap" 相当）
+        void Zap(Painter2D p, float ox, float oy, float s)
+        {
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.56f, 0.12f));
+            p.LineTo(P(ox, oy, s, 0.24f, 0.56f));
+            p.LineTo(P(ox, oy, s, 0.46f, 0.56f));
+            p.LineTo(P(ox, oy, s, 0.42f, 0.88f));
+            p.LineTo(P(ox, oy, s, 0.76f, 0.44f));
+            p.LineTo(P(ox, oy, s, 0.53f, 0.44f));
+            p.ClosePath();
+            p.Fill();
         }
 
         void Diamond(Painter2D p, float ox, float oy, float s)

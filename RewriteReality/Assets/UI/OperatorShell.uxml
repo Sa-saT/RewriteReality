@@ -246,18 +246,42 @@
 
         </ui:VisualElement>
 
-        <!-- ============================================ Timeline（マルチトラック・#27/#28） -->
+        <!-- ============================================ Timeline（マルチトラック・#27/#28）
+             タブバー＝song/short バンク切替（07b §3.5.2・Claude Design Timeline.jsx 移植）。
+             song=リニア通し（マルチトラック）／short=キー割当のホールド発火（押下中だけ最上位＝Piano）。
+             タブ切替は OperatorUI がバインド。バンク追加(+)/パッド割当はビジュアルのみ＝#27 で機能実装。 -->
         <ui:VisualElement name="rr-timeline" class="rr-timeline">
+            <ui:VisualElement name="rr-tl-tabs" class="rr-tl-tabs">
+                <ui:VisualElement name="rr-tl-tab-song" class="rr-tl-tab rr-tl-tab--song rr-tl-tab--active">
+                    <ui:VisualElement class="rr-tl-tab__dot" />
+                    <ui:Label text="Song 01" class="rr-tl-tab__name" />
+                    <ui:Label text="SONG" class="rr-tl-tab__badge" />
+                </ui:VisualElement>
+                <ui:VisualElement name="rr-tl-tab-short" class="rr-tl-tab rr-tl-tab--short">
+                    <ui:VisualElement class="rr-tl-tab__dot" />
+                    <ui:Label text="Short A" class="rr-tl-tab__name" />
+                    <ui:Label text="SHORT" class="rr-tl-tab__badge" />
+                    <ui:Label text="P1" class="rr-tl-tab__pad rr-mono" />
+                </ui:VisualElement>
+                <ui:Button name="rr-tl-add" text="+" class="rr-tl-add" />
+                <ui:VisualElement class="rr-spacer" />
+                <ui:Label text="TIMELINE" class="rr-timeline-title" />
+            </ui:VisualElement>
             <ui:VisualElement class="rr-timeline-head">
                 <ui:Button name="rr-tl-prev" class="rr-transport-btn"><RewriteReality.RrIcon icon="Prev" /></ui:Button>
                 <ui:Button name="rr-tl-play" class="rr-transport-btn rr-transport-btn--active"><RewriteReality.RrIcon icon="Pause" /></ui:Button>
                 <ui:Button name="rr-tl-loop" class="rr-transport-btn"><RewriteReality.RrIcon icon="Loop" /></ui:Button>
-                <ui:Label text="01:12.40" class="rr-timeline-time rr-mono" />
-                <ui:Label text="/ 03:20.00" class="rr-timeline-total rr-mono" />
+                <ui:VisualElement name="rr-tl-time-group" class="rr-tl-head-group">
+                    <ui:Label text="01:12.40" class="rr-timeline-time rr-mono" />
+                    <ui:Label text="/ 03:20.00" class="rr-timeline-total rr-mono" />
+                </ui:VisualElement>
+                <ui:VisualElement name="rr-tl-gate-group" class="rr-tl-head-group" style="display: none;">
+                    <ui:Label text="GATE" class="rr-tl-gate" />
+                    <ui:Label text="hold-fire" class="rr-tl-gate-sub rr-mono" />
+                </ui:VisualElement>
                 <ui:VisualElement class="rr-spacer" />
-                <ui:Label text="TIMELINE" class="rr-timeline-title" />
             </ui:VisualElement>
-            <ui:VisualElement class="rr-timeline-body">
+            <ui:VisualElement name="rr-tl-song" class="rr-timeline-body">
                 <ui:VisualElement class="rr-ruler">
                     <ui:Label text="0:00" class="rr-ruler-mark rr-mono" />
                     <ui:Label text="0:30" class="rr-ruler-mark rr-mono" />
@@ -325,6 +349,26 @@
                 </ui:VisualElement>
 
                 <ui:VisualElement class="rr-playhead" style="left: 40%;" />
+            </ui:VisualElement>
+
+            <!-- SHORT ボディ（07b §3.5.2 B）: キー割当行＋ホールド発火レーン。
+                 ⚡ ボタン押下中＝クリップが全幅（最上位で発火中のプレビュー表現）・離すと戻る。
+                 パッド割当マトリクスは #27（現状 PAD 1 は表示のみ）。 -->
+            <ui:VisualElement name="rr-tl-short" class="rr-tl-short" style="display: none;">
+                <ui:VisualElement class="rr-tl-keyrow">
+                    <ui:Label text="KEY" class="rr-tl-keyrow__label" />
+                    <ui:Button name="rr-short-pad" text="PAD 1" class="rr-short-pad rr-mono" />
+                    <ui:Label text="hold = top layer · release = back to song" class="rr-tl-keyrow__hint rr-mono" />
+                </ui:VisualElement>
+                <ui:VisualElement name="rr-short-lane" class="rr-track rr-short-lane">
+                    <ui:VisualElement class="rr-track-head">
+                        <ui:Button name="rr-short-hold" class="rr-short-hold"><RewriteReality.RrIcon icon="Zap" /></ui:Button>
+                        <ui:Label text="VID 1" class="rr-track-name rr-mono" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-track-lane">
+                        <ui:VisualElement name="rr-short-clip" class="rr-clip rr-clip--fx" style="left: 0; width: 26%;"><ui:Label text="TRACK A" class="rr-clip__label" /></ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
 

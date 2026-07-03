@@ -560,12 +560,156 @@
 
 /* ---------------------------------------------------------- Timeline (bottom dock) */
 .rr-timeline {
-    height: 176px;
+    height: 208px;   /* タブバー(30px) 追加分を拡張 */
     flex-shrink: 0;
     flex-direction: column;
     background-color: var(--rr-surface-panel);
     border-top-width: 1px;
     border-top-color: var(--rr-hairline-strong);
+}
+
+/* タブバー（song/short バンク・ブラウザ風・07b §3.5.2） */
+.rr-tl-tabs {
+    height: 30px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: flex-end;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: var(--rr-canvas);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline-strong);
+}
+.rr-tl-tab {
+    height: 26px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 10px;
+    padding-right: 8px;
+    background-color: var(--rr-canvas);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-top-width: 2px;
+    border-top-color: rgba(0, 0, 0, 0);
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    margin-right: 2px;
+    margin-bottom: -1px;
+}
+.rr-tl-tab:hover { background-color: var(--rr-surface-raised); }
+.rr-tl-tab--active {
+    background-color: var(--rr-surface-panel);
+    border-bottom-color: var(--rr-surface-panel);
+}
+.rr-tl-tab--song.rr-tl-tab--active  { border-top-color: var(--rr-live); }
+.rr-tl-tab--short.rr-tl-tab--active { border-top-color: var(--rr-primary); }
+.rr-tl-tab__dot {
+    width: 6px; height: 6px;
+    border-radius: 9999px;
+    margin-right: 7px;
+    opacity: 0.55;
+}
+.rr-tl-tab--song .rr-tl-tab__dot  { background-color: var(--rr-live); }
+.rr-tl-tab--short .rr-tl-tab__dot { background-color: var(--rr-primary); }
+.rr-tl-tab--active .rr-tl-tab__dot { opacity: 1; }
+.rr-tl-tab__name { color: var(--rr-muted); font-size: 11px; -unity-font-style: bold; }
+.rr-tl-tab--active .rr-tl-tab__name { color: var(--rr-text); }
+.rr-tl-tab__badge {
+    font-size: 8px;
+    -unity-font-style: bold;
+    color: var(--rr-canvas);
+    border-radius: 9999px;
+    padding: 1px 5px;
+    margin-left: 7px;
+    opacity: 0.5;
+}
+.rr-tl-tab--song .rr-tl-tab__badge  { background-color: var(--rr-live); }
+.rr-tl-tab--short .rr-tl-tab__badge { background-color: var(--rr-primary); }
+.rr-tl-tab--active .rr-tl-tab__badge { opacity: 1; }
+.rr-tl-tab__pad {
+    font-size: 9px;
+    color: var(--rr-muted);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 9999px;
+    padding: 1px 5px;
+    margin-left: 6px;
+}
+.rr-tl-add {
+    width: 22px; height: 22px;
+    margin-left: 4px;
+    margin-bottom: 2px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 4px;
+    color: var(--rr-body);
+    font-size: 13px;
+    -unity-text-align: middle-center;
+    padding: 0;
+}
+.rr-tl-add:hover { background-color: var(--rr-surface-raised); }
+.rr-tl-add:disabled { opacity: 0.4; }
+
+/* head の time / gate 表示グループ（song=time・short=GATE hold-fire） */
+.rr-tl-head-group { flex-direction: row; align-items: center; }
+.rr-tl-gate {
+    color: var(--rr-primary);
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin-left: 8px;
+}
+.rr-tl-gate-sub { color: var(--rr-muted); font-size: 11px; margin-left: 6px; }
+
+/* SHORT ボディ（キー割当行＋ホールド発火レーン） */
+.rr-tl-short { flex-grow: 1; flex-direction: column; }
+.rr-tl-keyrow {
+    height: 30px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 8px;
+    padding-right: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline);
+}
+.rr-tl-keyrow__label {
+    color: var(--rr-muted);
+    font-size: 10px;
+    -unity-font-style: bold;
+    margin-right: 10px;
+}
+.rr-tl-keyrow__hint { color: var(--rr-muted-soft); font-size: 10px; margin-left: 10px; }
+.rr-short-pad {
+    height: 24px;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--rr-primary);
+    border-radius: 5px;
+    color: var(--rr-primary);
+    font-size: 12px;
+}
+.rr-short-pad:disabled { opacity: 0.7; }   /* 割当マトリクスは #27・現状は表示のみ */
+.rr-short-lane { height: 40px; }
+.rr-short-hold {
+    width: 24px; height: 24px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 5px;
+    color: var(--rr-muted);
+    padding: 0;
+    margin-right: 6px;
+}
+.rr-short-hold:hover { border-color: var(--rr-primary); }
+.rr-short-hold--held {
+    background-color: var(--rr-primary);
+    border-color: var(--rr-primary);
+    color: var(--rr-on-primary);
 }
 .rr-timeline-head {
     height: 30px;

@@ -71,6 +71,10 @@ namespace RewriteReality
         readonly List<VisualElement> _cornerPins = new List<VisualElement>();  // 装飾ピン（編集中は隠す）
         IWarpTarget _warpTarget;   // 現在の warp 編集対象（選択 surface or Compositor）
 
+        // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
+        VisualElement _tlTabSong, _tlTabShort, _tlSong, _tlShort, _tlTimeGroup, _tlGateGroup, _shortClip;
+        Button _shortHold;
+
         // Surface パネル（左ドック・#22）＋モード切替
         VisualElement _surfaceList, _surfaceProps;
         Label _surfaceEmpty;
@@ -150,6 +154,7 @@ namespace RewriteReality
             BuildWarpEditor();
             BuildSurfacePanel();
             BuildModeSwitch();
+            BuildTimelineTabs();
 
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
@@ -662,6 +667,53 @@ namespace RewriteReality
             // 構成変更（追加/削除）は準備 Edit のみ許可
             if (_surfaceAdd != null) _surfaceAdd.SetEnabled(edit);
             if (_surfRemove != null) _surfRemove.SetEnabled(edit);
+        }
+
+        // -------------------------------------------------- timeline song/short tabs (07b §3.5.2・#27 足場)
+        // タブ切替（song=リニア通し / short=ホールド発火）とホールド中のプレビュー表現のみ。
+        // バンク追加(+)・パッド割当マトリクス・実再生は #27 で機能実装（それまで + / PAD は表示のみ＝disabled）。
+        void BuildTimelineTabs()
+        {
+            _tlTabSong  = _root.Q<VisualElement>("rr-tl-tab-song");
+            _tlTabShort = _root.Q<VisualElement>("rr-tl-tab-short");
+            _tlSong     = _root.Q<VisualElement>("rr-tl-song");
+            _tlShort    = _root.Q<VisualElement>("rr-tl-short");
+            _tlTimeGroup = _root.Q<VisualElement>("rr-tl-time-group");
+            _tlGateGroup = _root.Q<VisualElement>("rr-tl-gate-group");
+            _shortHold  = _root.Q<Button>("rr-short-hold");
+            _shortClip  = _root.Q<VisualElement>("rr-short-clip");
+
+            var add = _root.Q<Button>("rr-tl-add");
+            if (add != null) add.SetEnabled(false);
+            var pad = _root.Q<Button>("rr-short-pad");
+            if (pad != null) pad.SetEnabled(false);
+
+            _tlTabSong?.RegisterCallback<MouseDownEvent>(_ => SelectTimelineTab(false));
+            _tlTabShort?.RegisterCallback<MouseDownEvent>(_ => SelectTimelineTab(true));
+
+            // ホールド発火のプレビュー表現: ⚡ 押下中＝クリップ全幅（最上位で発火中）・離すと戻る（Piano）
+            if (_shortHold != null)
+            {
+                _shortHold.RegisterCallback<PointerDownEvent>(_ => SetShortHeld(true), TrickleDown.TrickleDown);
+                _shortHold.RegisterCallback<PointerUpEvent>(_ => SetShortHeld(false));
+                _shortHold.RegisterCallback<PointerLeaveEvent>(_ => SetShortHeld(false));
+            }
+        }
+
+        void SelectTimelineTab(bool shortMode)
+        {
+            if (_tlTabSong != null)  EnableClass(_tlTabSong, "rr-tl-tab--active", !shortMode);
+            if (_tlTabShort != null) EnableClass(_tlTabShort, "rr-tl-tab--active", shortMode);
+            if (_tlSong != null)  _tlSong.style.display  = shortMode ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_tlShort != null) _tlShort.style.display = shortMode ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_tlTimeGroup != null) _tlTimeGroup.style.display = shortMode ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_tlGateGroup != null) _tlGateGroup.style.display = shortMode ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        void SetShortHeld(bool held)
+        {
+            if (_shortHold != null) EnableClass(_shortHold, "rr-short-hold--held", held);
+            if (_shortClip != null) _shortClip.style.width = Length.Percent(held ? 100f : 26f);
         }
 
         void OnDisable()
