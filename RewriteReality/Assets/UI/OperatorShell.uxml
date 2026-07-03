@@ -1,17 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <Style src="RewriteReality.uss" />
-    <!--
-      RewriteReality オペレータ・コンソール（Claude Design "RewriteReality Design System" /
-      ui_kits/operator/index.html を UXML/USS へ移植・#24）。
-      静的スキャフォルド＋既存 OperatorUI.cs のバインドを維持する構成。
-      OperatorUI が name で引く要素（rr-root / rr-preview / rr-fps / rr-inspector-title /
-      rr-inspector / rr-fx-list）は必ず残す。インタラクション（warp ドラッグ=#21・surface CRUD=#22・
-      timeline 再生=#27・mode/page 切替=各担当）は後続タスク。ビジュアル最終調整は UI Builder で行う。
-    -->
+    <Style src="project://database/Assets/UI/RewriteReality.uss?fileID=7433441132597879392&amp;guid=49695ac951ed14292aedac40552266db&amp;type=3#RewriteReality" />
     <ui:VisualElement name="rr-root" class="rr-theme rr-root">
-
-        <!-- ============================================ Top bar -->
         <ui:VisualElement name="rr-top-bar" class="rr-top-bar">
             <ui:VisualElement class="rr-brand-group">
                 <ui:VisualElement class="rr-brand-dot" />
@@ -20,13 +9,18 @@
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:VisualElement class="rr-transport">
-                <ui:Button name="rr-transport-prev" class="rr-transport-btn"><RewriteReality.RrIcon icon="Prev" /></ui:Button>
-                <ui:Button name="rr-transport-play" class="rr-transport-btn rr-transport-btn--active"><RewriteReality.RrIcon icon="Pause" /></ui:Button>
-                <ui:Button name="rr-transport-loop" class="rr-transport-btn"><RewriteReality.RrIcon icon="Loop" /></ui:Button>
+                <ui:Button name="rr-transport-prev" class="rr-transport-btn">
+                    <RewriteReality.RrIcon icon="Prev" />
+                </ui:Button>
+                <ui:Button name="rr-transport-play" class="rr-transport-btn rr-transport-btn--active">
+                    <RewriteReality.RrIcon icon="Pause" />
+                </ui:Button>
+                <ui:Button name="rr-transport-loop" class="rr-transport-btn">
+                    <RewriteReality.RrIcon icon="Loop" />
+                </ui:Button>
                 <ui:Label text="01:12.40" class="rr-time rr-mono" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
-            <!-- 出力ルート: OUTPUT▾ メニュー＋要約（有効な方式名=緑／無し=CONNECTING 灰） -->
             <ui:VisualElement class="rr-output">
                 <ui:Button name="rr-output-btn" text="OUTPUT ▾" class="rr-output-btn" />
                 <ui:Button name="rr-out-chip-fs" text="Fu" class="rr-out-chip rr-out-chip--off" />
@@ -36,22 +30,14 @@
             <ui:VisualElement class="rr-divider" />
             <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
         </ui:VisualElement>
-
-        <!-- ============================================ Middle: docks + center -->
         <ui:VisualElement name="rr-mid" class="rr-mid">
-
-            <!-- Left dock -->
             <ui:VisualElement name="rr-dock-left" class="rr-dock rr-dock-left">
                 <ui:VisualElement class="rr-section-label">
                     <ui:Label text="SURFACES" class="rr-section-label__text" />
                     <ui:Button name="rr-surface-add" text="+ Surface" class="rr-add-btn" />
                 </ui:VisualElement>
-                <!-- Surface 一覧（OperatorUI が SurfaceManager から動的生成・#22）。
-                     SurfaceManager 未配置なら空＝従来の単一 Compositor 経路（非破壊）。 -->
                 <ui:VisualElement name="rr-surface-list" class="rr-surface-list" />
                 <ui:Label name="rr-surface-empty" text="No surfaces · uses single Compositor" class="rr-surface-empty rr-mono" />
-
-                <!-- 選択中 surface のプロパティ（OperatorUI が bind・active 無しなら非表示） -->
                 <ui:VisualElement name="rr-surface-props" class="rr-surface-props" style="display: none;">
                     <ui:VisualElement class="rr-surf-prop-row">
                         <ui:Toggle name="rr-surf-enabled" class="rr-fx-toggle" />
@@ -87,7 +73,6 @@
                         <ui:Label name="rr-surf-zoom-val" text="1.0" class="rr-surf-prop-val rr-mono" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-
                 <ui:VisualElement class="rr-section-label">
                     <ui:Label text="INPUT" class="rr-section-label__text" />
                 </ui:VisualElement>
@@ -102,14 +87,8 @@
                     <ui:Label text="—" class="rr-list-meta rr-mono" />
                 </ui:VisualElement>
             </ui:VisualElement>
-
-            <!-- Center stage -->
             <ui:VisualElement name="rr-center" class="rr-center">
-
-                <!-- メイン画面＝プレビュー・ビューポート（既定表示・動画確認用に大きく出す）。
-                     OperatorUI が Final RT を rr-preview に表示。四隅ピンは出力コーナー参照。 -->
                 <ui:VisualElement name="rr-viewport" class="rr-viewport">
-                    <!-- 背面プレースホルダ（Final RT 未供給時＝Play停止/未配線でも空にならない・実RTが来れば上に描画） -->
                     <ui:VisualElement class="rr-video-fill">
                         <ui:VisualElement class="rr-video-fill__bars">
                             <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--source" />
@@ -135,9 +114,6 @@
                     <ui:VisualElement class="rr-viewport-overlay-tr">
                         <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
                     </ui:VisualElement>
-                    <!-- WARP 編集トグル（#21・押下で制御点ドラッグ用 WarpCanvas をこのビューポート上に重ねる）
-                         GRID=細分化格子オーバーレイ（#34/#35）・TEST/CALIB=テストパターン校正
-                         （EMBED: 選択 surface の content をパターンへ／OUTPUT: 出力全体をパターンへ＝実投影） -->
                     <ui:VisualElement class="rr-viewport-overlay-tl">
                         <ui:Button name="rr-warp-toggle" text="◇ WARP" class="rr-warp-toggle" />
                         <ui:Button name="rr-warp-target" text="EMBED" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
@@ -148,13 +124,8 @@
                     </ui:VisualElement>
                     <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />
                 </ui:VisualElement>
-
-                <!-- TRACK: Input/Output 分割マッピング（既定は非表示・page=track で表示 #22。warp ドラッグ=#21）。
-                     メイン画面と rr-preview を二重化しないため、ここには実プレビューを置かない。 -->
                 <ui:VisualElement name="rr-center-track" class="rr-map-col" style="display: none;">
                     <ui:VisualElement class="rr-map-row">
-
-                        <!-- Input pane（camera UV・素地は VideoFill プレースホルダ・#22 で実カメラ） -->
                         <ui:VisualElement class="rr-map-pane">
                             <ui:VisualElement class="rr-video-fill">
                                 <ui:VisualElement class="rr-video-fill__bars">
@@ -185,8 +156,6 @@
                             <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 92%;" />
                             <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 92%;" />
                         </ui:VisualElement>
-
-                        <!-- Output/composite pane＝実プレビュー(rr-preview)＋warp 重ね -->
                         <ui:VisualElement class="rr-map-pane rr-map-pane--gap-left">
                             <ui:VisualElement class="rr-video-fill">
                                 <ui:VisualElement class="rr-video-fill__bars">
@@ -222,55 +191,50 @@
                             <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 92%;" />
                             <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 92%;" />
                         </ui:VisualElement>
-
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-map-hint">
                         <ui:Label text="Drag control points to mesh-warp · 4×3 grid · Selection Blue = selected pin" class="rr-map-hint__text" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-
             </ui:VisualElement>
-
-            <!-- Right dock: FX チェーン（上）＋ Inspector（下）＝Unity 風の一覧＋プロパティ -->
             <ui:VisualElement name="rr-dock-right" class="rr-dock rr-dock-right">
                 <ui:VisualElement class="rr-section-label">
                     <ui:Label text="FX CHAIN" class="rr-section-label__text" />
                 </ui:VisualElement>
                 <ui:ScrollView name="rr-fx-list" class="rr-fx-list" />
-
                 <ui:VisualElement class="rr-inspector-title-row">
                     <ui:Label name="rr-inspector-title" text="Inspector" />
                 </ui:VisualElement>
                 <ui:ScrollView name="rr-inspector" class="rr-inspector" />
             </ui:VisualElement>
-
         </ui:VisualElement>
-
-        <!-- ============================================ Timeline（マルチトラック・#27/#28）
-             タブバー＝song/short バンク切替（07b §3.5.2・Claude Design Timeline.jsx 移植）。
-             song=リニア通し（マルチトラック）／short=キー割当のホールド発火（押下中だけ最上位＝Piano）。
-             タブ切替は OperatorUI がバインド。バンク追加(+)/パッド割当はビジュアルのみ＝#27 で機能実装。 -->
         <ui:VisualElement name="rr-timeline" class="rr-timeline">
             <ui:VisualElement name="rr-tl-tabs" class="rr-tl-tabs">
                 <ui:VisualElement name="rr-tl-tab-song" class="rr-tl-tab rr-tl-tab--song rr-tl-tab--active">
                     <ui:VisualElement class="rr-tl-tab__dot" />
-                    <ui:Label text="Song 01" class="rr-tl-tab__name" />
-                    <ui:Label text="SONG" class="rr-tl-tab__badge" />
+                    <ui:Label text="Song 01" class="rr-tl-tab__name" style="-unity-text-align: middle-left;" />
+                    <ui:Label text="SONG" class="rr-tl-tab__badge" style="-unity-text-align: middle-left;" />
                 </ui:VisualElement>
                 <ui:VisualElement name="rr-tl-tab-short" class="rr-tl-tab rr-tl-tab--short">
                     <ui:VisualElement class="rr-tl-tab__dot" />
-                    <ui:Label text="Short A" class="rr-tl-tab__name" />
-                    <ui:Label text="SHORT" class="rr-tl-tab__badge" />
-                    <ui:Label text="P1" class="rr-tl-tab__pad rr-mono" />
+                    <ui:Label text="Short A" class="rr-tl-tab__name" style="-unity-text-align: middle-left;" />
+                    <ui:Label text="SHORT" class="rr-tl-tab__badge" style="-unity-text-align: middle-left;" />
+                    <ui:Label text="P1" class="rr-tl-tab__pad rr-mono" style="-unity-text-align: lower-right;" />
                 </ui:VisualElement>
                 <ui:Button name="rr-tl-add" text="+" class="rr-tl-add" />
                 <ui:VisualElement class="rr-spacer" />
                 <ui:Label text="TIMELINE" class="rr-timeline-title" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-timeline-head">
-                <ui:Button name="rr-tl-prev" class="rr-transport-btn"><RewriteReality.RrIcon icon="Prev" /></ui:Button>
-                <ui:Button name="rr-tl-play" class="rr-transport-btn rr-transport-btn--active"><RewriteReality.RrIcon icon="Pause" /></ui:Button>
-                <ui:Button name="rr-tl-loop" class="rr-transport-btn"><RewriteReality.RrIcon icon="Loop" /></ui:Button>
+                <ui:Button name="rr-tl-prev" class="rr-transport-btn">
+                    <RewriteReality.RrIcon icon="Prev" />
+                </ui:Button>
+                <ui:Button name="rr-tl-play" class="rr-transport-btn rr-transport-btn--active">
+                    <RewriteReality.RrIcon icon="Pause" />
+                </ui:Button>
+                <ui:Button name="rr-tl-loop" class="rr-transport-btn">
+                    <RewriteReality.RrIcon icon="Loop" />
+                </ui:Button>
                 <ui:VisualElement name="rr-tl-time-group" class="rr-tl-head-group">
                     <ui:Label text="01:12.40" class="rr-timeline-time rr-mono" />
                     <ui:Label text="/ 03:20.00" class="rr-timeline-total rr-mono" />
@@ -290,70 +254,77 @@
                     <ui:Label text="2:00" class="rr-ruler-mark rr-mono" />
                     <ui:Label text="2:30" class="rr-ruler-mark rr-mono" />
                 </ui:VisualElement>
-
                 <ui:VisualElement class="rr-track">
                     <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Toggle value="true" class="rr-fx-toggle" />
                         <ui:Label text="VID 1" class="rr-track-name rr-mono" />
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 0; width: 26%;"><ui:Label text="CLIPA" class="rr-clip__label" /></ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 27%; width: 34%;"><ui:Label text="CLIPB" class="rr-clip__label" /></ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 62%; width: 20%;"><ui:Label text="CLIPC" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 0; width: 26%;">
+                            <ui:Label text="CLIPA" class="rr-clip__label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 27%; width: 34%;">
+                            <ui:Label text="CLIPB" class="rr-clip__label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 62%; width: 20%;">
+                            <ui:Label text="CLIPC" class="rr-clip__label" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-tail">
                         <ui:Label text="OPACITY" class="rr-track-tail__label rr-mono" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-
                 <ui:VisualElement class="rr-track">
                     <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Toggle value="true" class="rr-fx-toggle" />
                         <ui:Label text="VID 2" class="rr-track-name rr-mono" />
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 12%; width: 22%;"><ui:Label text="OVERLAY" class="rr-clip__label" /></ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 66%; width: 24%;"><ui:Label text="LOWERTHIRD" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 12%; width: 22%;">
+                            <ui:Label text="OVERLAY" class="rr-clip__label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 66%; width: 24%;">
+                            <ui:Label text="LOWERTHIRD" class="rr-clip__label" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-tail">
                         <ui:Label text="OPACITY" class="rr-track-tail__label rr-mono" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-
                 <ui:VisualElement class="rr-track">
                     <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Toggle value="true" class="rr-fx-toggle" />
                         <ui:Label text="AUD 1" class="rr-track-name rr-mono" />
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 0; width: 82%;"><ui:Label text="MASTER" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 0; width: 82%;">
+                            <ui:Label text="MASTER" class="rr-clip__label" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-tail">
                         <ui:Label text="FADE" class="rr-track-tail__label rr-mono" />
                         <RewriteReality.RrIcon icon="SpeakerOn" class="rr-icon rr-track-icon" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-
                 <ui:VisualElement class="rr-track">
                     <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle class="rr-fx-toggle" value="true" />
+                        <ui:Toggle value="true" class="rr-fx-toggle" />
                         <ui:Label text="AUD 2" class="rr-track-name rr-mono rr-track-name--off" />
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 14%; width: 10%;"><ui:Label text="SFX" class="rr-clip__label" /></ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 40%; width: 12%;"><ui:Label text="SFX" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 14%; width: 10%;">
+                            <ui:Label text="SFX" class="rr-clip__label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 40%; width: 12%;">
+                            <ui:Label text="SFX" class="rr-clip__label" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-tail">
                         <RewriteReality.RrIcon icon="SpeakerMute" class="rr-icon rr-track-icon" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-
                 <ui:VisualElement class="rr-playhead" style="left: 40%;" />
             </ui:VisualElement>
-
-            <!-- SHORT ボディ（07b §3.5.2 B）: キー割当行＋ホールド発火レーン。
-                 ⚡ ボタン押下中＝クリップが全幅（最上位で発火中のプレビュー表現）・離すと戻る。
-                 パッド割当マトリクスは #27（現状 PAD 1 は表示のみ）。 -->
             <ui:VisualElement name="rr-tl-short" class="rr-tl-short" style="display: none;">
                 <ui:VisualElement class="rr-tl-keyrow">
                     <ui:Label text="KEY" class="rr-tl-keyrow__label" />
@@ -362,17 +333,19 @@
                 </ui:VisualElement>
                 <ui:VisualElement name="rr-short-lane" class="rr-track rr-short-lane">
                     <ui:VisualElement class="rr-track-head">
-                        <ui:Button name="rr-short-hold" class="rr-short-hold"><RewriteReality.RrIcon icon="Zap" /></ui:Button>
+                        <ui:Button name="rr-short-hold" class="rr-short-hold">
+                            <RewriteReality.RrIcon icon="Zap" />
+                        </ui:Button>
                         <ui:Label text="VID 1" class="rr-track-name rr-mono" />
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement name="rr-short-clip" class="rr-clip rr-clip--fx" style="left: 0; width: 26%;"><ui:Label text="TRACK A" class="rr-clip__label" /></ui:VisualElement>
+                        <ui:VisualElement name="rr-short-clip" class="rr-clip rr-clip--fx" style="left: 0; width: 26%;">
+                            <ui:Label text="TRACK A" class="rr-clip__label" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
-
-        <!-- ============================================ Bottom bar: mode + page tabs -->
         <ui:VisualElement name="rr-bottom-bar" class="rr-bottom-bar">
             <ui:VisualElement class="rr-mode-switch">
                 <ui:VisualElement name="rr-mode-edit" class="rr-mode-opt rr-mode-opt--active">
@@ -386,18 +359,16 @@
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:VisualElement name="rr-page-tabs" class="rr-page-tabs">
-                <ui:Label name="rr-tab-source"  text="SOURCE" class="rr-page-tab rr-stage-source" />
-                <ui:Label name="rr-tab-track"   text="TRACK"  class="rr-page-tab rr-stage-tracking rr-page-tab--active" />
-                <ui:Label name="rr-tab-fx"      text="FX"     class="rr-page-tab rr-stage-effects" />
-                <ui:Label name="rr-tab-audio"   text="AUDIO"  class="rr-page-tab rr-stage-audio" />
-                <ui:Label name="rr-tab-output"  text="OUTPUT" class="rr-page-tab rr-stage-output" />
-                <ui:Label name="rr-tab-scenes"  text="SCENES" class="rr-page-tab rr-stage-scene" />
+                <ui:Label name="rr-tab-source" text="SOURCE" class="rr-page-tab rr-stage-source" />
+                <ui:Label name="rr-tab-track" text="TRACK" class="rr-page-tab rr-stage-tracking rr-page-tab--active" />
+                <ui:Label name="rr-tab-fx" text="FX" class="rr-page-tab rr-stage-effects" />
+                <ui:Label name="rr-tab-audio" text="AUDIO" class="rr-page-tab rr-stage-audio" />
+                <ui:Label name="rr-tab-output" text="OUTPUT" class="rr-page-tab rr-stage-output" />
+                <ui:Label name="rr-tab-scenes" text="SCENES" class="rr-page-tab rr-stage-scene" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
             <ui:Label text="frame 4.2ms · gc 0.3ms" class="rr-perf rr-mono" />
         </ui:VisualElement>
-
-        <!-- OUTPUT ルート メニュー（OUTPUT▾ で開閉・絶対配置で上バー右下に出す・OperatorUI が配線） -->
         <ui:VisualElement name="rr-output-menu" class="rr-output-menu" style="display: none;">
             <ui:Label text="OUTPUT ROUTES" class="rr-output-menu__title" />
             <ui:VisualElement class="rr-output-menu__row">
@@ -413,6 +384,5 @@
                 <ui:Label text="NDI" class="rr-output-menu__label" />
             </ui:VisualElement>
         </ui:VisualElement>
-
     </ui:VisualElement>
 </ui:UXML>
