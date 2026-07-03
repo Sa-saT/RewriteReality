@@ -121,6 +121,11 @@ RewriteRealityProject/        ← git repo ルート
   - **次の一手（マッピング品質・決定 2026-07-03）**: **#34 Grid/Bezier モード**（Project 2×2 を廃止し「歪ませる面」を
     Bezier グリッドに一本化＝MadMapper GridGenerator 手本・テストパターン校正→カメラ差替）＋**#35 OUTPUT グリッド校正**
     （格子オーバーレイ＋投影キャリブレーション表示）。故意の局所歪みは **#33**（パペットpin エフェクト）。詳細＝`docs/03`・`06`。
+    - **#34/#35 の UI 足場＝実装済（2026-07-04・Unity 未検証）**: WARP ツールバーに **GRID**（細分化格子オーバーレイ・
+      WarpCanvas bilinear 補間描画・OUTPUT 切替で自動 ON）＋**TEST/CALIB**（内蔵テストパターン `TestPattern`・
+      EMBED=選択 surface の content 差替[`ContentKind.Pattern`]・OUTPUT=`OutputManager.CalibrationEnabled` で実出力へ投影・
+      編集終了で自動復帰）。**残り＝#34 バックエンド**（WarpMath Bezier 評価＋Compositor パッチ細分化＋Project 廃止）。
+      見た目の最終調整は UI Builder（`rr-warp-grid`/`rr-warp-test`・USS `--grid`/`--test`）。
 
 ## 作業上の注意
 

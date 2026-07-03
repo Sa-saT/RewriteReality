@@ -12,8 +12,8 @@ namespace RewriteReality
     [Serializable]
     public sealed class Surface : IWarpTarget
     {
-        /// <summary>surface に流し込む内容の種別。</summary>
-        public enum ContentKind { Camera, Video, None }
+        /// <summary>surface に流し込む内容の種別。Pattern=内蔵テストパターン（校正用・#34）。</summary>
+        public enum ContentKind { Camera, Video, None, Pattern }
 
         /// <summary>
         /// 合成方式。<see cref="Mask"/>＝内容を等倍(full-frame)のまま表示し Surface 形状で窓抜き

@@ -392,6 +392,18 @@
     border-color: var(--rr-selection);
     background-color: var(--rr-canvas-soft);
 }
+/* GRID=細分化格子オーバーレイ ON（#34/#35・tracking ミント） */
+.rr-warp-toggle--grid {
+    color: var(--rr-stage-tracking);
+    border-color: var(--rr-stage-tracking);
+    background-color: var(--rr-canvas-soft);
+}
+/* TEST/CALIB ON＝テストパターンが合成/実出力に出ている（アンバーで注意喚起） */
+.rr-warp-toggle--test {
+    color: var(--rr-primary);
+    border-color: var(--rr-primary);
+    background-color: var(--rr-canvas-soft);
+}
 
 /* Mapping（TRACK=Input/Output 分割・OUTPUT=単一 warp）— warp のドラッグ/メッシュ線は #21 */
 .rr-map-col { flex-grow: 1; flex-direction: column; }

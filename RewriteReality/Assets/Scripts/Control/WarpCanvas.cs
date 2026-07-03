@@ -33,15 +33,24 @@ namespace RewriteReality
         const float HandleHalf = 5f;    // ハンドル正方形の半辺（px）
         const float HitRadius = 14f;    // 掴み判定半径（px）
 
+        // 格子オーバーレイ（#34/#35）: 制御グリッドを bilinear 補間した細かい格子。
+        // ワープの掛かり具合を面として視認する（描画はドラッグ/トグル時のみ＝毎フレームコスト無し）。
+        const int LatticeLines = 12;    // 縦横の格子線本数（等間隔 u/v）
+        const int LatticeSteps = 24;    // 1 本あたりのサンプル数（パッチに沿わせる）
+        bool _showLattice;
+
         // 色は DESIGN.md トークンと対応（ランタイム描画のため var() ではなく直値）。
         static readonly Color LineCol    = new Color(0.29f, 0.62f, 0.85f, 0.55f); // selection blue 55%
+        static readonly Color LatticeCol = new Color(0.29f, 0.62f, 0.85f, 0.22f); // selection blue 22%（格子）
         static readonly Color HandleCol  = new Color(0.29f, 0.62f, 0.85f, 1f);    // selection blue
         static readonly Color HandleSel  = new Color(1.00f, 0.36f, 0.10f, 1f);    // live amber
         static readonly Color HandleEdge = new Color(0.086f, 0.082f, 0.071f, 1f); // canvas（縁取り）
 
         public int SelectedIndex => _selected;
+        public bool ShowLattice => _showLattice;
 
         public void SetEditMode(EditMode m) { _mode = m; MarkDirtyRepaint(); }
+        public void SetLattice(bool on) { _showLattice = on; MarkDirtyRepaint(); }
 
         public WarpCanvas()
         {
@@ -90,6 +99,9 @@ namespace RewriteReality
 
             var p = mgc.painter2D;
 
+            // 格子オーバーレイ（制御グリッドより淡く・先に描いて制御線を上に）
+            if (_showLattice) DrawLattice(p, cols, rows, w, h);
+
             // メッシュ線（水平＋垂直）
             p.lineWidth = 1f;
             p.strokeColor = LineCol;
@@ -136,6 +148,53 @@ namespace RewriteReality
                     p.Fill();
                     p.Stroke();
                 }
+            }
+        }
+
+        /// <summary>制御グリッド上の (u,v)∈[0,1]² を bilinear 補間してローカル座標を返す。</summary>
+        Vector2 SampleBilinear(float u, float v, int cols, int rows)
+        {
+            float fx = u * (cols - 1);
+            int i = Mathf.Min((int)fx, cols - 2);
+            float tx = fx - i;
+            float fy = v * (rows - 1);
+            int j = Mathf.Min((int)fy, rows - 2);
+            float ty = fy - j;
+
+            Vector2 p00 = _target.GetWarpPoint(i, j);
+            Vector2 p10 = _target.GetWarpPoint(i + 1, j);
+            Vector2 p01 = _target.GetWarpPoint(i, j + 1);
+            Vector2 p11 = _target.GetWarpPoint(i + 1, j + 1);
+            return Vector2.Lerp(Vector2.Lerp(p00, p10, tx), Vector2.Lerp(p01, p11, tx), ty);
+        }
+
+        /// <summary>細分化格子（#34/#35）。等間隔の u/v 線をパッチに沿ってサンプルし面の歪みを可視化する。</summary>
+        void DrawLattice(UnityEngine.UIElements.Painter2D p, int cols, int rows, float w, float h)
+        {
+            p.lineWidth = 1f;
+            p.strokeColor = LatticeCol;
+
+            for (int l = 0; l <= LatticeLines; l++)
+            {
+                float t = (float)l / LatticeLines;
+
+                // 縦線（u=t）
+                p.BeginPath();
+                for (int s = 0; s <= LatticeSteps; s++)
+                {
+                    var px = ToPixel(SampleBilinear(t, (float)s / LatticeSteps, cols, rows), w, h);
+                    if (s == 0) p.MoveTo(px); else p.LineTo(px);
+                }
+                p.Stroke();
+
+                // 横線（v=t）
+                p.BeginPath();
+                for (int s = 0; s <= LatticeSteps; s++)
+                {
+                    var px = ToPixel(SampleBilinear((float)s / LatticeSteps, t, cols, rows), w, h);
+                    if (s == 0) p.MoveTo(px); else p.LineTo(px);
+                }
+                p.Stroke();
             }
         }
 

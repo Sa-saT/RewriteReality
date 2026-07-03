@@ -63,9 +63,11 @@ namespace RewriteReality
         // WARP 編集オーバーレイ（#21・メッシュ制御点ドラッグ）
         WarpCanvas _warpCanvas;
         Button _warpToggle, _warpReset, _warpTargetBtn, _warpEditModeBtn;
+        Button _warpGridBtn, _warpTestBtn;   // GRID=格子オーバーレイ / TEST・CALIB=テストパターン校正（#34/#35）
         bool _warpEditing;
         bool _warpOutputMode;   // true=OUTPUT(出力変形) を編集 / false=EMBED(埋め込み)
         bool _warpContentMode;  // true=CONTENT(枠内映像 pan) / false=SHAPE(窓の形)
+        bool _warpShowGrid;     // 細分化格子オーバーレイの表示状態
         readonly List<VisualElement> _cornerPins = new List<VisualElement>();  // 装飾ピン（編集中は隠す）
         IWarpTarget _warpTarget;   // 現在の warp 編集対象（選択 surface or Compositor）
 
@@ -245,6 +247,8 @@ namespace RewriteReality
             _warpReset = _root.Q<Button>("rr-warp-reset");
             _warpTargetBtn = _root.Q<Button>("rr-warp-target");
             _warpEditModeBtn = _root.Q<Button>("rr-warp-editmode");
+            _warpGridBtn = _root.Q<Button>("rr-warp-grid");
+            _warpTestBtn = _root.Q<Button>("rr-warp-test");
             if (viewport == null) return;
 
             if (_warpCanvas == null)
@@ -267,8 +271,12 @@ namespace RewriteReality
             if (_warpReset != null)  _warpReset.clicked  += () => { _warpTarget?.ResetWarp(); _warpCanvas?.MarkDirtyRepaint(); };
             if (_warpTargetBtn != null) _warpTargetBtn.clicked += ToggleWarpOutputMode;
             if (_warpEditModeBtn != null) _warpEditModeBtn.clicked += ToggleWarpEditMode;
+            if (_warpGridBtn != null) _warpGridBtn.clicked += ToggleWarpGrid;
+            if (_warpTestBtn != null) _warpTestBtn.clicked += ToggleWarpTest;
             RefreshWarpTargetBtn();
             RefreshWarpEditModeBtn();
+            RefreshWarpGridBtn();
+            RefreshWarpTestBtn();
         }
 
         // CONTENT モードのドラッグ量（正規化 delta）を選択 surface の content offset に反映（Mask のみ意味を持つ）。
@@ -300,9 +308,62 @@ namespace RewriteReality
         {
             if (_outputWarp == null) return;
             _warpOutputMode = !_warpOutputMode;
-            if (_warpOutputMode) _outputWarp.SetEnabled(true);   // 見たまま反映されるよう有効化
+            if (_warpOutputMode)
+            {
+                _outputWarp.SetEnabled(true);   // 見たまま反映されるよう有効化
+                if (!_warpShowGrid) ToggleWarpGrid();   // OUTPUT 編集は格子オーバーレイ常時表示（#35）
+            }
             SetWarpTarget(ResolveWarpTarget());
             RefreshWarpTargetBtn();
+            RefreshWarpTestBtn();   // TEST⇄CALIB のラベル/状態はモード依存
+        }
+
+        /// <summary>細分化格子オーバーレイの表示を切替（#34/#35）。</summary>
+        void ToggleWarpGrid()
+        {
+            _warpShowGrid = !_warpShowGrid;
+            _warpCanvas?.SetLattice(_warpShowGrid);
+            RefreshWarpGridBtn();
+        }
+
+        /// <summary>
+        /// テストパターン校正の切替（#34/#35）。EMBED=選択 surface の content をパターン⇄カメラ、
+        /// OUTPUT=出力全体をパターンへ差替（実際に投影して物理面と整列する定番手順）。
+        /// </summary>
+        void ToggleWarpTest()
+        {
+            if (_warpOutputMode)
+            {
+                if (_output == null) return;
+                _output.CalibrationEnabled = !_output.CalibrationEnabled;
+            }
+            else
+            {
+                var s = _surfaces?.Active;
+                if (s == null) return;
+                s.Content = s.Content == Surface.ContentKind.Pattern
+                    ? Surface.ContentKind.Camera : Surface.ContentKind.Pattern;
+                SyncSurfaceProps();   // 左ドックの content チップ表示を追従
+            }
+            RefreshWarpTestBtn();
+        }
+
+        bool WarpTestOn => _warpOutputMode
+            ? _output != null && _output.CalibrationEnabled
+            : _surfaces?.Active != null && _surfaces.Active.Content == Surface.ContentKind.Pattern;
+
+        void RefreshWarpGridBtn()
+        {
+            if (_warpGridBtn == null) return;
+            EnableClass(_warpGridBtn, "rr-warp-toggle--grid", _warpShowGrid);
+        }
+
+        void RefreshWarpTestBtn()
+        {
+            if (_warpTestBtn == null) return;
+            _warpTestBtn.text = _warpOutputMode ? "CALIB" : "TEST";
+            _warpTestBtn.SetEnabled(_warpOutputMode ? _output != null : _surfaces?.Active != null);
+            EnableClass(_warpTestBtn, "rr-warp-toggle--test", WarpTestOn);
         }
 
         void RefreshWarpTargetBtn()
@@ -346,12 +407,27 @@ namespace RewriteReality
             if (_warpReset != null)  _warpReset.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
             if (_warpTargetBtn != null) _warpTargetBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
             if (_warpEditModeBtn != null) _warpEditModeBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_warpGridBtn != null) _warpGridBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_warpTestBtn != null) _warpTestBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
 
             if (!_warpEditing && _warpContentMode)   // 編集終了時は SHAPE に戻す
             {
                 _warpContentMode = false;
                 _warpCanvas?.SetEditMode(WarpCanvas.EditMode.Shape);
                 RefreshWarpEditModeBtn();
+            }
+
+            // 編集終了時はテストパターンを自動で戻す（隠れたトグルの裏でパターンが出続けるのを防ぐ）
+            if (!_warpEditing)
+            {
+                if (_output != null && _output.CalibrationEnabled) _output.CalibrationEnabled = false;
+                var s = _surfaces?.Active;
+                if (s != null && s.Content == Surface.ContentKind.Pattern)
+                {
+                    s.Content = Surface.ContentKind.Camera;
+                    SyncSurfaceProps();
+                }
+                RefreshWarpTestBtn();
             }
 
             // 装飾コーナーピンは編集中のみ隠す（プレビュー時は Claude Design 通り残す）
@@ -442,8 +518,9 @@ namespace RewriteReality
         {
             var s = _surfaces?.Active;
             if (s == null) return;
-            s.Content = (Surface.ContentKind)(((int)s.Content + 1) % 3);
+            s.Content = (Surface.ContentKind)(((int)s.Content + 1) % 4);   // Camera→Video→None→Pattern
             if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
+            RefreshWarpTestBtn();   // TEST トグルの ON 表示は content=Pattern と連動
         }
 
         // Mask（歪まない窓抜き）⇄ Project（射影で流し込む）を切替
@@ -484,6 +561,7 @@ namespace RewriteReality
                 _selectedSurfaceId = activeId;
                 SyncSurfaceProps();
                 SetWarpTarget(ResolveWarpTarget());   // 選択が変われば WARP 対象も切替
+                RefreshWarpTestBtn();                 // TEST の ON 表示は選択 surface の content 依存
             }
             SyncSurfaceRows();
         }

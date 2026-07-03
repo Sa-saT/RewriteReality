@@ -120,7 +120,9 @@ namespace RewriteReality
                     var surf = list[s];
                     if (surf == null || !surf.Enabled) continue;
 
-                    Texture content = surf.Content == Surface.ContentKind.Camera ? cameraTex : null;
+                    Texture content = null;
+                    if (surf.Content == Surface.ContentKind.Camera)       content = cameraTex;
+                    else if (surf.Content == Surface.ContentKind.Pattern) content = TestPattern.Texture; // 校正（#34）
                     if (content == null) continue; // Video/None content は段階的（将来）
 
                     // 範囲=Surface のエフェクトを content に先掛け（RenderTexture のときのみ）

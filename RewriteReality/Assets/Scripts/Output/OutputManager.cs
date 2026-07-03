@@ -30,6 +30,10 @@ namespace RewriteReality
         [SerializeField] bool _syphonEnabled = true;
         [SerializeField] bool _ndiEnabled = true;
 
+        [Header("校正（#35）")]
+        [Tooltip("ON で完成映像の代わりに内蔵テストパターンを出力へ流す（投影→物理面と整列→OFF の定番手順）")]
+        [SerializeField] bool _calibrate;
+
         RenderTexture _current;
 
         // ---- ルートの利用可否（コンポーネントが割り当てられているか）----
@@ -41,6 +45,9 @@ namespace RewriteReality
         public bool FullscreenEnabled { get => _fullscreenEnabled; set => _fullscreenEnabled = value; }
         public bool SyphonEnabled     { get => _syphonEnabled;     set => _syphonEnabled = value; }
         public bool NdiEnabled        { get => _ndiEnabled;        set => _ndiEnabled = value; }
+
+        /// <summary>校正モード（#35）。ON の間、出力ソースをテストパターンに差し替える（OutputWarp は通す）。</summary>
+        public bool CalibrationEnabled { get => _calibrate; set => _calibrate = value; }
 
         /// <summary>有効なルート名の要約（例 "Full · Syphon · NDI"）。1つも無ければ空文字。</summary>
         public string ActiveRoutesSummary()
@@ -62,11 +69,14 @@ namespace RewriteReality
         /// <summary>毎フレーム、最終 RT を各出力へ反映する。</summary>
         public void Publish(RenderTexture finalRT)
         {
-            if (finalRT == null) return;
+            // 校正（#35）: ON の間はテストパターンを出力ソースにする（OutputWarp の変形は通す＝
+            // 投影された格子をドラッグで物理面に合わせられる）。
+            RenderTexture srcRT = _calibrate ? TestPattern.Texture : finalRT;
+            if (srcRT == null) return;
 
-            // M10: 出力変形（Output Surface）。無効/未設定なら finalRT を素通し（参照そのまま）。
+            // M10: 出力変形（Output Surface）。無効/未設定なら srcRT を素通し（参照そのまま）。
             // 有効時は OutputWarp 内の永続 RT を返すので、下の差分代入ロジックはそのまま成立する。
-            RenderTexture outRT = _outputWarp != null ? _outputWarp.Apply(finalRT) : finalRT;
+            RenderTexture outRT = _outputWarp != null ? _outputWarp.Apply(srcRT) : srcRT;
 
             // 重要: KlakSyphon の SyphonServer は CaptureMethod / SourceTexture の setter が
             // 呼ばれるたびに TeardownPlugin()（Metal IOSurface テクスチャを破棄→再生成）する。

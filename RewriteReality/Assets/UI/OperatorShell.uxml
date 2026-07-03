@@ -135,11 +135,15 @@
                     <ui:VisualElement class="rr-viewport-overlay-tr">
                         <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
                     </ui:VisualElement>
-                    <!-- WARP 編集トグル（#21・押下で制御点ドラッグ用 WarpCanvas をこのビューポート上に重ねる） -->
+                    <!-- WARP 編集トグル（#21・押下で制御点ドラッグ用 WarpCanvas をこのビューポート上に重ねる）
+                         GRID=細分化格子オーバーレイ（#34/#35）・TEST/CALIB=テストパターン校正
+                         （EMBED: 選択 surface の content をパターンへ／OUTPUT: 出力全体をパターンへ＝実投影） -->
                     <ui:VisualElement class="rr-viewport-overlay-tl">
                         <ui:Button name="rr-warp-toggle" text="◇ WARP" class="rr-warp-toggle" />
                         <ui:Button name="rr-warp-target" text="EMBED" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
                         <ui:Button name="rr-warp-editmode" text="SHAPE" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
+                        <ui:Button name="rr-warp-grid" text="GRID" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
+                        <ui:Button name="rr-warp-test" text="TEST" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
                         <ui:Button name="rr-warp-reset" text="RESET" class="rr-warp-toggle rr-warp-toggle--sub" style="display: none;" />
                     </ui:VisualElement>
                     <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />
