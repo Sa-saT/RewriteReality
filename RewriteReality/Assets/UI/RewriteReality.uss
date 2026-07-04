@@ -302,7 +302,7 @@
 .rr-surf-chip:hover { border-color: var(--rr-selection); }
 .rr-surf-chip { margin-left: 4px; }
 /* Fit=Project（内容が歪む）はアンバーで注意喚起・Mask（既定＝歪まない）は selection */
-.rr-surf-chip--project { color: var(--rr-primary); border-color: var(--rr-primary); }
+.rr-surf-chip--grid { color: var(--rr-primary); border-color: var(--rr-primary); }
 .rr-surf-step {
     width: 18px; height: 18px;
     font-size: 12px;

@@ -536,21 +536,21 @@ namespace RewriteReality
             RefreshWarpTestBtn();   // TEST トグルの ON 表示は content=Pattern と連動
         }
 
-        // Mask（歪まない窓抜き）⇄ Project（射影で流し込む）を切替
+        // Mask（歪まない窓抜き）⇄ Grid（Bezier グリッドで歪ませて流し込む・#34）を切替
         void ToggleFit()
         {
             var s = _surfaces?.Active;
             if (s == null) return;
-            s.Fit = s.Fit == Surface.FitMode.Mask ? Surface.FitMode.Project : Surface.FitMode.Mask;
+            s.Fit = s.Fit == Surface.FitMode.Mask ? Surface.FitMode.Grid : Surface.FitMode.Mask;
             RefreshFitBtn(s);
         }
 
         void RefreshFitBtn(Surface s)
         {
             if (_surfFit == null) return;
-            bool project = s != null && s.Fit == Surface.FitMode.Project;
-            _surfFit.text = project ? "PROJECT" : "MASK";
-            EnableClass(_surfFit, "rr-surf-chip--project", project);   // Project=歪む=アンバー強調
+            bool grid = s != null && s.Fit == Surface.FitMode.Grid;
+            _surfFit.text = grid ? "GRID" : "MASK";
+            EnableClass(_surfFit, "rr-surf-chip--grid", grid);   // Grid=歪む=アンバー強調
         }
 
         void NudgeGrid(int dCols, int dRows)

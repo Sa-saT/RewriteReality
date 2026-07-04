@@ -6,7 +6,8 @@ namespace RewriteReality
     /// <summary>
     /// 背景（ベース動画）＋カメラを「4点トラッキング＋多pin手動ワープ」の2段でメッシュ合成する。
     /// 段1: 追従 <see cref="Corners"/>(4点) からホモグラフィ H(単位正方形→四隅) を解く。
-    /// 段2: 埋め込みを N×M の制御点グリッドで細分化し、各頂点のローカル座標を手動ワープ → H で射影。
+    /// 段2: 埋め込みを N×M の制御点グリッドで手動ワープ。Grid モードは <see cref="WarpMath.SampleGridSmooth"/>
+    /// （Catmull-Rom＝Bezier 相当）で細分化して滑らかな面にし、各頂点のローカル座標を H で射影する（#34）。
     /// 2×2・手動ワープ無しなら従来の 4pin と同結果（後方互換）。四隅の出所は ICornerSource 経由で知らない。
     /// </summary>
     public sealed class Compositor : MonoBehaviour, IWarpTarget
@@ -23,14 +24,17 @@ namespace RewriteReality
         [SerializeField] Vector2[] _warpPoints;
 
         RenderTexture _sceneRT;
-        Mesh _mesh;
         Material _runtimeMat;
 
-        // GC 回避のため使い回すバッファ（グリッド再構成時のみ作り直す）。
-        readonly List<Vector3> _verts = new List<Vector3>();
-        readonly List<Vector3> _uvq   = new List<Vector3>();
-        int[] _tris;
-        int _builtCols, _builtRows;
+        // Grid(Bezier) モードの 1 セルあたり細分化数（#34）。制御 n → (n-1)*Sub+1 頂点。
+        // 2×2（cols<3 && rows<3）は Catmull-Rom が線形へ縮退するため細分化しない（sub=1・従来 4pin と同一）。
+        const int GridSubdiv = 8;
+
+        // メッシュ位相プール（#34・改善②）: (vertsCols,vertsRows) ごとに Mesh＋頂点バッファをキャッシュして使い回す。
+        // 複数 surface が Mask(制御解像度) と Grid(細分解像度) を混在させても位相ごとに引くので、
+        // 毎フレームのメッシュ再構築（スラッシング）が起きない。位相は解像度が新規のときだけ構築する。
+        sealed class MeshEntry { public Mesh mesh; public Vector3[] verts; public Vector3[] uvq; }
+        readonly Dictionary<int, MeshEntry> _meshPool = new Dictionary<int, MeshEntry>();
 
         static readonly int MainTexID = Shader.PropertyToID("_MainTex");
         static readonly int OpacityID = Shader.PropertyToID("_Opacity");
@@ -60,7 +64,7 @@ namespace RewriteReality
         {
             _warpCols = Mathf.Max(2, cols);
             _warpRows = Mathf.Max(2, rows);
-            _warpPoints = null; // 次の EnsureGrid で等間隔生成＋メッシュ再構成
+            _warpPoints = null; // 次の EnsureWarpPoints で等間隔生成（メッシュは GetMesh が位相ごとにプール）
         }
 
         /// <summary>四隅ワープ用マテリアル。Inspector 未設定なら CornerPin シェーダから自動生成。</summary>
@@ -93,7 +97,7 @@ namespace RewriteReality
             var mat = WarpMat;
             if (mat != null && camTex != null)
             {
-                EnsureGrid(); // 組込み単一 surface の制御点を保証
+                EnsureWarpPoints(); // 組込み単一 surface の制御点を保証
                 DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat, false, Vector2.zero, 1f, 1f);
             }
             return _sceneRT;
@@ -147,14 +151,25 @@ namespace RewriteReality
 
         /// <summary>
         /// content を四隅＋多pin メッシュで sceneRT へ上書き描画する（surface 共通）。
-        /// <paramref name="mask"/>=true なら Mask/Crop（内容を等倍のまま窓抜き・歪ませない）、
-        /// false なら Project（内容をクアッドへ射影で流し込む）。
+        /// <paramref name="mask"/>=true なら Mask/Crop（内容を等倍のまま窓抜き・歪ませない・制御解像度メッシュ）、
+        /// false なら Grid（Bezier 面へ射影で流し込む・<see cref="GridSubdiv"/> で細分化した滑らかメッシュ・#34）。
         /// </summary>
         void DrawContent(Texture content, in Corners corners, Vector2[] points, int cols, int rows, Material mat,
                          bool mask, Vector2 contentOffset, float contentZoom, float opacity)
         {
-            EnsureMeshTopology(cols, rows);
-            WriteMesh(corners, points, cols, rows, mask, contentOffset, contentZoom);
+            MeshEntry e;
+            if (mask)
+            {
+                e = GetMesh(cols, rows);
+                WriteMeshMask(e, corners, points, cols, rows, contentOffset, contentZoom);
+            }
+            else
+            {
+                int sub = (cols >= 3 || rows >= 3) ? GridSubdiv : 1;   // 2×2 は線形＝細分化不要
+                int fc = WarpMath.FineCount(cols, sub), fr = WarpMath.FineCount(rows, sub);
+                e = GetMesh(fc, fr);
+                WriteMeshGrid(e, corners, points, cols, rows, fc, fr);
+            }
             mat.SetTexture(MainTexID, content);
             mat.SetFloat(OpacityID, opacity);
 
@@ -163,7 +178,7 @@ namespace RewriteReality
             GL.PushMatrix();
             GL.LoadOrtho();          // 0..1 正規化空間（左下原点）→ sceneRT 全面
             mat.SetPass(0);
-            Graphics.DrawMeshNow(_mesh, Matrix4x4.identity);
+            Graphics.DrawMeshNow(e.mesh, Matrix4x4.identity);
             GL.PopMatrix();
             RenderTexture.active = prev;
         }
@@ -179,37 +194,25 @@ namespace RewriteReality
             _sceneRT.Create();
         }
 
-        /// <summary>組込み単一 surface の制御点＋メッシュ位相を保証する（従来経路）。</summary>
-        void EnsureGrid()
-        {
-            EnsureWarpPoints(); // 制御点が未生成/解像度不一致なら等間隔で確保
-            EnsureMeshTopology(_warpCols, _warpRows);
-        }
-
         /// <summary>
-        /// cols×rows のメッシュ位相（頂点数＋三角形インデックス）を構築する（解像度が変わった時だけ）。
-        /// surface ごとに解像度が異なる場合はこの切替時にだけ作り直す（同一なら再利用・GC 回避）。
+        /// (cols,rows) 位相の <see cref="MeshEntry"/> をプールから取得（無ければ 1 度だけ構築）。
+        /// 三角形インデックス（セルごと2枚）と頂点/uvq バッファを確保する。頂点値は毎フレーム WriteMesh* で上書き。
         /// </summary>
-        void EnsureMeshTopology(int cols, int rows)
+        MeshEntry GetMesh(int cols, int rows)
         {
             cols = Mathf.Max(2, cols);
             rows = Mathf.Max(2, rows);
-            if (_mesh != null && _builtCols == cols && _builtRows == rows) return;
+            int key = (cols << 16) | rows;
+            if (_meshPool.TryGetValue(key, out var e)) return e;
 
-            if (_mesh == null)
-            {
-                _mesh = new Mesh { name = "warpMesh" };
-                _mesh.MarkDynamic();
-            }
-            _mesh.Clear();
+            var mesh = new Mesh { name = $"warpMesh_{cols}x{rows}" };
+            mesh.MarkDynamic();
 
             int verts = cols * rows;
-            _verts.Clear(); _uvq.Clear();
-            for (int k = 0; k < verts; k++) { _verts.Add(Vector3.zero); _uvq.Add(Vector3.zero); }
+            e = new MeshEntry { mesh = mesh, verts = new Vector3[verts], uvq = new Vector3[verts] };
 
-            // 三角形インデックス（セルごとに2枚）
             int cells = (cols - 1) * (rows - 1);
-            _tris = new int[cells * 6];
+            var tris = new int[cells * 6];
             int t = 0;
             for (int j = 0; j < rows - 1; j++)
             {
@@ -219,33 +222,28 @@ namespace RewriteReality
                     int v10 = v00 + 1;
                     int v01 = v00 + cols;
                     int v11 = v01 + 1;
-                    _tris[t++] = v00; _tris[t++] = v10; _tris[t++] = v11;
-                    _tris[t++] = v00; _tris[t++] = v11; _tris[t++] = v01;
+                    tris[t++] = v00; tris[t++] = v10; tris[t++] = v11;
+                    tris[t++] = v00; tris[t++] = v11; tris[t++] = v01;
                 }
             }
 
-            _mesh.SetVertices(_verts);
-            _mesh.SetUVs(0, _uvq);
-            _mesh.SetTriangles(_tris, 0);
-            _mesh.bounds = new Bounds(new Vector3(0.5f, 0.5f, 0f), new Vector3(10f, 10f, 10f));
-            _builtCols = cols;
-            _builtRows = rows;
+            mesh.SetVertices(e.verts);   // verts 個ぶんの頂点を確保（初期 0・以後 WriteMesh* で更新）
+            mesh.SetUVs(0, e.uvq);
+            mesh.SetTriangles(tris, 0);
+            mesh.bounds = new Bounds(new Vector3(0.5f, 0.5f, 0f), new Vector3(10f, 10f, 10f));
+            _meshPool[key] = e;
+            return e;
         }
 
         /// <summary>
-        /// Corners から H を解き、各制御点を「手動ワープ → H 射影」して頂点位置と uvq を書き込む。
-        /// Project（<paramref name="mask"/>=false）: content UV は規則グリッド → クアッドへ射影で流し込む
-        /// （q は H の同次分母 w'・frag で /q で perspective-correct）。
-        /// Mask（<paramref name="mask"/>=true）: content UV = 頂点のスクリーン位置(q=1) → content を
-        /// sceneRT 全面に等倍で貼り、窓（クアッド）が切り抜くだけ＝内容は歪まない。位相は事前に EnsureMeshTopology。
+        /// Mask（窓抜き）: 各制御点を H 射影して窓（クアッド）を作り、content UV = スクリーン位置に content 変形
+        /// （zoom 中心 0.5・pan=offset）を適用（q=1）。content は全面に等倍で貼られ窓が切り抜くだけ＝内容は歪まない。
+        /// 制御解像度メッシュ（細分化しない・窓形状は制御点で決まる）。
         /// </summary>
-        void WriteMesh(in Corners c, Vector2[] points, int cols, int rows, bool mask,
-                       Vector2 contentOffset, float contentZoom)
+        void WriteMeshMask(MeshEntry e, in Corners c, Vector2[] points, int cols, int rows,
+                           Vector2 contentOffset, float contentZoom)
         {
-            // 単位正方形→四隅 の射影変換（Heckbert）。数学は WarpMath に共通化（OutputWarp と共有）。
             var hmg = WarpMath.Solve(c.BottomLeft, c.BottomRight, c.TopRight, c.TopLeft);
-
-            float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
             float invZoom = 1f / Mathf.Max(0.0001f, contentZoom);
 
             for (int j = 0; j < rows; j++)
@@ -253,30 +251,45 @@ namespace RewriteReality
                 for (int i = 0; i < cols; i++)
                 {
                     int idx = j * cols + i;
-
-                    Vector2 p = points[idx];        // 手動ワープ後のローカル座標
+                    Vector2 p = points[idx];
                     WarpMath.Project(hmg, p.x, p.y, out float xp, out float yp, out float wp);
-
-                    _verts[idx] = new Vector3(xp, yp, 0f);            // スクリーン位置（0..1）
-                    if (mask)
-                    {
-                        // 窓抜き: content UV = スクリーン位置に content 変形（zoom 中心=0.5・pan=offset）を適用。
-                        // 内容は歪まず、枠内で見せる箇所だけ動く（q=1）。
-                        float u = (xp - 0.5f) * invZoom + 0.5f - contentOffset.x;
-                        float v = (yp - 0.5f) * invZoom + 0.5f - contentOffset.y;
-                        _uvq[idx] = new Vector3(u, v, 1f);
-                    }
-                    else
-                    {
-                        // 射影流し込み: content UV = 規則グリッド × 同次分母（frag で /q）
-                        float gu = i * invCx, gv = j * invCy;
-                        _uvq[idx] = new Vector3(gu * wp, gv * wp, wp);
-                    }
+                    e.verts[idx] = new Vector3(xp, yp, 0f);
+                    float u = (xp - 0.5f) * invZoom + 0.5f - contentOffset.x;
+                    float v = (yp - 0.5f) * invZoom + 0.5f - contentOffset.y;
+                    e.uvq[idx] = new Vector3(u, v, 1f);
                 }
             }
 
-            _mesh.SetVertices(_verts);
-            _mesh.SetUVs(0, _uvq);
+            e.mesh.SetVertices(e.verts);
+            e.mesh.SetUVs(0, e.uvq);
+        }
+
+        /// <summary>
+        /// Grid（Bezier 流し込み・#34）: parametric (a,b)∈[0,1]² を fc×fr に細分化。各頂点で制御グリッドを
+        /// <see cref="WarpMath.SampleGridSmooth"/>（Catmull-Rom）評価して滑らかなローカル位置を得 → H で射影。
+        /// content UV = parametric × 同次分母 w'（frag で /q で perspective-correct）。制御点を動かすと折れ線でなく
+        /// 滑らかな膨らみになる（MadMapper GridGenerator 手本）。2×2 は線形へ縮退（fc=cols・従来と同一）。
+        /// </summary>
+        void WriteMeshGrid(MeshEntry e, in Corners c, Vector2[] points, int cols, int rows, int fc, int fr)
+        {
+            var hmg = WarpMath.Solve(c.BottomLeft, c.BottomRight, c.TopRight, c.TopLeft);
+            float invFx = 1f / (fc - 1), invFy = 1f / (fr - 1);
+
+            for (int j = 0; j < fr; j++)
+            {
+                for (int i = 0; i < fc; i++)
+                {
+                    int idx = j * fc + i;
+                    float a = i * invFx, b = j * invFy;                       // parametric [0,1]²
+                    Vector2 p = WarpMath.SampleGridSmooth(points, cols, rows, a, b);   // Bezier 面上のローカル位置
+                    WarpMath.Project(hmg, p.x, p.y, out float xp, out float yp, out float wp);
+                    e.verts[idx] = new Vector3(xp, yp, 0f);
+                    e.uvq[idx]   = new Vector3(a * wp, b * wp, wp);
+                }
+            }
+
+            e.mesh.SetVertices(e.verts);
+            e.mesh.SetUVs(0, e.uvq);
         }
 
         void ClearSceneRT()
@@ -290,7 +303,8 @@ namespace RewriteReality
         void OnDestroy()
         {
             if (_sceneRT != null) { _sceneRT.Release(); _sceneRT = null; }
-            if (_mesh != null) Destroy(_mesh);
+            foreach (var e in _meshPool.Values) if (e.mesh != null) Destroy(e.mesh);
+            _meshPool.Clear();
             if (_runtimeMat != null) Destroy(_runtimeMat);
         }
     }

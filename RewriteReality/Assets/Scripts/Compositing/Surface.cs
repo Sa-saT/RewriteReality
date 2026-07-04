@@ -17,10 +17,11 @@ namespace RewriteReality
 
         /// <summary>
         /// 合成方式。<see cref="Mask"/>＝内容を等倍(full-frame)のまま表示し Surface 形状で窓抜き
-        /// （四隅/pin を動かしても内容は歪まない・枠内のみ表示）。<see cref="Project"/>＝内容を
-        /// クアッドへ射影で流し込む（角度平面に貼り付け・内容は遠近変形する）。既定は歪ませない Mask。
+        /// （四隅/pin を動かしても内容は歪まない・枠内のみ表示・既定）。<see cref="Grid"/>＝内容を
+        /// Bezier グリッド（Catmull-Rom 細分化・#34）へ射影で流し込む＝故意に「歪ませる面」。
+        /// 旧 Project（射影 2×2）は Grid に一本化（int index 1 は据え置き＝既存シーンの直列化互換）。
         /// </summary>
-        public enum FitMode { Mask, Project }
+        public enum FitMode { Mask, Grid }
 
         [SerializeField] int _id;
         [SerializeField] string _name = "Surface";
@@ -32,7 +33,7 @@ namespace RewriteReality
         [Tooltip("この面に流し込む内容（Camera=ライブカメラ・既定）")]
         [SerializeField] ContentKind _content = ContentKind.Camera;
 
-        [Tooltip("合成方式（Mask=歪まない窓抜き・既定／Project=射影で流し込む）")]
+        [Tooltip("合成方式（Mask=歪まない窓抜き・既定／Grid=Bezier グリッドで歪ませて流し込む・#34）")]
         [SerializeField] FitMode _fit = FitMode.Mask;
 
         [Header("Content 変形（Mask 時・枠内で見せる映像の切り出し）")]

@@ -74,5 +74,64 @@ namespace RewriteReality
                 for (int i = 0; i < cols; i++)
                     pts[j * cols + i] = new Vector2(i * invCx, j * invCy);
         }
+
+        // ---- Bezier（Catmull-Rom）グリッド評価（#34・MadMapper GridGenerator 手本）----
+        //
+        // 制御点グリッドを bicubic Catmull-Rom で補間し、任意の parametric (u,v)∈[0,1]² のローカル位置を返す。
+        // Catmull-Rom は「制御点を通り」「C1 連続」なので、点を1つ動かすと折れ線の皺ではなく滑らかな膨らみになる
+        // （区分線形＝bilinear の Grid を Bezier 面へ一本化）。細分化して評価すれば滑らかなワープメッシュが得られる。
+        // 端は最近傍クランプ。2×n / n×2 は接線＝弦になり厳密に線形へ縮退する（ワープ無し・従来 4pin と同結果＝後方互換）。
+        // すべて struct 演算で GC フリー（呼び出し側で細分化ループ可）。
+
+        static float Cr(float p0, float p1, float p2, float p3, float t)
+        {
+            float t2 = t * t, t3 = t2 * t;
+            return 0.5f * ((2f * p1)
+                         + (-p0 + p2) * t
+                         + (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2
+                         + (-p0 + 3f * p1 - 3f * p2 + p3) * t3);
+        }
+
+        static Vector2 Cr(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t)
+            => new Vector2(Cr(p0.x, p1.x, p2.x, p3.x, t), Cr(p0.y, p1.y, p2.y, p3.y, t));
+
+        static Vector2 GridPoint(Vector2[] pts, int cols, int rows, int i, int j)
+        {
+            i = Mathf.Clamp(i, 0, cols - 1);
+            j = Mathf.Clamp(j, 0, rows - 1);
+            return pts[j * cols + i];
+        }
+
+        // 行 j の i-1..i+2（クランプ）を u 方向に Catmull-Rom 補間
+        static Vector2 RowCr(Vector2[] pts, int cols, int rows, int j, int i, float tx)
+            => Cr(GridPoint(pts, cols, rows, i - 1, j),
+                  GridPoint(pts, cols, rows, i,     j),
+                  GridPoint(pts, cols, rows, i + 1, j),
+                  GridPoint(pts, cols, rows, i + 2, j), tx);
+
+        /// <summary>
+        /// 制御点グリッド（row-major・各点 [0,1]²）を bicubic Catmull-Rom 補間して parametric (u,v)∈[0,1]² の
+        /// ローカル位置を返す。制御点を通る滑らかな面（Bezier 相当）。細分化した各頂点でこれを評価する。
+        /// </summary>
+        public static Vector2 SampleGridSmooth(Vector2[] pts, int cols, int rows, float u, float v)
+        {
+            if (pts == null || cols < 2 || rows < 2) return new Vector2(u, v);
+
+            float fx = Mathf.Clamp01(u) * (cols - 1);
+            int i = Mathf.Min((int)fx, cols - 2);
+            float tx = fx - i;
+            float fy = Mathf.Clamp01(v) * (rows - 1);
+            int j = Mathf.Min((int)fy, rows - 2);
+            float ty = fy - j;
+
+            Vector2 r0 = RowCr(pts, cols, rows, j - 1, i, tx);
+            Vector2 r1 = RowCr(pts, cols, rows, j,     i, tx);
+            Vector2 r2 = RowCr(pts, cols, rows, j + 1, i, tx);
+            Vector2 r3 = RowCr(pts, cols, rows, j + 2, i, tx);
+            return Cr(r0, r1, r2, r3, ty);
+        }
+
+        /// <summary>Grid(Bezier) 細分化の 1 辺あたり頂点数（制御 n → 細分後 (n-1)*sub+1）。</summary>
+        public static int FineCount(int n, int sub) => (Mathf.Max(2, n) - 1) * Mathf.Max(1, sub) + 1;
     }
 }

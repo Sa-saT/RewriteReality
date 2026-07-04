@@ -37,6 +37,10 @@ namespace RewriteReality
         [Tooltip("制御点のローカル位置（[0..1]², row-major: j*cols+i）。既定は等間隔＝ワープ無し。")]
         [SerializeField] Vector2[] _warpPoints;
 
+        // Grid(Bezier) 細分化数（#34・Compositor と同値）。制御 n → (n-1)*Sub+1 頂点。
+        // 2×2（cols<3 && rows<3）は Catmull-Rom が線形へ縮退するため細分化しない（sub=1・従来キーストーンと同一）。
+        const int GridSubdiv = 8;
+
         RenderTexture _outRT;
         Mesh _mesh;
         Material _runtimeMat;
@@ -45,7 +49,7 @@ namespace RewriteReality
         readonly List<Vector3> _verts = new List<Vector3>();
         readonly List<Vector3> _uvq   = new List<Vector3>();
         int[] _tris;
-        int _builtCols, _builtRows;
+        int _builtCols, _builtRows;   // 直近に構築した“細分後”位相の頂点数（fc, fr）
 
         static readonly int MainTexID = Shader.PropertyToID("_MainTex");
         static readonly int OpacityID = Shader.PropertyToID("_Opacity");
@@ -160,11 +164,20 @@ namespace RewriteReality
             _outRT.Create();
         }
 
+        /// <summary>細分後（Bezier）位相の頂点数を返す。2×2 は sub=1（線形＝従来キーストーンと同一）。</summary>
+        void FineDims(out int fc, out int fr)
+        {
+            int sub = (_warpCols >= 3 || _warpRows >= 3) ? GridSubdiv : 1;
+            fc = WarpMath.FineCount(_warpCols, sub);
+            fr = WarpMath.FineCount(_warpRows, sub);
+        }
+
         void EnsureGrid()
         {
             EnsureWarpPoints(); // 制御点が未生成/解像度不一致なら等間隔で確保
+            FineDims(out int fc, out int fr);
 
-            if (_mesh != null && _builtCols == _warpCols && _builtRows == _warpRows) return;
+            if (_mesh != null && _builtCols == fc && _builtRows == fr) return;
 
             if (_mesh == null)
             {
@@ -173,20 +186,20 @@ namespace RewriteReality
             }
             _mesh.Clear();
 
-            int verts = _warpCols * _warpRows;
+            int verts = fc * fr;
             _verts.Clear(); _uvq.Clear();
             for (int k = 0; k < verts; k++) { _verts.Add(Vector3.zero); _uvq.Add(Vector3.zero); }
 
-            int cells = (_warpCols - 1) * (_warpRows - 1);
+            int cells = (fc - 1) * (fr - 1);
             _tris = new int[cells * 6];
             int t = 0;
-            for (int j = 0; j < _warpRows - 1; j++)
+            for (int j = 0; j < fr - 1; j++)
             {
-                for (int i = 0; i < _warpCols - 1; i++)
+                for (int i = 0; i < fc - 1; i++)
                 {
-                    int v00 = j * _warpCols + i;
+                    int v00 = j * fc + i;
                     int v10 = v00 + 1;
-                    int v01 = v00 + _warpCols;
+                    int v01 = v00 + fc;
                     int v11 = v01 + 1;
                     _tris[t++] = v00; _tris[t++] = v10; _tris[t++] = v11;
                     _tris[t++] = v00; _tris[t++] = v11; _tris[t++] = v01;
@@ -197,34 +210,31 @@ namespace RewriteReality
             _mesh.SetUVs(0, _uvq);
             _mesh.SetTriangles(_tris, 0);
             _mesh.bounds = new Bounds(new Vector3(0.5f, 0.5f, 0f), new Vector3(10f, 10f, 10f));
-            _builtCols = _warpCols;
-            _builtRows = _warpRows;
+            _builtCols = fc;
+            _builtRows = fr;
         }
 
         /// <summary>
-        /// キーストーン四隅から H を解き、各制御点を射影してスクリーン位置と射影補間 uvq を更新する。
-        /// ソース（finalRT）UV は規則グリッド（手動ワープに依らない）。
+        /// キーストーン四隅から H を解き、制御グリッドを <see cref="WarpMath.SampleGridSmooth"/>（Bezier・#34）で
+        /// 細分化評価 → 各頂点を射影してスクリーン位置と射影補間 uvq を更新する。ソース（finalRT）UV は parametric。
         /// </summary>
         void UpdateMesh()
         {
             var hmg = WarpMath.Solve(_bl, _br, _tr, _tl);
+            FineDims(out int fc, out int fr);
+            float invFx = 1f / (fc - 1), invFy = 1f / (fr - 1);
 
-            int cols = _warpCols, rows = _warpRows;
-            float invCx = 1f / (cols - 1), invCy = 1f / (rows - 1);
-
-            for (int j = 0; j < rows; j++)
+            for (int j = 0; j < fr; j++)
             {
-                for (int i = 0; i < cols; i++)
+                for (int i = 0; i < fc; i++)
                 {
-                    int idx = j * cols + i;
-                    float gu = i * invCx;          // ソース UV（規則グリッド）
-                    float gv = j * invCy;
-
-                    Vector2 p = _warpPoints[idx];
+                    int idx = j * fc + i;
+                    float a = i * invFx, b = j * invFy;                              // parametric [0,1]²
+                    Vector2 p = WarpMath.SampleGridSmooth(_warpPoints, _warpCols, _warpRows, a, b);
                     WarpMath.Project(hmg, p.x, p.y, out float xp, out float yp, out float wp);
 
                     _verts[idx] = new Vector3(xp, yp, 0f);
-                    _uvq[idx]   = new Vector3(gu * wp, gv * wp, wp);
+                    _uvq[idx]   = new Vector3(a * wp, b * wp, wp);
                 }
             }
 

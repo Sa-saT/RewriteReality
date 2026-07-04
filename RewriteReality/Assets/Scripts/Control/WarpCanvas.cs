@@ -33,11 +33,13 @@ namespace RewriteReality
         const float HandleHalf = 5f;    // ハンドル正方形の半辺（px）
         const float HitRadius = 14f;    // 掴み判定半径（px）
 
-        // 格子オーバーレイ（#34/#35）: 制御グリッドを bilinear 補間した細かい格子。
+        // 格子オーバーレイ（#34/#35）: 制御グリッドを Bezier（Catmull-Rom）評価した細かい格子。
+        // レンダー（Compositor.WriteMeshGrid）と同じ WarpMath.SampleGridSmooth を使うので見た目が一致（WYSIWYG）。
         // ワープの掛かり具合を面として視認する（描画はドラッグ/トグル時のみ＝毎フレームコスト無し）。
         const int LatticeLines = 12;    // 縦横の格子線本数（等間隔 u/v）
         const int LatticeSteps = 24;    // 1 本あたりのサンプル数（パッチに沿わせる）
         bool _showLattice;
+        Vector2[] _snap;                // 平滑サンプル用の制御点スナップショット（repaint 時のみ更新）
 
         // 色は DESIGN.md トークンと対応（ランタイム描画のため var() ではなく直値）。
         static readonly Color LineCol    = new Color(0.29f, 0.62f, 0.85f, 0.55f); // selection blue 55%
@@ -151,28 +153,22 @@ namespace RewriteReality
             }
         }
 
-        /// <summary>制御グリッド上の (u,v)∈[0,1]² を bilinear 補間してローカル座標を返す。</summary>
-        Vector2 SampleBilinear(float u, float v, int cols, int rows)
+        /// <summary>制御点を _snap に写して WarpMath.SampleGridSmooth の入力にする（レンダーと同じ Bezier 面）。</summary>
+        void SnapshotPoints(int cols, int rows)
         {
-            float fx = u * (cols - 1);
-            int i = Mathf.Min((int)fx, cols - 2);
-            float tx = fx - i;
-            float fy = v * (rows - 1);
-            int j = Mathf.Min((int)fy, rows - 2);
-            float ty = fy - j;
-
-            Vector2 p00 = _target.GetWarpPoint(i, j);
-            Vector2 p10 = _target.GetWarpPoint(i + 1, j);
-            Vector2 p01 = _target.GetWarpPoint(i, j + 1);
-            Vector2 p11 = _target.GetWarpPoint(i + 1, j + 1);
-            return Vector2.Lerp(Vector2.Lerp(p00, p10, tx), Vector2.Lerp(p01, p11, tx), ty);
+            int need = cols * rows;
+            if (_snap == null || _snap.Length != need) _snap = new Vector2[need];
+            for (int j = 0; j < rows; j++)
+                for (int i = 0; i < cols; i++)
+                    _snap[j * cols + i] = _target.GetWarpPoint(i, j);
         }
 
-        /// <summary>細分化格子（#34/#35）。等間隔の u/v 線をパッチに沿ってサンプルし面の歪みを可視化する。</summary>
+        /// <summary>細分化格子（#34/#35）。等間隔の u/v 線を Bezier 面に沿ってサンプルし歪みを可視化する（レンダーと一致）。</summary>
         void DrawLattice(UnityEngine.UIElements.Painter2D p, int cols, int rows, float w, float h)
         {
             p.lineWidth = 1f;
             p.strokeColor = LatticeCol;
+            SnapshotPoints(cols, rows);
 
             for (int l = 0; l <= LatticeLines; l++)
             {
@@ -182,7 +178,7 @@ namespace RewriteReality
                 p.BeginPath();
                 for (int s = 0; s <= LatticeSteps; s++)
                 {
-                    var px = ToPixel(SampleBilinear(t, (float)s / LatticeSteps, cols, rows), w, h);
+                    var px = ToPixel(WarpMath.SampleGridSmooth(_snap, cols, rows, t, (float)s / LatticeSteps), w, h);
                     if (s == 0) p.MoveTo(px); else p.LineTo(px);
                 }
                 p.Stroke();
@@ -191,7 +187,7 @@ namespace RewriteReality
                 p.BeginPath();
                 for (int s = 0; s <= LatticeSteps; s++)
                 {
-                    var px = ToPixel(SampleBilinear((float)s / LatticeSteps, t, cols, rows), w, h);
+                    var px = ToPixel(WarpMath.SampleGridSmooth(_snap, cols, rows, (float)s / LatticeSteps, t), w, h);
                     if (s == 0) p.MoveTo(px); else p.LineTo(px);
                 }
                 p.Stroke();
