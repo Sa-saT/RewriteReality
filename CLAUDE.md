@@ -83,14 +83,18 @@ RewriteRealityProject/        ← git repo ルート
   （ControlHub/EffectParameter 双方向バインド・preview=EffectChain.FinalTexture・FPS）。配線=
   PanelSettings(Scale Mode=**Constant Pixel Size**)→UIDocument(Source=OperatorShell.uxml)→OperatorUI。
   IMGUI 版 OperatorGui は併存。
-  - **ワークフロー＝UI Builder 主体**（見た目=UXML/USS／挙動=薄い C#。行も UXML テンプレ化）。
+  - **ワークフロー確定（2026-07-04）＝UI/UX 変更は ClaudeDesign の「Unity 共有ドキュメント」経由が正本**。
+    ClaudeDesign（`ui_kits/operator/UNITY-HANDOFF-*.md`）を DesignSync で読み UXML/USS＋C# バインドへ反映する。
+    **UI Builder は微細変更（px/色/整列）と mock 確認に用途を絞る**（構造変更・新コントロール・ページ IA は
+    ハンドオフ .md 経由）。詳細＝`docs/07-control-ui.md`「UI/UX 変更のワークフロー確定」。挙動=薄い C#・見た目=UXML/USS。
   - **⚠ 見た目・レイアウトはユーザーが UI Builder で自身で作成・確定する**。agent は UXML/USS の足場と
     新コントロール用テンプレ＋バインドを用意する役で、**ビジュアルの作り込みはユーザーに委ねる**。
     **デザイン確定（タスク#24）後に #21→#22→#18（領域マッピングUI）へ着手**。詳細＝`docs/07-control-ui.md`。
   - **デザインブリーフ＝`docs/07b-operator-ui-brief.md`**（#24 用・Claude Design に貼る一枚仕様・MadMapper 参照）。
   - **Claude Design 連携**（見た目の前段ツール・`claude.ai/design`）: 使い方・扱い・合意フローは
     **`docs/07-control-ui.md`「見た目の前段に Claude Design を使う」**＋**`docs/07b` §0/§7**（貼付プロンプト雛形）が正本。
-    運用＝**大改修は Claude Design で生成→UXML/USS へ移植／微調整は Unity 直**。DesignSync MCP（`/design-login`）で
+    運用＝**UI/UX 変更は ClaudeDesign の Unity 共有ドキュメント経由→UXML/USS へ反映／微細な詰めのみ UI Builder 直**
+    （上の「ワークフロー確定（2026-07-04）」が正）。DesignSync MCP（`/design-login`）で
     プロジェクトを読み書きでき、#24 で operator console キットを取り込み移植済（現デザイン再現に新規生成は不要）。
 - **AV ショー化の拡張（決定 2026-06-30・段階的実装）**: 「カメラ埋め込み VJ」→ **タイムライン＋音声ミックスを持つ
   AV ショー・ツール**へ拡張。①下部＝**マルチトラック・タイムライン**（映像/音声）②音声＝**内部再生＋外部解析の両対応**
