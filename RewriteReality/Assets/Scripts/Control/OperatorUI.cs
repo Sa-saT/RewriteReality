@@ -85,6 +85,13 @@ namespace RewriteReality
         Toggle _surfEnabled;
         Slider _surfOpacity, _surfZoom;
         VisualElement _modeEdit, _modeLive;
+
+        // ページタブ（3ページ IA・PERFORM/MAPPING/OUTPUT・UNITY-HANDOFF §0）
+        // 中央ワークスペースが変わる場合のみページが存在する（DaVinci 原則）。
+        // 現状は active 状態の切替のみ（中央/ドックのページ依存スワップは #34/#35 の中央ビュー実装後）。
+        Label _pagePerform, _pageMapping, _pageOutput;
+        int _page;   // 0=PERFORM, 1=MAPPING, 2=OUTPUT
+
         readonly List<SurfRow> _surfRows = new List<SurfRow>();
         int _builtSurfaceCount = -1;
         int _selectedSurfaceId = int.MinValue;   // 選択反映の変化検出用
@@ -154,6 +161,7 @@ namespace RewriteReality
             BuildWarpEditor();
             BuildSurfacePanel();
             BuildModeSwitch();
+            BuildPageTabs();
             BuildTimelineTabs();
 
             _built = true;
@@ -667,6 +675,30 @@ namespace RewriteReality
             // 構成変更（追加/削除）は準備 Edit のみ許可
             if (_surfaceAdd != null) _surfaceAdd.SetEnabled(edit);
             if (_surfRemove != null) _surfRemove.SetEnabled(edit);
+        }
+
+        // -------------------------------------------------- page tabs (3-page IA・UNITY-HANDOFF §0)
+        // PERFORM=プレビュー+ライブラリ / MAPPING=Input/Output メッシュワープ / OUTPUT=最終出力ワープ+Routes。
+        // 現状はタブの active 状態のみ切替（中央/ドックのページ依存スワップは #34/#35 の中央ビュー実装後に接続）。
+        void BuildPageTabs()
+        {
+            _pagePerform = _root.Q<Label>("rr-tab-perform");
+            _pageMapping = _root.Q<Label>("rr-tab-mapping");
+            _pageOutput  = _root.Q<Label>("rr-tab-output");
+
+            _pagePerform?.RegisterCallback<MouseDownEvent>(_ => SelectPage(0));
+            _pageMapping?.RegisterCallback<MouseDownEvent>(_ => SelectPage(1));
+            _pageOutput?.RegisterCallback<MouseDownEvent>(_ => SelectPage(2));
+
+            SelectPage(0);
+        }
+
+        void SelectPage(int page)
+        {
+            _page = page;
+            if (_pagePerform != null) EnableClass(_pagePerform, "rr-page-tab--active", page == 0);
+            if (_pageMapping != null) EnableClass(_pageMapping, "rr-page-tab--active", page == 1);
+            if (_pageOutput  != null) EnableClass(_pageOutput,  "rr-page-tab--active", page == 2);
         }
 
         // -------------------------------------------------- timeline song/short tabs (07b §3.5.2・#27 足場)

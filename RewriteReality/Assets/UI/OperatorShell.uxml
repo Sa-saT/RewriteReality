@@ -359,12 +359,9 @@
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:VisualElement name="rr-page-tabs" class="rr-page-tabs">
-                <ui:Label name="rr-tab-source" text="SOURCE" class="rr-page-tab rr-stage-source" />
-                <ui:Label name="rr-tab-track" text="TRACK" class="rr-page-tab rr-stage-tracking rr-page-tab--active" />
-                <ui:Label name="rr-tab-fx" text="FX" class="rr-page-tab rr-stage-effects" />
-                <ui:Label name="rr-tab-audio" text="AUDIO" class="rr-page-tab rr-stage-audio" />
+                <ui:Label name="rr-tab-perform" text="PERFORM" class="rr-page-tab rr-stage-source rr-page-tab--active" />
+                <ui:Label name="rr-tab-mapping" text="MAPPING" class="rr-page-tab rr-stage-tracking" />
                 <ui:Label name="rr-tab-output" text="OUTPUT" class="rr-page-tab rr-stage-output" />
-                <ui:Label name="rr-tab-scenes" text="SCENES" class="rr-page-tab rr-stage-scene" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
             <ui:Label text="frame 4.2ms · gc 0.3ms" class="rr-perf rr-mono" />
