@@ -715,14 +715,27 @@ namespace RewriteReality
             _pagePerform?.RegisterCallback<MouseDownEvent>(_ => SelectPage(0));
             _pageMapping?.RegisterCallback<MouseDownEvent>(_ => SelectPage(1));
 
+            // MAPPING がワープ編集を制御するので、ビューポート内の独立 ◇ WARP トグルは隠す（§6・1機能1箇所）。
+            if (_warpToggle != null) _warpToggle.style.display = DisplayStyle.None;
+
             SelectPage(0);
         }
 
+        // PERFORM=ライブプレビュー / MAPPING=WARP エディタ（#34 の多pin メッシュ編集・EMBED⇄OUTPUT）。
+        // ページ切替でワープ編集の ON/OFF を駆動する（§1/§6）。左ドックのライブラリ⇄Surfaces 差替は将来分。
         void SelectPage(int page)
         {
             _page = page;
             if (_pagePerform != null) EnableClass(_pagePerform, "rr-page-tab--active", page == 0);
             if (_pageMapping != null) EnableClass(_pageMapping, "rr-page-tab--active", page == 1);
+
+            bool mapping = page == 1;
+            if (mapping) SetWarpTarget(ResolveWarpTarget());   // 現在の選択 surface / Compositor に束ねる
+            if (_warpEditing != mapping)
+            {
+                _warpEditing = mapping;
+                ApplyWarpEditing();
+            }
         }
 
         // -------------------------------------------------- timeline song/short tabs (07b §3.5.2・#27 足場)
