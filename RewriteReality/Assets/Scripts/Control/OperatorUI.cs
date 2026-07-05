@@ -30,6 +30,9 @@ namespace RewriteReality
         [Tooltip("準備 Edit / 本番 Live のモード状態（未指定なら自動取得）")]
         [SerializeField] AppMode _appMode;
 
+        [Tooltip("タイムライン再生バックエンド（Song トランスポート・playhead）")]
+        [SerializeField] ShowTimeline _timeline;
+
         [Header("Assets (UIDocument に未設定なら使うフォールバック)")]
         [SerializeField] VisualTreeAsset _shellUxml;
         [SerializeField] StyleSheet _styleSheet;
@@ -74,6 +77,13 @@ namespace RewriteReality
         // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
         VisualElement _tlTabSong, _tlTabShort, _tlSong, _tlShort, _tlTimeGroup, _tlGateGroup, _shortClip;
         Button _shortHold;
+
+        // タイムライン再生（Song トランスポート・playhead・時間表示）
+        Button _tlPrev, _tlPlay, _tlLoop;
+        Label _tlCur, _tlTotal, _remain;
+        VisualElement _playhead;
+        RrIcon _tlPlayIcon;   // 再生/一時停止アイコン切替
+        double _lastTimeValue = -1.0;   // 時刻が変わった時だけ整形（停止中は毎フレーム alloc しない）
 
         // Surface パネル（左ドック・#22）＋モード切替
         VisualElement _surfaceList, _surfaceProps;
@@ -166,6 +176,7 @@ namespace RewriteReality
             BuildModeSwitch();
             BuildPageTabs();
             BuildTimelineTabs();
+            BuildTimelineTransport();
 
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
@@ -793,9 +804,66 @@ namespace RewriteReality
             if (_shortClip != null) _shortClip.style.width = Length.Percent(held ? 100f : 26f);
         }
 
+        // -------------------------------------------------- timeline transport（Song 再生・#5 B案）
+        // トランスポート（前/再生-停止/ループ）を ShowTimeline に接続し、playhead と時間表示を毎フレーム追従。
+        void BuildTimelineTransport()
+        {
+            // 未配線でも動くよう自動解決（シーンにあれば拾い、無ければ生成＝既定曲を自前でシード）
+            if (_timeline == null) _timeline = FindFirstObjectByType<ShowTimeline>();
+            if (_timeline == null) _timeline = gameObject.AddComponent<ShowTimeline>();
+
+            _tlPrev  = _root.Q<Button>("rr-tl-prev");
+            _tlPlay  = _root.Q<Button>("rr-tl-play");
+            _tlLoop  = _root.Q<Button>("rr-tl-loop");
+            _tlCur   = _root.Q<Label>("rr-tl-cur");
+            _tlTotal = _root.Q<Label>("rr-tl-total");
+            _remain  = _root.Q<Label>("rr-remain");
+            _playhead = _root.Q<VisualElement>("rr-playhead");
+            _tlPlayIcon = _tlPlay?.Q<RrIcon>();
+
+            if (_tlPrev != null) _tlPrev.clicked += () => _timeline?.Rewind();
+            if (_tlPlay != null) _tlPlay.clicked += () => _timeline?.TogglePlay();
+            if (_tlLoop != null) _tlLoop.clicked += () =>
+            {
+                if (_timeline == null) return;
+                _timeline.Loop = !_timeline.Loop;
+                EnableClass(_tlLoop, "rr-transport-btn--active", _timeline.Loop);
+            };
+
+            if (_timeline != null)
+            {
+                _timeline.PlayStateChanged -= RefreshTransport;
+                _timeline.PlayStateChanged += RefreshTransport;
+                if (_tlTotal != null) _tlTotal.text = "/ " + ShowTimeline.FormatTime(_timeline.Length);
+                if (_tlLoop != null)  EnableClass(_tlLoop, "rr-transport-btn--active", _timeline.Loop);
+            }
+            RefreshTransport();
+        }
+
+        void RefreshTransport()
+        {
+            bool playing = _timeline != null && _timeline.Playing;
+            if (_tlPlayIcon != null) _tlPlayIcon.Icon = playing ? RrIcon.Kind.Pause : RrIcon.Kind.Play;
+            if (_tlPlay != null) EnableClass(_tlPlay, "rr-transport-btn--active", playing);
+        }
+
+        // playhead と時間表示を更新（時刻が変わった時だけ整形＝停止中は毎フレーム alloc しない）。
+        void UpdateTimeline()
+        {
+            if (_timeline == null) return;
+            double t = _timeline.Time;
+            if (t == _lastTimeValue) return;
+            _lastTimeValue = t;
+
+            if (_playhead != null) _playhead.style.left = Length.Percent(_timeline.NormalizedTime * 100f);
+            if (_tlCur != null)  _tlCur.text  = ShowTimeline.FormatTime(t);
+            if (_remain != null) _remain.text = "-" + ShowTimeline.FormatTime(_timeline.Remaining);
+        }
+
         void OnDisable()
         {
             if (_appMode != null) _appMode.ModeChanged -= OnModeChanged;
+            if (_timeline != null) _timeline.PlayStateChanged -= RefreshTransport;
         }
 
         void Update()
@@ -819,6 +887,7 @@ namespace RewriteReality
             UpdatePreview();
             UpdateFps();
             SyncSurfaces();
+            UpdateTimeline();   // playhead / 時間表示（ControlHub 非依存）
 
             if (_hub == null) return; // 以降（FX 一覧 / inspector）は ControlHub が必要
 

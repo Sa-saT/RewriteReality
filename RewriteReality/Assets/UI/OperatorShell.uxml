@@ -316,8 +316,8 @@
                     <RewriteReality.RrIcon icon="Loop" />
                 </ui:Button>
                 <ui:VisualElement name="rr-tl-time-group" class="rr-tl-head-group">
-                    <ui:Label text="01:12.40" class="rr-timeline-time rr-mono" />
-                    <ui:Label text="/ 03:20.00" class="rr-timeline-total rr-mono" />
+                    <ui:Label name="rr-tl-cur" text="00:00.00" class="rr-timeline-time rr-mono" />
+                    <ui:Label name="rr-tl-total" text="/ 03:20.00" class="rr-timeline-total rr-mono" />
                 </ui:VisualElement>
                 <ui:VisualElement name="rr-tl-gate-group" class="rr-tl-head-group" style="display: none;">
                     <ui:Label text="GATE" class="rr-tl-gate" />
@@ -403,7 +403,7 @@
                         <RewriteReality.RrIcon icon="SpeakerMute" class="rr-icon rr-track-icon" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:VisualElement class="rr-playhead" style="left: 40%;" />
+                <ui:VisualElement name="rr-playhead" class="rr-playhead" style="left: 40%;" />
             </ui:VisualElement>
             <ui:VisualElement name="rr-tl-short" class="rr-tl-short" style="display: none;">
                 <ui:VisualElement class="rr-tl-keyrow">
