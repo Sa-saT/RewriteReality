@@ -43,34 +43,53 @@
                         <ui:Toggle name="rr-surf-enabled" class="rr-fx-toggle" />
                         <ui:Label text="Enabled" class="rr-surf-prop-label" />
                         <ui:VisualElement class="rr-spacer" />
-                        <ui:Button name="rr-surf-fit" text="MASK" class="rr-surf-chip rr-mono" />
                         <ui:Button name="rr-surf-content" text="CAMERA" class="rr-surf-chip rr-mono" />
+                        <ui:Button name="rr-surf-remove" text="✕" class="rr-surf-remove" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="rr-surf-prop-row">
+                        <ui:Label text="Fit Mode" class="rr-surf-prop-label" />
+                        <ui:VisualElement class="rr-spacer" />
+                        <ui:VisualElement class="rr-seg">
+                            <ui:Button name="rr-surf-fit-mask" text="MASK" class="rr-seg__btn rr-seg__btn--active rr-mono" />
+                            <ui:Button name="rr-surf-fit-grid" text="GRID" class="rr-seg__btn rr-mono" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-surf-prop-row">
                         <ui:Label text="Opacity" class="rr-surf-prop-label" />
                         <ui:Slider name="rr-surf-opacity" low-value="0" high-value="1" class="rr-surf-slider" />
                         <ui:Label name="rr-surf-opacity-val" text="1.00" class="rr-surf-prop-val rr-mono" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="rr-surf-prop-row">
-                        <ui:Label text="Grid" class="rr-surf-prop-label" />
-                        <ui:Button name="rr-surf-cols-dec" text="−" class="rr-surf-step" />
-                        <ui:Label name="rr-surf-cols-val" text="2" class="rr-surf-prop-val rr-mono" />
-                        <ui:Button name="rr-surf-cols-inc" text="+" class="rr-surf-step" />
-                        <ui:Label text="×" class="rr-surf-prop-label rr-mono" />
-                        <ui:Button name="rr-surf-rows-dec" text="−" class="rr-surf-step" />
-                        <ui:Label name="rr-surf-rows-val" text="2" class="rr-surf-prop-val rr-mono" />
-                        <ui:Button name="rr-surf-rows-inc" text="+" class="rr-surf-step" />
-                        <ui:VisualElement class="rr-spacer" />
-                        <ui:Button name="rr-surf-remove" text="✕" class="rr-surf-remove" />
+                    <ui:VisualElement name="rr-surf-mask-sec" class="rr-surf-sec">
+                        <ui:VisualElement class="rr-surf-prop-row">
+                            <ui:Label text="Scale" class="rr-surf-prop-label" />
+                            <ui:Button name="rr-surf-scale-dec" text="−" class="rr-surf-step" />
+                            <ui:Button name="rr-surf-scale-inc" text="+" class="rr-surf-step" />
+                            <ui:VisualElement class="rr-spacer" />
+                            <ui:Label text="Zoom" class="rr-surf-prop-label" />
+                            <ui:Slider name="rr-surf-zoom" low-value="0.2" high-value="5" class="rr-surf-slider" />
+                            <ui:Label name="rr-surf-zoom-val" text="1.0" class="rr-surf-prop-val rr-mono" />
+                        </ui:VisualElement>
+                        <ui:Label text="Window cutout — content stays undistorted." class="rr-surf-hint" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="rr-surf-prop-row">
-                        <ui:Label text="Scale" class="rr-surf-prop-label" />
-                        <ui:Button name="rr-surf-scale-dec" text="−" class="rr-surf-step" />
-                        <ui:Button name="rr-surf-scale-inc" text="+" class="rr-surf-step" />
-                        <ui:VisualElement class="rr-spacer" />
-                        <ui:Label text="Zoom" class="rr-surf-prop-label" />
-                        <ui:Slider name="rr-surf-zoom" low-value="0.2" high-value="5" class="rr-surf-slider" />
-                        <ui:Label name="rr-surf-zoom-val" text="1.0" class="rr-surf-prop-val rr-mono" />
+                    <ui:VisualElement name="rr-surf-grid-sec" class="rr-surf-sec" style="display: none;">
+                        <ui:VisualElement class="rr-surf-prop-row">
+                            <ui:Label text="Grid" class="rr-surf-prop-label" />
+                            <ui:Button name="rr-surf-cols-dec" text="−" class="rr-surf-step" />
+                            <ui:Label name="rr-surf-cols-val" text="2" class="rr-surf-prop-val rr-mono" />
+                            <ui:Button name="rr-surf-cols-inc" text="+" class="rr-surf-step" />
+                            <ui:Label text="×" class="rr-surf-prop-label rr-mono" />
+                            <ui:Button name="rr-surf-rows-dec" text="−" class="rr-surf-step" />
+                            <ui:Label name="rr-surf-rows-val" text="2" class="rr-surf-prop-val rr-mono" />
+                            <ui:Button name="rr-surf-rows-inc" text="+" class="rr-surf-step" />
+                            <ui:VisualElement class="rr-spacer" />
+                            <ui:Label text="BEZIER" class="rr-surf-badge rr-mono" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="rr-surf-prop-row">
+                            <ui:Toggle name="rr-surf-testpat" class="rr-fx-toggle" />
+                            <ui:Label text="Test Pattern" class="rr-surf-prop-label" />
+                            <ui:VisualElement class="rr-spacer" />
+                            <ui:Button name="rr-surf-resetwarp" text="RESET WARP" class="rr-surf-chip rr-mono" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="rr-section-label">
@@ -361,7 +380,6 @@
             <ui:VisualElement name="rr-page-tabs" class="rr-page-tabs">
                 <ui:Label name="rr-tab-perform" text="PERFORM" class="rr-page-tab rr-stage-source rr-page-tab--active" />
                 <ui:Label name="rr-tab-mapping" text="MAPPING" class="rr-page-tab rr-stage-tracking" />
-                <ui:Label name="rr-tab-output" text="OUTPUT" class="rr-page-tab rr-stage-output" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
             <ui:Label text="frame 4.2ms · gc 0.3ms" class="rr-perf rr-mono" />

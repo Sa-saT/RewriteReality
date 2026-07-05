@@ -78,19 +78,21 @@ namespace RewriteReality
         // Surface パネル（左ドック・#22）＋モード切替
         VisualElement _surfaceList, _surfaceProps;
         Label _surfaceEmpty;
-        Button _surfaceAdd, _surfContent, _surfFit, _surfRemove;
+        Button _surfaceAdd, _surfContent, _surfRemove;
+        Button _surfFitMask, _surfFitGrid, _surfResetWarp;   // Fit Mode セグメント＋Grid の Reset Warp（§5）
+        VisualElement _surfMaskSec, _surfGridSec;            // Mask/Grid で出し分けるセクション
         Button _surfColsDec, _surfColsInc, _surfRowsDec, _surfRowsInc;
         Button _surfScaleDec, _surfScaleInc;
         Label _surfColsVal, _surfRowsVal, _surfOpacityVal, _surfZoomVal;
-        Toggle _surfEnabled;
+        Toggle _surfEnabled, _surfTestPat;
         Slider _surfOpacity, _surfZoom;
         VisualElement _modeEdit, _modeLive;
 
-        // ページタブ（3ページ IA・PERFORM/MAPPING/OUTPUT・UNITY-HANDOFF §0）
-        // 中央ワークスペースが変わる場合のみページが存在する（DaVinci 原則）。
-        // 現状は active 状態の切替のみ（中央/ドックのページ依存スワップは #34/#35 の中央ビュー実装後）。
-        Label _pagePerform, _pageMapping, _pageOutput;
-        int _page;   // 0=PERFORM, 1=MAPPING, 2=OUTPUT
+        // ページタブ（2ページ IA・PERFORM/MAPPING・UNITY-HANDOFF §1）
+        // 中央ワークスペースが変わる場合のみページが存在する（DaVinci 原則）。旧 OUTPUT は MAPPING の
+        // EMBED⇄OUTPUT セグメント＋上バーのルートトグルへ吸収。現状は active 状態の切替のみ（中央スワップは #2）。
+        Label _pagePerform, _pageMapping;
+        int _page;   // 0=PERFORM, 1=MAPPING
 
         readonly List<SurfRow> _surfRows = new List<SurfRow>();
         int _builtSurfaceCount = -1;
@@ -459,7 +461,12 @@ namespace RewriteReality
             _surfOpacity = _root.Q<Slider>("rr-surf-opacity");
             _surfOpacityVal = _root.Q<Label>("rr-surf-opacity-val");
             _surfContent = _root.Q<Button>("rr-surf-content");
-            _surfFit = _root.Q<Button>("rr-surf-fit");
+            _surfFitMask = _root.Q<Button>("rr-surf-fit-mask");
+            _surfFitGrid = _root.Q<Button>("rr-surf-fit-grid");
+            _surfMaskSec = _root.Q<VisualElement>("rr-surf-mask-sec");
+            _surfGridSec = _root.Q<VisualElement>("rr-surf-grid-sec");
+            _surfTestPat = _root.Q<Toggle>("rr-surf-testpat");
+            _surfResetWarp = _root.Q<Button>("rr-surf-resetwarp");
             _surfColsDec = _root.Q<Button>("rr-surf-cols-dec");
             _surfColsInc = _root.Q<Button>("rr-surf-cols-inc");
             _surfColsVal = _root.Q<Label>("rr-surf-cols-val");
@@ -489,7 +496,23 @@ namespace RewriteReality
                 if (_surfOpacityVal != null) _surfOpacityVal.text = evt.newValue.ToString("F2");
             });
             if (_surfContent != null) _surfContent.clicked += CycleContent;
-            if (_surfFit != null) _surfFit.clicked += ToggleFit;
+            if (_surfFitMask != null) _surfFitMask.clicked += () => SetFit(false);
+            if (_surfFitGrid != null) _surfFitGrid.clicked += () => SetFit(true);
+            if (_surfResetWarp != null) _surfResetWarp.clicked += () =>
+            {
+                var s = _surfaces?.Active;
+                if (s == null) return;
+                s.ResetWarp();
+                _warpCanvas?.MarkDirtyRepaint();
+            };
+            if (_surfTestPat != null) _surfTestPat.RegisterValueChangedCallback(evt =>
+            {
+                var s = _surfaces?.Active;
+                if (s == null) return;
+                s.Content = evt.newValue ? Surface.ContentKind.Pattern : Surface.ContentKind.Camera;   // §5 校正
+                if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
+                RefreshWarpTestBtn();   // ビューポート TEST ボタンと状態を一致
+            });
             if (_surfColsDec != null) _surfColsDec.clicked += () => NudgeGrid(-1, 0);
             if (_surfColsInc != null) _surfColsInc.clicked += () => NudgeGrid(+1, 0);
             if (_surfRowsDec != null) _surfRowsDec.clicked += () => NudgeGrid(0, -1);
@@ -533,24 +556,27 @@ namespace RewriteReality
             if (s == null) return;
             s.Content = (Surface.ContentKind)(((int)s.Content + 1) % 4);   // Camera→Video→None→Pattern
             if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
+            if (_surfTestPat != null) _surfTestPat.SetValueWithoutNotify(s.Content == Surface.ContentKind.Pattern);
             RefreshWarpTestBtn();   // TEST トグルの ON 表示は content=Pattern と連動
         }
 
-        // Mask（歪まない窓抜き）⇄ Grid（Bezier グリッドで歪ませて流し込む・#34）を切替
-        void ToggleFit()
+        // Fit Mode セグメント（MASK|GRID・UNITY-HANDOFF §5）。Mask=歪まない窓抜き（既定）、
+        // Grid=Bezier グリッドで歪ませて流し込む（#34）。選択でモード別セクションを出し分ける。
+        void SetFit(bool grid)
         {
             var s = _surfaces?.Active;
             if (s == null) return;
-            s.Fit = s.Fit == Surface.FitMode.Mask ? Surface.FitMode.Grid : Surface.FitMode.Mask;
-            RefreshFitBtn(s);
+            s.Fit = grid ? Surface.FitMode.Grid : Surface.FitMode.Mask;
+            RefreshFit(s);
         }
 
-        void RefreshFitBtn(Surface s)
+        void RefreshFit(Surface s)
         {
-            if (_surfFit == null) return;
             bool grid = s != null && s.Fit == Surface.FitMode.Grid;
-            _surfFit.text = grid ? "GRID" : "MASK";
-            EnableClass(_surfFit, "rr-surf-chip--grid", grid);   // Grid=歪む=アンバー強調
+            if (_surfFitMask != null) EnableClass(_surfFitMask, "rr-seg__btn--active", !grid);
+            if (_surfFitGrid != null) EnableClass(_surfFitGrid, "rr-seg__btn--active", grid);
+            if (_surfMaskSec != null) _surfMaskSec.style.display = grid ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_surfGridSec != null) _surfGridSec.style.display = grid ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         void NudgeGrid(int dCols, int dRows)
@@ -647,7 +673,8 @@ namespace RewriteReality
             if (_surfOpacity != null) _surfOpacity.SetValueWithoutNotify(s.Opacity);
             if (_surfOpacityVal != null) _surfOpacityVal.text = s.Opacity.ToString("F2");
             if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
-            RefreshFitBtn(s);
+            RefreshFit(s);
+            if (_surfTestPat != null) _surfTestPat.SetValueWithoutNotify(s.Content == Surface.ContentKind.Pattern);
             if (_surfColsVal != null) _surfColsVal.text = s.WarpCols.ToString();
             if (_surfRowsVal != null) _surfRowsVal.text = s.WarpRows.ToString();
             if (_surfZoom != null) _surfZoom.SetValueWithoutNotify(s.ContentZoom);
@@ -677,18 +704,16 @@ namespace RewriteReality
             if (_surfRemove != null) _surfRemove.SetEnabled(edit);
         }
 
-        // -------------------------------------------------- page tabs (3-page IA・UNITY-HANDOFF §0)
-        // PERFORM=プレビュー+ライブラリ / MAPPING=Input/Output メッシュワープ / OUTPUT=最終出力ワープ+Routes。
-        // 現状はタブの active 状態のみ切替（中央/ドックのページ依存スワップは #34/#35 の中央ビュー実装後に接続）。
+        // -------------------------------------------------- page tabs (2-page IA・UNITY-HANDOFF §1)
+        // PERFORM=ライブプレビュー+ライブラリ / MAPPING=WARP エディタ(EMBED⇄OUTPUT)+Surfaces。
+        // 現状はタブの active 状態のみ切替（中央/ドックのページ依存スワップは #2 で接続）。
         void BuildPageTabs()
         {
             _pagePerform = _root.Q<Label>("rr-tab-perform");
             _pageMapping = _root.Q<Label>("rr-tab-mapping");
-            _pageOutput  = _root.Q<Label>("rr-tab-output");
 
             _pagePerform?.RegisterCallback<MouseDownEvent>(_ => SelectPage(0));
             _pageMapping?.RegisterCallback<MouseDownEvent>(_ => SelectPage(1));
-            _pageOutput?.RegisterCallback<MouseDownEvent>(_ => SelectPage(2));
 
             SelectPage(0);
         }
@@ -698,7 +723,6 @@ namespace RewriteReality
             _page = page;
             if (_pagePerform != null) EnableClass(_pagePerform, "rr-page-tab--active", page == 0);
             if (_pageMapping != null) EnableClass(_pageMapping, "rr-page-tab--active", page == 1);
-            if (_pageOutput  != null) EnableClass(_pageOutput,  "rr-page-tab--active", page == 2);
         }
 
         // -------------------------------------------------- timeline song/short tabs (07b §3.5.2・#27 足場)

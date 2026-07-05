@@ -301,8 +301,44 @@
 }
 .rr-surf-chip:hover { border-color: var(--rr-selection); }
 .rr-surf-chip { margin-left: 4px; }
-/* Fit=Project（内容が歪む）はアンバーで注意喚起・Mask（既定＝歪まない）は selection */
-.rr-surf-chip--grid { color: var(--rr-primary); border-color: var(--rr-primary); }
+
+/* Fit Mode セグメント（MASK|GRID・inset 溝 + raised 選択・UNITY-HANDOFF §5） */
+.rr-seg {
+    flex-direction: row;
+    padding: 2px;
+    background-color: var(--rr-surface-inset);
+    border-width: 1px; border-color: var(--rr-hairline);
+    border-radius: 5px;
+}
+.rr-seg__btn {
+    height: 20px;
+    padding: 0 10px;
+    margin: 0;
+    border-width: 0;
+    border-radius: 4px;
+    background-color: var(--rr-surface-inset);   /* 溝と同色＝非選択は沈む */
+    color: var(--rr-muted);
+    font-size: 9px;
+    letter-spacing: 0.6px;
+    -unity-font-style: bold;
+}
+.rr-seg__btn:hover { color: var(--rr-body); }
+.rr-seg__btn--active { background-color: var(--rr-surface-raised); color: var(--rr-text); }
+
+/* Surface モード別セクション（Mask/Grid で出し分け）・ヒント・Interp バッジ */
+.rr-surf-sec { flex-direction: column; }
+.rr-surf-hint {
+    padding: 4px 8px 2px 8px;
+    font-size: 11px;
+    color: var(--rr-muted);
+    white-space: normal;
+}
+.rr-surf-badge {
+    font-size: 9px;
+    color: var(--rr-primary);   /* Grid=歪ませる面＝primary で明示 */
+    letter-spacing: 0.6px;
+    -unity-font-style: bold;
+}
 .rr-surf-step {
     width: 18px; height: 18px;
     font-size: 12px;
