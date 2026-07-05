@@ -25,10 +25,11 @@ namespace RewriteReality
         [Tooltip("出力段のメッシュ/コーナーピン変形。未設定 or 無効なら finalRT を素通し。")]
         [SerializeField] OutputWarp _outputWarp;
 
-        [Header("出力ルート ON/OFF（UI から切替・上バー OUTPUT メニュー）")]
-        [SerializeField] bool _fullscreenEnabled = true;
-        [SerializeField] bool _syphonEnabled = true;
-        [SerializeField] bool _ndiEnabled = true;
+        [Header("出力ルート ON/OFF（UI から切替・上バー OUTPUT トグル）")]
+        // 既定は全 OFF（誤って配信しないよう・起動時は無出力。UI/Inspector で明示的に ON にする）
+        [SerializeField] bool _fullscreenEnabled = false;
+        [SerializeField] bool _syphonEnabled = false;
+        [SerializeField] bool _ndiEnabled = false;
 
         [Header("校正（#35）")]
         [Tooltip("ON で完成映像の代わりに内蔵テストパターンを出力へ流す（投影→物理面と整列→OFF の定番手順）")]

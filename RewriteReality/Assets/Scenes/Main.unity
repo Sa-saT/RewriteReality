@@ -886,9 +886,9 @@ MonoBehaviour:
   _syphonServer: {fileID: 1074070488}
   _ndiSender: {fileID: 1074070487}
   _outputWarp: {fileID: 1074070490}
-  _fullscreenEnabled: 1
-  _syphonEnabled: 1
-  _ndiEnabled: 1
+  _fullscreenEnabled: 0
+  _syphonEnabled: 0
+  _ndiEnabled: 0
 --- !u!114 &1074070487
 MonoBehaviour:
   m_ObjectHideFlags: 0
