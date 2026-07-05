@@ -178,6 +178,17 @@
 }
 .rr-dock-left  { width: 210px; border-right-width: 1px; }
 .rr-dock-right { width: 290px; border-left-width: 1px; }
+/* ページ依存の左ドック（PERFORM=ライブラリ / MAPPING=Surfaces）・切替は OperatorUI.SelectPage */
+.rr-dock-page { flex-direction: column; }
+/* PERFORM ライブラリの折りたたみ（Unity Foldout・見出しは section-label 調に寄せる） */
+.rr-lib-fold { margin-top: 2px; }
+.rr-lib-fold .unity-foldout__content { margin-left: 6px; }
+.rr-lib-fold .unity-foldout__toggle .unity-label {
+    font-size: 11px;
+    color: var(--rr-muted);
+    -unity-font-style: bold;
+    letter-spacing: 0.8px;
+}
 /* 旧・下部 FX ドック（現在はタイムラインに置換・互換のため残置） */
 .rr-dock-bottom { height: 168px; border-top-width: 1px; }
 

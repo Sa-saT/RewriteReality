@@ -93,6 +93,7 @@ namespace RewriteReality
         // EMBED⇄OUTPUT セグメント＋上バーのルートトグルへ吸収。現状は active 状態の切替のみ（中央スワップは #2）。
         Label _pagePerform, _pageMapping;
         int _page;   // 0=PERFORM, 1=MAPPING
+        VisualElement _dockPerform, _dockMapping;   // 左ドックのページ依存差替（PERFORM=ライブラリ / MAPPING=Surfaces+Input）
 
         readonly List<SurfRow> _surfRows = new List<SurfRow>();
         int _builtSurfaceCount = -1;
@@ -711,6 +712,8 @@ namespace RewriteReality
         {
             _pagePerform = _root.Q<Label>("rr-tab-perform");
             _pageMapping = _root.Q<Label>("rr-tab-mapping");
+            _dockPerform = _root.Q<VisualElement>("rr-dock-perform");
+            _dockMapping = _root.Q<VisualElement>("rr-dock-mapping");
 
             _pagePerform?.RegisterCallback<MouseDownEvent>(_ => SelectPage(0));
             _pageMapping?.RegisterCallback<MouseDownEvent>(_ => SelectPage(1));
@@ -730,6 +733,11 @@ namespace RewriteReality
             if (_pageMapping != null) EnableClass(_pageMapping, "rr-page-tab--active", page == 1);
 
             bool mapping = page == 1;
+
+            // 左ドックの差替（PERFORM=ライブラリ / MAPPING=Surfaces+Input+Output Surface）
+            if (_dockPerform != null) _dockPerform.style.display = mapping ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_dockMapping != null) _dockMapping.style.display = mapping ? DisplayStyle.Flex : DisplayStyle.None;
+
             if (mapping) SetWarpTarget(ResolveWarpTarget());   // 現在の選択 surface / Compositor に束ねる
             if (_warpEditing != mapping)
             {
