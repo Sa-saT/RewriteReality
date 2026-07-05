@@ -8,24 +8,13 @@
                 <ui:Label name="rr-project" text="reality_set_02" class="rr-brand-sub rr-mono" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
-            <ui:VisualElement class="rr-transport">
-                <ui:Button name="rr-transport-prev" class="rr-transport-btn">
-                    <RewriteReality.RrIcon icon="Prev" />
-                </ui:Button>
-                <ui:Button name="rr-transport-play" class="rr-transport-btn rr-transport-btn--active">
-                    <RewriteReality.RrIcon icon="Pause" />
-                </ui:Button>
-                <ui:Button name="rr-transport-loop" class="rr-transport-btn">
-                    <RewriteReality.RrIcon icon="Loop" />
-                </ui:Button>
-                <ui:Label text="01:12.40" class="rr-time rr-mono" />
-            </ui:VisualElement>
+            <ui:Label name="rr-remain" text="-02:07.60" class="rr-time rr-mono" />
             <ui:VisualElement class="rr-spacer" />
             <ui:VisualElement class="rr-output">
-                <ui:Button name="rr-output-btn" text="OUTPUT ▾" class="rr-output-btn" />
-                <ui:Button name="rr-out-chip-fs" text="Fu" class="rr-out-chip rr-out-chip--off" />
-                <ui:Button name="rr-out-chip-syphon" text="Sy" class="rr-out-chip rr-out-chip--off" />
-                <ui:Button name="rr-out-chip-ndi" text="ND" class="rr-out-chip rr-out-chip--off" />
+                <ui:Label text="OUTPUT" class="rr-output-head" />
+                <ui:Button name="rr-out-chip-fs" text="Full" class="rr-out-chip rr-out-chip--off" />
+                <ui:Button name="rr-out-chip-syphon" text="Syphon" class="rr-out-chip rr-out-chip--off" />
+                <ui:Button name="rr-out-chip-ndi" text="NDI" class="rr-out-chip rr-out-chip--off" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
@@ -383,21 +372,6 @@
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
             <ui:Label text="frame 4.2ms · gc 0.3ms" class="rr-perf rr-mono" />
-        </ui:VisualElement>
-        <ui:VisualElement name="rr-output-menu" class="rr-output-menu" style="display: none;">
-            <ui:Label text="OUTPUT ROUTES" class="rr-output-menu__title" />
-            <ui:VisualElement class="rr-output-menu__row">
-                <ui:Toggle name="rr-out-fs" class="rr-fx-toggle" />
-                <ui:Label text="Fullscreen" class="rr-output-menu__label" />
-            </ui:VisualElement>
-            <ui:VisualElement class="rr-output-menu__row">
-                <ui:Toggle name="rr-out-syphon" class="rr-fx-toggle" />
-                <ui:Label text="Syphon" class="rr-output-menu__label" />
-            </ui:VisualElement>
-            <ui:VisualElement class="rr-output-menu__row">
-                <ui:Toggle name="rr-out-ndi" class="rr-fx-toggle" />
-                <ui:Label text="NDI" class="rr-output-menu__label" />
-            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

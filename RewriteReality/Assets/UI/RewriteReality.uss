@@ -1062,7 +1062,14 @@
     -unity-font-style: bold;
 }
 .rr-output-btn:hover { color: var(--rr-text); }
-/* 出力ルートの状態チップ（Fu/Sy/ND・有効=緑／無効=灰・クリックで切替） */
+/* OUTPUT 見出し（body 色・ラベルのみ・§2） */
+.rr-output-head {
+    color: var(--rr-body);
+    font-size: 11px;
+    -unity-font-style: bold;
+    margin-right: 2px;
+}
+/* 出力ルートの状態トグル（Full/Syphon/NDI・ラベルのみ・ON=緑／OFF=灰・クリックで切替・§2） */
 .rr-out-chip {
     height: 20px;
     margin-left: 8px;
