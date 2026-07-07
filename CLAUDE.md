@@ -127,14 +127,25 @@ RewriteRealityProject/        ← git repo ルート
     **タイムライン song/short タブ UI＝移植済（2026-07-04・Claude Design Timeline.jsx→UXML/USS）**: タブバー
     （SONG=緑/SHORT=アンバー・バッジ・P1 パッドチップ）＋タブ切替（OperatorUI）＋short ボディ（KEY 行＋⚡ホールド
     発火レーン＝押下中クリップ全幅のプレビュー表現）。バンク追加(+)/パッド割当マトリクス/実再生は #27（現状 disabled）。
-  - **次の一手（マッピング品質・決定 2026-07-03）**: **#34 Grid/Bezier モード**（Project 2×2 を廃止し「歪ませる面」を
-    Bezier グリッドに一本化＝MadMapper GridGenerator 手本・テストパターン校正→カメラ差替）＋**#35 OUTPUT グリッド校正**
-    （格子オーバーレイ＋投影キャリブレーション表示）。故意の局所歪みは **#33**（パペットpin エフェクト）。詳細＝`docs/03`・`06`。
-    - **#34/#35 の UI 足場＝実装済（2026-07-04・Unity 未検証）**: WARP ツールバーに **GRID**（細分化格子オーバーレイ・
-      WarpCanvas bilinear 補間描画・OUTPUT 切替で自動 ON）＋**TEST/CALIB**（内蔵テストパターン `TestPattern`・
-      EMBED=選択 surface の content 差替[`ContentKind.Pattern`]・OUTPUT=`OutputManager.CalibrationEnabled` で実出力へ投影・
-      編集終了で自動復帰）。**残り＝#34 バックエンド**（WarpMath Bezier 評価＋Compositor パッチ細分化＋Project 廃止）。
-      見た目の最終調整は UI Builder（`rr-warp-grid`/`rr-warp-test`・USS `--grid`/`--test`）。
+  - **#34 Grid/Bezier ワープ＝バックエンド完了（2026-07-04・commit e27871f）**: `WarpMath.SampleGridSmooth`
+    （bicubic Catmull-Rom・制御点を通る C1 連続）＋`Compositor` のパッチ細分化描画＋メッシュ位相プールキャッシュ。
+    `Surface.FitMode.Project` は `Grid` に統一（2×2 は線形へ縮退＝旧4pinと後方互換）。`OutputWarp`/`WarpCanvas` も同じ
+    細分化に統一（WYSIWYG）。**Unity コンパイル/実機は未検証**。**#35 OUTPUT グリッド校正**（格子オーバーレイ＋投影
+    キャリブレーション表示の UI 足場＝GRID/TEST トグル）は先行実装済み。故意の局所歪みは **#33**（パペットpin エフェクト、未着手）。
+    詳細＝`docs/03`・`06`。
+  - **ページ IA 3→2（PERFORM/MAPPING）＋左ドック/ワープエディタの機能化（2026-07-05〜06・完了）**:
+    ClaudeDesign UNITY-HANDOFF 反映で旧 OUTPUT タブを廃止し **PERFORM（既定・ライブプレビュー＋ライブラリ左ドック）/
+    MAPPING（WARP エディタ起動＋Surfaces 左ドック）** の2ページに整理（`SelectPage` が機能・見た目の両方を駆動）。
+    Surface Fit は単一チップ→**MASK|GRID セグメント UI**（モード別セクション出し分け）。上バーは transport を撤去し
+    タイムライン側に一本化（1機能1箇所）、OUTPUT はラベルのみトグル（Full/Syphon/NDI・ON=緑/OFF=灰）に簡素化。
+    **出力ルートは既定 OFF**に変更（コード既定＋Main.unity 直列化値、起動時誤配信防止）。左ドックのライブラリ
+    （Sources/Audio/Scenes）は静的プレースホルダで実データ未連動（汎用セレクションモデル=#3 待ち）。
+  - **#27 タイムライン再生バックエンド＝着手（2026-07-06・commit 57d3ccf）**: `ShowTimeline`
+    （Song/Track/Clip データ＋Play/Pause/Loop/Rewind/Seek のトランスポート・クロック）を追加し `OperatorUI` の
+    上部トランスポート＋タイムライン表示と接続（song リニア再生・playhead 反映）。**シーンには未配置**
+    （`OperatorUI` が実行時に `FindFirstObjectByType`→無ければ `AddComponent` するフォールバックのため、
+    Song/クリップ構成を Inspector で組んでもシーンに保存されない）。残り：実クリップの source/scene バインド、
+    short ホールド発火（§3.5.2）、song 再生速度可変、シーンへの正式配置。
 
 ## 作業上の注意
 
