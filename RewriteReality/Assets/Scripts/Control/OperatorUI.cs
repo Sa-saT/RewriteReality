@@ -57,6 +57,11 @@ namespace RewriteReality
         int _lastGcShown = -1;
         int _lastFrameMsShown = -1;
 
+        // 汎用セレクションモデル（§3・#15）
+        readonly SelectionModel _selection = new SelectionModel();
+        readonly List<(VisualElement item, SelectionKind kind, string id)> _dockItems
+            = new List<(VisualElement, SelectionKind, string)>();
+
         // 終了 UX（§7・#12）
         VisualElement _brandMenu, _quitOverlay, _quitOnAir;
         Label _quitRoutes, _quitTitle, _quitMsg;
@@ -198,6 +203,7 @@ namespace RewriteReality
             BuildTimelineTransport();   // 先に _timeline を解決（Tabs 側の Short 発火が参照する）
             BuildTimelineTabs();
             BuildExitUx();
+            BuildDockSelection();
 
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
@@ -761,6 +767,8 @@ namespace RewriteReality
         void SelectPage(int page)
         {
             _page = page;
+            // ページ切替でドック選択はクリア（track 選択は保持・§3）。
+            if (_selection.Current.Kind != SelectionKind.Track) _selection.Deselect();
             if (_pagePerform != null) EnableClass(_pagePerform, "rr-page-tab--active", page == 0);
             if (_pageMapping != null) EnableClass(_pageMapping, "rr-page-tab--active", page == 1);
 
@@ -1065,9 +1073,108 @@ namespace RewriteReality
             return false;
         }
 
+        // -------------------------------------------------- 汎用セレクション（§3・#15・最初のスライス）
+        // 左ドック PERFORM ライブラリ（Sources/Audio/Scenes）を選択可能化し、単一 SelectionModel で駆動。
+        // 選択→行ハイライト＋ Inspector タイトル反映。per-kind Inspector 本体・track/WARP は後続スライス。
+        void BuildDockSelection()
+        {
+            _dockItems.Clear();
+            var perform = _root.Q<VisualElement>("rr-dock-perform");
+            if (perform != null)
+            {
+                perform.Query<Foldout>().ForEach(f =>
+                {
+                    SelectionKind kind = f.text switch
+                    {
+                        "Sources" => SelectionKind.SourceVideo,   // 動画/カメラ細分は後続スライス
+                        "Audio"   => SelectionKind.AudioInput,
+                        "Scenes"  => SelectionKind.Scene,
+                        _         => SelectionKind.None,
+                    };
+                    if (kind != SelectionKind.None) WireDockList(f, kind);
+                });
+            }
+
+            _selection.Changed -= OnSelectionChanged;
+            _selection.Changed += OnSelectionChanged;
+        }
+
+        void WireDockList(VisualElement container, SelectionKind kind)
+        {
+            container.Query<VisualElement>(className: "rr-list-item").ForEach(item =>
+            {
+                var lbl = item.Q<Label>(className: "rr-list-label");
+                string id = lbl != null ? lbl.text : "";
+                _dockItems.Add((item, kind, id));
+                item.RegisterCallback<MouseDownEvent>(_ => _selection.Select(kind, id));
+            });
+        }
+
+        void OnSelectionChanged(SelectionRef sel)
+        {
+            for (int i = 0; i < _dockItems.Count; i++)
+            {
+                var d = _dockItems[i];
+                EnableClass(d.item, "rr-list-item--active", sel.SameItem(d.kind, d.id));
+            }
+            RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝FX/Program）
+        }
+
+        // ドック項目（track 以外の単一選択）が Inspector を占有するか。
+        bool DockSelectionActive()
+        {
+            var k = _selection.Current.Kind;
+            return k != SelectionKind.None && k != SelectionKind.Track;
+        }
+
+        // ドック選択の簡易 Inspector（per-kind の本体は §4 後続スライス）。
+        void BuildDockInspector(SelectionRef sel)
+        {
+            if (_inspector == null) return;
+            _inspector.Clear();
+            _paramRows.Clear();
+            _inspectorEffect = -1;
+            if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
+
+            var kindLabel = new Label(KindLabel(sel.Kind));
+            kindLabel.AddToClassList("rr-hint");
+            _inspector.Add(kindLabel);
+            var todo = new Label("Inspector controls: §4 後続スライスで実装");
+            todo.AddToClassList("rr-hint");
+            _inspector.Add(todo);
+        }
+
+        static string KindLabel(SelectionKind k) => k switch
+        {
+            SelectionKind.SourceVideo  => "Source · Video",
+            SelectionKind.SourceCamera => "Source · Camera",
+            SelectionKind.SourceExt    => "Source · External",
+            SelectionKind.Fx           => "FX",
+            SelectionKind.AudioInput   => "Audio Input",
+            SelectionKind.Mapping      => "Mapping",
+            SelectionKind.Scene        => "Scene",
+            SelectionKind.Surface      => "Surface",
+            _                          => "Item",
+        };
+
+        // Inspector タイトル：ドック選択があればその名前、無ければ従来の FX/Program 表示。
+        void RefreshInspectorTitle()
+        {
+            if (_inspectorTitle == null) return;
+            var sel = _selection.Current;
+            if (!sel.IsNone && sel.Kind != SelectionKind.Track && !string.IsNullOrEmpty(sel.Id))
+            {
+                _inspectorTitle.text = sel.Id;
+                return;
+            }
+            var fx = _hub != null ? _hub.GetEffect(_hub.SelectedEffect) : null;
+            _inspectorTitle.text = fx != null ? fx.Name : "Inspector";
+        }
+
         void OnDisable()
         {
             if (_quitHooked) { Application.wantsToQuit -= OnWantsToQuit; _quitHooked = false; }
+            _selection.Changed -= OnSelectionChanged;
             if (_appMode != null) _appMode.ModeChanged -= OnModeChanged;
             if (_timeline != null)
             {
@@ -1210,12 +1317,16 @@ namespace RewriteReality
         // -------------------------------------------------- inspector (param rows)
         void RebuildInspector()
         {
+            // ドック項目が選択中ならその Inspector を優先（§3・FX/Program より上位）。
+            if (DockSelectionActive()) { BuildDockInspector(_selection.Current); return; }
+
             _inspector.Clear();
             _paramRows.Clear();
+            if (_hub == null) { if (_inspectorTitle != null) _inspectorTitle.text = "Inspector"; return; }
 
             var fx = _hub.GetEffect(_hub.SelectedEffect);
             _inspectorEffect = _hub.SelectedEffect;
-            if (_inspectorTitle != null) _inspectorTitle.text = fx != null ? fx.Name : "Inspector";
+            RefreshInspectorTitle();   // ドック選択があればそれを優先（§3）
             if (fx == null) return;
 
             var ps = fx.Parameters;
