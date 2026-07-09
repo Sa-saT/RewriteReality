@@ -50,6 +50,20 @@ namespace RewriteReality
         /// <summary>校正モード（#35）。ON の間、出力ソースをテストパターンに差し替える（OutputWarp は通す）。</summary>
         public bool CalibrationEnabled { get => _calibrate; set => _calibrate = value; }
 
+        /// <summary>いずれかの配信ルートが ON（かつ利用可能）か。終了確認の危険判定に使う（§7）。</summary>
+        public bool AnyEnabled =>
+            (HasFullscreen && _fullscreenEnabled) || (HasSyphon && _syphonEnabled) || (HasNdi && _ndiEnabled);
+
+        /// <summary>全ルートを停止（アプリ終了前に呼ぶ・§7）。次フレームの Publish で実際に無効化される。</summary>
+        public void DisableAll()
+        {
+            _fullscreenEnabled = false;
+            _syphonEnabled = false;
+            _ndiEnabled = false;
+            if (_syphonServer != null) _syphonServer.enabled = false;
+            if (_ndiSender != null) _ndiSender.enabled = false;
+        }
+
         /// <summary>有効なルート名の要約（例 "Full · Syphon · NDI"）。1つも無ければ空文字。</summary>
         public string ActiveRoutesSummary()
         {

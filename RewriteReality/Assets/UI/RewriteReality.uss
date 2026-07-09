@@ -160,6 +160,13 @@
     margin-left: 8px;
 }
 .rr-fps--warn { color: var(--rr-warn); }
+/* 上部バー右の性能表示（fps + frame ms + gc・§7）。見た目の詰めは UI Builder で。 */
+.rr-perf-group { flex-direction: row; align-items: center; }
+.rr-perf-group > .rr-perf {
+    margin-left: 10px;
+    min-width: 52px;
+    -unity-text-align: middle-right;
+}
 
 /* ---------------------------------------------------------- Middle: left dock / center / right dock */
 .rr-mid {
@@ -738,7 +745,41 @@
     color: var(--rr-primary);
     font-size: 12px;
 }
-.rr-short-pad:disabled { opacity: 0.7; }   /* 割当マトリクスは #27・現状は表示のみ */
+.rr-short-pad:disabled { opacity: 0.7; }
+.rr-short-holdloop { margin-left: 12px; font-size: 11px; color: var(--rr-muted); }
+/* 4×4 パッド割当マトリクス（§7・#13）。見た目の詰めは UI Builder で。 */
+.rr-pad-matrix {
+    position: absolute;
+    left: 40px;
+    top: 28px;
+    flex-direction: column;
+    background-color: var(--rr-surface-raised);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 6px;
+    padding: 6px;
+}
+.rr-pad-matrix__row { flex-direction: row; }
+.rr-pad-cell {
+    width: 34px; height: 28px;
+    margin: 2px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 4px;
+    color: var(--rr-muted);
+    font-size: 10px;
+    padding: 0;
+}
+.rr-pad-cell:hover { border-color: var(--rr-selection); }
+.rr-pad-cell--mine {
+    background-color: var(--rr-primary);
+    border-color: var(--rr-primary);
+    color: var(--rr-on-primary);
+}
+.rr-pad-cell--used { border-color: var(--rr-stage-scene); color: var(--rr-stage-scene); }
 .rr-short-lane { height: 40px; }
 .rr-short-hold {
     width: 24px; height: 24px;
@@ -1131,3 +1172,82 @@
     margin-top: 6px;
     white-space: normal;
 }
+
+/* ---------------------------------------------------------- 終了 UX（§7・#12）。詰めは UI Builder で */
+.rr-brand-group { flex-direction: row; align-items: center; }
+.rr-brand-menu {
+    position: absolute;
+    left: 12px;
+    top: 44px;
+    flex-direction: column;
+    background-color: var(--rr-surface-panel);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 6px;
+    padding: 4px;
+    min-width: 180px;
+}
+.rr-menu-item {
+    height: 26px;
+    -unity-text-align: middle-left;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    color: var(--rr-text);
+    font-size: 12px;
+}
+.rr-menu-item:hover { background-color: var(--rr-surface-raised); }
+.rr-menu-item:disabled { color: var(--rr-muted-soft); }
+
+.rr-modal-overlay {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    align-items: center;
+    justify-content: center;
+}
+.rr-modal {
+    min-width: 320px;
+    background-color: var(--rr-surface-panel);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 8px;
+    padding: 18px;
+}
+.rr-modal__title { color: var(--rr-text); font-size: 15px; -unity-font-style: bold; }
+.rr-modal__msg { color: var(--rr-muted); font-size: 12px; margin-top: 8px; white-space: normal; }
+.rr-modal__actions { flex-direction: row; justify-content: flex-end; margin-top: 16px; }
+.rr-modal-btn {
+    height: 30px;
+    padding-left: 14px;
+    padding-right: 14px;
+    margin-left: 8px;
+    background-color: var(--rr-surface-raised);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 5px;
+    color: var(--rr-text);
+    font-size: 12px;
+}
+.rr-modal-btn--primary {
+    background-color: var(--rr-primary);
+    border-color: var(--rr-primary);
+    color: var(--rr-on-primary);
+}
+.rr-modal-btn--danger {
+    background-color: var(--rr-record);
+    border-color: var(--rr-record);
+    color: var(--rr-text);
+}
+.rr-quit-onair { flex-direction: row; align-items: center; margin-bottom: 10px; }
+.rr-quit-onair__badge {
+    background-color: var(--rr-record);
+    color: var(--rr-text);
+    font-size: 10px;
+    -unity-font-style: bold;
+    padding-left: 6px; padding-right: 6px;
+    padding-top: 2px; padding-bottom: 2px;
+    border-radius: 3px;
+}
+.rr-quit-onair__routes { color: var(--rr-record); font-size: 11px; margin-left: 8px; }

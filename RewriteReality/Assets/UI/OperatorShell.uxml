@@ -17,7 +17,11 @@
                 <ui:Button name="rr-out-chip-ndi" text="NDI" class="rr-out-chip rr-out-chip--off" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
-            <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
+            <ui:VisualElement class="rr-perf-group">
+                <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
+                <ui:Label name="rr-frame-ms" text="-- ms" class="rr-perf rr-mono" />
+                <ui:Label name="rr-gc" text="gc --" class="rr-perf rr-mono" />
+            </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="rr-mid" class="rr-mid">
             <ui:VisualElement name="rr-dock-left" class="rr-dock rr-dock-left">
@@ -182,15 +186,10 @@
                         <ui:VisualElement class="rr-video-fill__vignette" />
                     </ui:VisualElement>
                     <ui:Image name="rr-preview" class="rr-preview" />
-                    <ui:VisualElement class="rr-safe-area" />
                     <ui:VisualElement class="rr-video-fill__label-row">
                         <ui:VisualElement class="rr-video-fill__dot rr-list-dot--tracking" />
                         <ui:Label text="FINAL RT · EFFECTCHAIN" class="rr-video-fill__label" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--tl" />
-                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--tr" />
-                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--bl" />
-                    <ui:VisualElement class="rr-corner-pin rr-corner-pin--br" />
                     <ui:VisualElement class="rr-viewport-overlay-tr">
                         <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
                     </ui:VisualElement>
@@ -202,7 +201,7 @@
                         <ui:Button name="rr-warp-test" text="TEST" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
                         <ui:Button name="rr-warp-reset" text="RESET" class="rr-warp-toggle rr-warp-toggle--sub" style="display: none;" />
                     </ui:VisualElement>
-                    <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />
+                    <ui:Label text="1920×1080" class="rr-viewport-meta rr-mono" />
                 </ui:VisualElement>
                 <ui:VisualElement name="rr-center-track" class="rr-map-col" style="display: none;">
                     <ui:VisualElement class="rr-map-row">
@@ -257,7 +256,7 @@
                             <ui:VisualElement class="rr-viewport-overlay-tr">
                                 <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
                             </ui:VisualElement>
-                            <ui:Label text="1920×1080 · 59.9 fps" class="rr-viewport-meta rr-mono" />
+                            <ui:Label text="1920×1080" class="rr-viewport-meta rr-mono" />
                             <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 8%;" />
                             <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 8%;" />
                             <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 8%;" />
@@ -291,12 +290,10 @@
         <ui:VisualElement name="rr-timeline" class="rr-timeline">
             <ui:VisualElement name="rr-tl-tabs" class="rr-tl-tabs">
                 <ui:VisualElement name="rr-tl-tab-song" class="rr-tl-tab rr-tl-tab--song rr-tl-tab--active">
-                    <ui:VisualElement class="rr-tl-tab__dot" />
                     <ui:Label text="Song 01" class="rr-tl-tab__name" style="-unity-text-align: middle-left;" />
                     <ui:Label text="SONG" class="rr-tl-tab__badge" style="-unity-text-align: middle-left;" />
                 </ui:VisualElement>
                 <ui:VisualElement name="rr-tl-tab-short" class="rr-tl-tab rr-tl-tab--short">
-                    <ui:VisualElement class="rr-tl-tab__dot" />
                     <ui:Label text="Short A" class="rr-tl-tab__name" style="-unity-text-align: middle-left;" />
                     <ui:Label text="SHORT" class="rr-tl-tab__badge" style="-unity-text-align: middle-left;" />
                     <ui:Label text="P1" class="rr-tl-tab__pad rr-mono" style="-unity-text-align: lower-right;" />
@@ -403,14 +400,16 @@
                         <RewriteReality.RrIcon icon="SpeakerMute" class="rr-icon rr-track-icon" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:VisualElement name="rr-playhead" class="rr-playhead" style="left: 40%;" />
+                <ui:VisualElement name="rr-playhead" class="rr-playhead" style="left: 96px;" />
             </ui:VisualElement>
             <ui:VisualElement name="rr-tl-short" class="rr-tl-short" style="display: none;">
                 <ui:VisualElement class="rr-tl-keyrow">
                     <ui:Label text="KEY" class="rr-tl-keyrow__label" />
                     <ui:Button name="rr-short-pad" text="PAD 1" class="rr-short-pad rr-mono" />
+                    <ui:Toggle name="rr-short-holdloop" label="Hold-Loop" class="rr-short-holdloop" />
                     <ui:Label text="hold = top layer · release = back to song" class="rr-tl-keyrow__hint rr-mono" />
                 </ui:VisualElement>
+                <ui:VisualElement name="rr-pad-matrix" class="rr-pad-matrix" style="display: none;" />
                 <ui:VisualElement name="rr-short-lane" class="rr-track rr-short-lane">
                     <ui:VisualElement class="rr-track-head">
                         <ui:Button name="rr-short-hold" class="rr-short-hold">
@@ -443,7 +442,25 @@
                 <ui:Label name="rr-tab-mapping" text="MAPPING" class="rr-page-tab rr-stage-tracking" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-spacer" />
-            <ui:Label text="frame 4.2ms · gc 0.3ms" class="rr-perf rr-mono" />
+        </ui:VisualElement>
+        <ui:VisualElement name="rr-brand-menu" class="rr-brand-menu" style="display: none;">
+            <ui:Button name="rr-brand-about" text="About" class="rr-menu-item" />
+            <ui:Button name="rr-brand-prefs" text="Preferences…" class="rr-menu-item" />
+            <ui:Button name="rr-brand-quit" text="Quit RewriteReality…" class="rr-menu-item" />
+        </ui:VisualElement>
+        <ui:VisualElement name="rr-quit-overlay" class="rr-modal-overlay" style="display: none;">
+            <ui:VisualElement class="rr-modal">
+                <ui:VisualElement name="rr-quit-onair" class="rr-quit-onair" style="display: none;">
+                    <ui:Label text="ON AIR" class="rr-quit-onair__badge" />
+                    <ui:Label name="rr-quit-routes" text="" class="rr-quit-onair__routes rr-mono" />
+                </ui:VisualElement>
+                <ui:Label name="rr-quit-title" text="Quit RewriteReality?" class="rr-modal__title" />
+                <ui:Label name="rr-quit-msg" text="Live output will stop." class="rr-modal__msg" />
+                <ui:VisualElement class="rr-modal__actions">
+                    <ui:Button name="rr-quit-cancel" text="Cancel" class="rr-modal-btn" />
+                    <ui:Button name="rr-quit-confirm" text="Quit" class="rr-modal-btn rr-modal-btn--primary" />
+                </ui:VisualElement>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

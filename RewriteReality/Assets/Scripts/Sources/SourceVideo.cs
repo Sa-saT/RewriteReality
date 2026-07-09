@@ -14,6 +14,9 @@ namespace RewriteReality
         [SerializeField] VideoClip _clip;
         [SerializeField] RenderTexture _targetTexture;
         [SerializeField] bool _loop = true;
+        [Tooltip("再生速度（1=等速）。オペレータ UI の Speed(JOG) から可変・本番 Live 中は armed（ハンドオフ §4c）")]
+        [Range(0.1f, 4f)]
+        [SerializeField] float _speed = 1f;
 
         VideoPlayer _player;
 
@@ -23,6 +26,27 @@ namespace RewriteReality
         /// <summary>現在の再生位置（秒）。CornerSource の時刻引数に渡す。</summary>
         public double Time => _player != null ? _player.time : 0d;
 
+        /// <summary>クリップ尺（秒）。Inspector の Duration 表示用。</summary>
+        public double Duration => _player != null && _player.clip != null ? _player.clip.length : 0d;
+
+        /// <summary>ループ再生。</summary>
+        public bool Loop
+        {
+            get => _loop;
+            set { _loop = value; if (_player != null) _player.isLooping = value; }
+        }
+
+        /// <summary>再生速度（0.1..4・VideoPlayer.playbackSpeed に反映）。Speed(JOG) のバインド先。</summary>
+        public float Speed
+        {
+            get => _speed;
+            set
+            {
+                _speed = Mathf.Clamp(value, 0.1f, 4f);
+                if (_player != null) _player.playbackSpeed = _speed;
+            }
+        }
+
         void Awake()
         {
             _player = GetComponent<VideoPlayer>();
@@ -30,6 +54,7 @@ namespace RewriteReality
             _player.isLooping = _loop;
             _player.audioOutputMode = VideoAudioOutputMode.None; // APAC等の音声で詰まらせない
             _player.renderMode = VideoRenderMode.RenderTexture;
+            _player.playbackSpeed = _speed;
             if (_clip != null) _player.clip = _clip;
             if (_targetTexture != null) _player.targetTexture = _targetTexture;
         }
@@ -44,6 +69,19 @@ namespace RewriteReality
             // Play モード終了/破棄時は VideoPlayer が先に無効化され得るため、
             // 有効な時のみ Pause する（"Cannot Pause a disabled VideoPlayer" 回避）。
             if (_player != null && _player.isActiveAndEnabled) _player.Pause();
+        }
+
+        /// <summary>
+        /// 再生するクリップを差し替える（タイムラインのクリップ・バインド用・#27）。
+        /// 同一クリップなら無視（VideoPlayer の再 Prepare によるヒッチ/GC を避ける）。
+        /// </summary>
+        public void SetClip(VideoClip clip)
+        {
+            if (_player == null) return;
+            if (_player.clip == clip) return;
+            _clip = clip;
+            _player.clip = clip;
+            if (isActiveAndEnabled && clip != null) _player.Play();
         }
 
         /// <summary>毎フレームの更新フック（現状 VideoPlayer が自走するため処理なし）。</summary>

@@ -52,6 +52,17 @@ namespace RewriteReality
         VisualElement _root;
         Image _preview;
         Label _fps;
+        Label _frameMs;         // 上部バー右・フレーム時間（ms）
+        Label _gc;              // 上部バー右・GC 収集回数（スパイク監視・§7）
+        int _lastGcShown = -1;
+        int _lastFrameMsShown = -1;
+
+        // 終了 UX（§7・#12）
+        VisualElement _brandMenu, _quitOverlay, _quitOnAir;
+        Label _quitRoutes, _quitTitle, _quitMsg;
+        Button _quitCancel, _quitConfirm;
+        bool _quitConfirmed;
+        bool _quitHooked;
         Label _inspectorTitle;
         ScrollView _fxList;
         ScrollView _inspector;
@@ -77,6 +88,10 @@ namespace RewriteReality
         // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
         VisualElement _tlTabSong, _tlTabShort, _tlSong, _tlShort, _tlTimeGroup, _tlGateGroup, _shortClip;
         Button _shortHold;
+        Button _shortPadBtn;              // KEY 行の [PAD n] ＝マトリクスのトグル
+        VisualElement _padMatrix;         // 4×4 パッド割当マトリクス（§7・#13）
+        readonly Button[] _padCells = new Button[16];
+        Toggle _holdLoopToggle;           // per-Short の Hold-Loop
 
         // タイムライン再生（Song トランスポート・playhead・時間表示）
         Button _tlPrev, _tlPlay, _tlLoop;
@@ -84,6 +99,9 @@ namespace RewriteReality
         VisualElement _playhead;
         RrIcon _tlPlayIcon;   // 再生/一時停止アイコン切替
         double _lastTimeValue = -1.0;   // 時刻が変わった時だけ整形（停止中は毎フレーム alloc しない）
+        // 再生ヘッドをクリップ・レーンに合わせる際の左右オフセット（USS .rr-track-head / .rr-track-tail 幅）。
+        const float TimelineLaneLeft = 96f;
+        const float TimelineLaneRight = 74f;
 
         // Surface パネル（左ドック・#22）＋モード切替
         VisualElement _surfaceList, _surfaceProps;
@@ -159,6 +177,8 @@ namespace RewriteReality
             _preview = _root.Q<Image>("rr-preview");
             if (_preview != null) _preview.scaleMode = ScaleMode.ScaleToFit;
             _fps = _root.Q<Label>("rr-fps");
+            _frameMs = _root.Q<Label>("rr-frame-ms");
+            _gc = _root.Q<Label>("rr-gc");
             _inspectorTitle = _root.Q<Label>("rr-inspector-title");
             _fxList = _root.Q<ScrollView>("rr-fx-list");
             _inspector = _root.Q<ScrollView>("rr-inspector");
@@ -175,8 +195,9 @@ namespace RewriteReality
             BuildSurfacePanel();
             BuildModeSwitch();
             BuildPageTabs();
+            BuildTimelineTransport();   // 先に _timeline を解決（Tabs 側の Short 発火が参照する）
             BuildTimelineTabs();
-            BuildTimelineTransport();
+            BuildExitUx();
 
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
@@ -757,9 +778,8 @@ namespace RewriteReality
             }
         }
 
-        // -------------------------------------------------- timeline song/short tabs (07b §3.5.2・#27 足場)
-        // タブ切替（song=リニア通し / short=ホールド発火）とホールド中のプレビュー表現のみ。
-        // バンク追加(+)・パッド割当マトリクス・実再生は #27 で機能実装（それまで + / PAD は表示のみ＝disabled）。
+        // -------------------------------------------------- timeline song/short tabs (07b §3.5.2 / §7・#13)
+        // タブ切替（song=リニア通し / short=ホールド発火）＋ Short の 4×4 パッド割当マトリクス／Hold-Loop。
         void BuildTimelineTabs()
         {
             _tlTabSong  = _root.Q<VisualElement>("rr-tl-tab-song");
@@ -770,22 +790,110 @@ namespace RewriteReality
             _tlGateGroup = _root.Q<VisualElement>("rr-tl-gate-group");
             _shortHold  = _root.Q<Button>("rr-short-hold");
             _shortClip  = _root.Q<VisualElement>("rr-short-clip");
+            _shortPadBtn = _root.Q<Button>("rr-short-pad");
+            _padMatrix   = _root.Q<VisualElement>("rr-pad-matrix");
+            _holdLoopToggle = _root.Q<Toggle>("rr-short-holdloop");
 
             var add = _root.Q<Button>("rr-tl-add");
-            if (add != null) add.SetEnabled(false);
-            var pad = _root.Q<Button>("rr-short-pad");
-            if (pad != null) pad.SetEnabled(false);
+            if (add != null) add.SetEnabled(false);   // + Track/New は #11 で
 
             _tlTabSong?.RegisterCallback<MouseDownEvent>(_ => SelectTimelineTab(false));
             _tlTabShort?.RegisterCallback<MouseDownEvent>(_ => SelectTimelineTab(true));
 
-            // ホールド発火のプレビュー表現: ⚡ 押下中＝クリップ全幅（最上位で発火中）・離すと戻る（Piano）
+            BuildPadMatrix();
+
+            // KEY 行の [PAD n] ＝マトリクスの開閉トグル。
+            if (_shortPadBtn != null)
+                _shortPadBtn.clicked += TogglePadMatrix;
+
+            // Hold-Loop（per-Short・本番でキー押下中ループするか）。
+            if (_holdLoopToggle != null)
+                _holdLoopToggle.RegisterValueChangedCallback(evt =>
+                {
+                    var sh = _timeline?.ActiveShort;
+                    if (sh != null) sh.holdLoop = evt.newValue;
+                });
+
+            // ホールド発火（§3.5.2）: ⚡ 押下中＝最上位で発火（Piano）・離すと song に戻る。
+            // 実発火は ShowTimeline へ委譲（いま表示中の Short を叩く）。キー/パッド発火も同じ状態を UI に反映。
             if (_shortHold != null)
             {
-                _shortHold.RegisterCallback<PointerDownEvent>(_ => SetShortHeld(true), TrickleDown.TrickleDown);
-                _shortHold.RegisterCallback<PointerUpEvent>(_ => SetShortHeld(false));
-                _shortHold.RegisterCallback<PointerLeaveEvent>(_ => SetShortHeld(false));
+                _shortHold.RegisterCallback<PointerDownEvent>(_ => _timeline?.HoldStart(ShownShortIndex()), TrickleDown.TrickleDown);
+                _shortHold.RegisterCallback<PointerUpEvent>(_ => _timeline?.HoldEnd(ShownShortIndex()));
+                _shortHold.RegisterCallback<PointerLeaveEvent>(_ => _timeline?.HoldEnd(ShownShortIndex()));
             }
+            if (_timeline != null)
+            {
+                _timeline.ShortStateChanged -= RefreshShortHeld;
+                _timeline.ShortStateChanged += RefreshShortHeld;
+            }
+            RefreshShortHeld();
+            RefreshShortAssignment();
+        }
+
+        int ShownShortIndex()
+        {
+            int i = _timeline != null ? _timeline.ActiveShortIndex : -1;
+            return i < 0 ? 0 : i;
+        }
+
+        // 4×4 パッドセルを生成（1 度だけ）。クリックで表示中 Short に割当（他 Short は奪取＝未割当化）。
+        void BuildPadMatrix()
+        {
+            if (_padMatrix == null) return;
+            _padMatrix.Clear();
+            for (int r = 0; r < 4; r++)
+            {
+                var row = new VisualElement();
+                row.AddToClassList("rr-pad-matrix__row");
+                for (int c = 0; c < 4; c++)
+                {
+                    int idx = r * 4 + c;
+                    var cell = new Button { text = (idx + 1).ToString() };
+                    cell.AddToClassList("rr-pad-cell");
+                    cell.AddToClassList("rr-mono");
+                    cell.clicked += () =>
+                    {
+                        _timeline?.AssignPad(ShownShortIndex(), idx);
+                        RefreshShortAssignment();
+                    };
+                    _padCells[idx] = cell;
+                    row.Add(cell);
+                }
+                _padMatrix.Add(row);
+            }
+        }
+
+        void TogglePadMatrix()
+        {
+            if (_padMatrix == null) return;
+            bool show = _padMatrix.style.display == DisplayStyle.None;
+            _padMatrix.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            if (show) RefreshShortAssignment();
+        }
+
+        // パッド割当・PAD ラベル・タブ P チップ・Hold-Loop を表示中 Short に同期。
+        void RefreshShortAssignment()
+        {
+            var sh = _timeline?.ActiveShort;
+            int mine = sh != null ? sh.pad : -1;
+
+            for (int i = 0; i < _padCells.Length; i++)
+            {
+                var cell = _padCells[i];
+                if (cell == null) continue;
+                int owner = _timeline != null ? _timeline.ShortForPad(i) : -1;
+                EnableClass(cell, "rr-pad-cell--mine", i == mine);
+                EnableClass(cell, "rr-pad-cell--used", i != mine && owner >= 0);
+            }
+
+            string padLabel = mine >= 0 ? "PAD " + (mine + 1) : "PAD —";
+            if (_shortPadBtn != null) _shortPadBtn.text = padLabel;
+
+            var tabPad = _tlTabShort?.Q<Label>(className: "rr-tl-tab__pad");
+            if (tabPad != null) tabPad.text = mine >= 0 ? "P" + (mine + 1) : "";
+
+            if (_holdLoopToggle != null && sh != null) _holdLoopToggle.SetValueWithoutNotify(sh.holdLoop);
         }
 
         void SelectTimelineTab(bool shortMode)
@@ -798,8 +906,10 @@ namespace RewriteReality
             if (_tlGateGroup != null) _tlGateGroup.style.display = shortMode ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        void SetShortHeld(bool held)
+        // Short のホールド状態を UI に反映（タイムラインが実状態を持つ＝キー発火も同じ経路で映る）。
+        void RefreshShortHeld()
         {
+            bool held = _timeline != null && _timeline.AnyShortHeld;
             if (_shortHold != null) EnableClass(_shortHold, "rr-short-hold--held", held);
             if (_shortClip != null) _shortClip.style.width = Length.Percent(held ? 100f : 26f);
         }
@@ -808,9 +918,11 @@ namespace RewriteReality
         // トランスポート（前/再生-停止/ループ）を ShowTimeline に接続し、playhead と時間表示を毎フレーム追従。
         void BuildTimelineTransport()
         {
-            // 未配線でも動くよう自動解決（シーンにあれば拾い、無ければ生成＝既定曲を自前でシード）
+            // シーン配置の ShowTimeline を使う（未配線でも拾う）。実行時 AddComponent は
+            // Inspector 構成が保存されないため廃止（#27）。見つからなければトランスポートは無効。
             if (_timeline == null) _timeline = FindFirstObjectByType<ShowTimeline>();
-            if (_timeline == null) _timeline = gameObject.AddComponent<ShowTimeline>();
+            if (_timeline == null)
+                Debug.LogWarning("[OperatorUI] ShowTimeline がシーンにありません。トランスポートは無効です。");
 
             _tlPrev  = _root.Q<Button>("rr-tl-prev");
             _tlPlay  = _root.Q<Button>("rr-tl-play");
@@ -855,15 +967,113 @@ namespace RewriteReality
             if (t == _lastTimeValue) return;
             _lastTimeValue = t;
 
-            if (_playhead != null) _playhead.style.left = Length.Percent(_timeline.NormalizedTime * 100f);
+            // 再生ヘッドはクリップ・レーンの座標系で置く（本体全幅 % だとトラックヘッダ分ずれ、
+            // t=0 が 0:00 目盛りに揃わない）。left = ヘッダ幅 + 正規化位置 × レーン実幅。
+            if (_playhead != null && _tlSong != null)
+            {
+                float w = _tlSong.resolvedStyle.width;
+                float usable = w - TimelineLaneLeft - TimelineLaneRight;
+                if (usable > 0f)
+                    _playhead.style.left = TimelineLaneLeft + _timeline.NormalizedTime * usable;
+            }
             if (_tlCur != null)  _tlCur.text  = ShowTimeline.FormatTime(t);
             if (_remain != null) _remain.text = "-" + ShowTimeline.FormatTime(_timeline.Remaining);
         }
 
+        // -------------------------------------------------- 終了 UX（§7・#12）
+        // ライブ卓では誤爆リスクが最大なので常設の終了ボタンは置かず、ブランドロゴをメニュー化。
+        // Quit は常に確認 modal を通す（⌘Q も Application.wantsToQuit 経由で同フロー）。
+        void BuildExitUx()
+        {
+            _brandMenu   = _root.Q<VisualElement>("rr-brand-menu");
+            _quitOverlay = _root.Q<VisualElement>("rr-quit-overlay");
+            _quitOnAir   = _root.Q<VisualElement>("rr-quit-onair");
+            _quitRoutes  = _root.Q<Label>("rr-quit-routes");
+            _quitTitle   = _root.Q<Label>("rr-quit-title");
+            _quitMsg     = _root.Q<Label>("rr-quit-msg");
+            _quitCancel  = _root.Q<Button>("rr-quit-cancel");
+            _quitConfirm = _root.Q<Button>("rr-quit-confirm");
+
+            var brand = _root.Q<VisualElement>(className: "rr-brand-group");
+            brand?.RegisterCallback<MouseDownEvent>(_ => ToggleBrandMenu());
+
+            var about = _root.Q<Button>("rr-brand-about");
+            var prefs = _root.Q<Button>("rr-brand-prefs");
+            about?.SetEnabled(false);   // プレースホルダ（機能は将来）
+            prefs?.SetEnabled(false);
+            var quit = _root.Q<Button>("rr-brand-quit");
+            if (quit != null) quit.clicked += () => { HideBrandMenu(); ShowQuitModal(); };
+
+            if (_quitCancel != null) _quitCancel.clicked += HideQuitModal;
+            if (_quitConfirm != null) _quitConfirm.clicked += ConfirmQuit;
+
+            if (!_quitHooked) { Application.wantsToQuit += OnWantsToQuit; _quitHooked = true; }
+        }
+
+        void ToggleBrandMenu()
+        {
+            if (_brandMenu == null) return;
+            bool show = _brandMenu.style.display == DisplayStyle.None;
+            _brandMenu.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+        void HideBrandMenu() { if (_brandMenu != null) _brandMenu.style.display = DisplayStyle.None; }
+
+        void ShowQuitModal()
+        {
+            if (_quitOverlay == null) return;
+            // 危険判定：本番 Live 中 or 出力ルート ON → ON AIR 警告＋出力停止して終了。
+            bool live = _appMode != null && _appMode.IsLive;
+            bool routing = _output != null && _output.AnyEnabled;
+            bool danger = live || routing;
+
+            if (_quitOnAir != null) _quitOnAir.style.display = danger ? DisplayStyle.Flex : DisplayStyle.None;
+            if (danger && _quitRoutes != null)
+                _quitRoutes.text = _output != null ? _output.ActiveRoutesSummary() : "";
+
+            if (_quitMsg != null)
+                _quitMsg.text = danger ? "出力を停止してから終了します。" : "アプリを終了します。";
+
+            if (_quitConfirm != null)
+            {
+                _quitConfirm.text = danger ? "Stop Output & Quit" : "Quit";
+                EnableClass(_quitConfirm, "rr-modal-btn--danger", danger);
+                EnableClass(_quitConfirm, "rr-modal-btn--primary", !danger);
+            }
+            _quitOverlay.style.display = DisplayStyle.Flex;
+        }
+
+        void HideQuitModal() { if (_quitOverlay != null) _quitOverlay.style.display = DisplayStyle.None; }
+
+        void ConfirmQuit()
+        {
+            if (_output != null) _output.DisableAll();   // 配信を止めてから
+            _quitConfirmed = true;
+            HideQuitModal();
+            Application.Quit();
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#endif
+        }
+
+        // ⌘Q / Application.Quit を横取り。確認前は false を返して終了を止め、modal を出す。
+        // overlay を出せない状況（未構築等）では終了をブロックしない（安全側）。
+        bool OnWantsToQuit()
+        {
+            if (_quitConfirmed) return true;
+            if (_quitOverlay == null) return true;
+            ShowQuitModal();
+            return false;
+        }
+
         void OnDisable()
         {
+            if (_quitHooked) { Application.wantsToQuit -= OnWantsToQuit; _quitHooked = false; }
             if (_appMode != null) _appMode.ModeChanged -= OnModeChanged;
-            if (_timeline != null) _timeline.PlayStateChanged -= RefreshTransport;
+            if (_timeline != null)
+            {
+                _timeline.PlayStateChanged -= RefreshTransport;
+                _timeline.ShortStateChanged -= RefreshShortHeld;
+            }
         }
 
         void Update()
@@ -913,12 +1123,30 @@ namespace RewriteReality
 
         void UpdateFps()
         {
-            if (_fps == null) return;
             _smoothedDt = Mathf.Lerp(_smoothedDt, Time.unscaledDeltaTime, 0.1f);
             float fps = _smoothedDt > 0f ? 1f / _smoothedDt : 0f;
-            int shown = Mathf.RoundToInt(fps);
-            if (shown != _lastFpsShown) { _fps.text = shown + " FPS"; _lastFpsShown = shown; }
-            EnableClass(_fps, "rr-fps--warn", fps < 58f);
+
+            if (_fps != null)
+            {
+                int shown = Mathf.RoundToInt(fps);
+                if (shown != _lastFpsShown) { _fps.text = shown + " FPS"; _lastFpsShown = shown; }
+                EnableClass(_fps, "rr-fps--warn", fps < 58f);
+            }
+
+            // フレーム時間（ms・0.1ms 単位で表示更新を間引き）。
+            if (_frameMs != null)
+            {
+                int ms10 = Mathf.RoundToInt(_smoothedDt * 10000f);   // 0.1ms 刻み
+                if (ms10 != _lastFrameMsShown) { _frameMs.text = (ms10 / 10f).ToString("0.0") + " ms"; _lastFrameMsShown = ms10; }
+                EnableClass(_frameMs, "rr-fps--warn", _smoothedDt > 1f / 58f);
+            }
+
+            // GC 収集回数（gen0・スパイク監視）。増えたら本番で GC が走った合図。
+            if (_gc != null)
+            {
+                int gc = System.GC.CollectionCount(0);
+                if (gc != _lastGcShown) { _gc.text = "gc " + gc; _lastGcShown = gc; }
+            }
         }
 
         // -------------------------------------------------- FX chain list
