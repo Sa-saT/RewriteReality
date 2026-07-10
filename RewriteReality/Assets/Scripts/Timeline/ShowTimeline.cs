@@ -275,14 +275,37 @@ namespace RewriteReality
             return -1;
         }
 
-        /// <summary>shortIndex に pad を割り当てる（他 Short が同 pad を持っていれば奪取＝未割当化・§7）。</summary>
+        /// <summary>
+        /// パッド割当＝キーボードキー割当（07-10・MIDI 不在時のフォールバック）。
+        /// 4×4 の各スロットに固定キーを割り当てる（Timeline.jsx の PAD_KEYS と一致）。
+        /// </summary>
+        static readonly string[] _padGlyphs =
+            { "Q", "W", "E", "R", "A", "S", "D", "F", "Z", "X", "C", "V", "1", "2", "3", "4" };
+
+        /// <summary>pad(0..15) の表示グリフ（キー文字）。範囲外は空。</summary>
+        public static string PadGlyph(int pad) =>
+            (pad >= 0 && pad < _padGlyphs.Length) ? _padGlyphs[pad] : "";
+
+        /// <summary>pad(0..15) の Input System Key 名（数字は Digit* へ）。範囲外は空。</summary>
+        public static string PadKeyName(int pad)
+        {
+            var g = PadGlyph(pad);
+            if (string.IsNullOrEmpty(g)) return "";
+            return char.IsDigit(g[0]) ? "Digit" + g : g;   // "1"→"Digit1" / "Q"→"Q"
+        }
+
+        /// <summary>shortIndex に pad を割り当てる（他 Short が同 pad を持てば奪取＝未割当化）。
+        /// pad→key も同時に設定し、キーボード（MIDI 不在時）で発火できるようにする（07-10）。</summary>
         public void AssignPad(int shortIndex, int pad)
         {
             if (_shorts == null || shortIndex < 0 || shortIndex >= _shorts.Count) return;
             if (pad >= 0)
                 for (int i = 0; i < _shorts.Count; i++)
-                    if (i != shortIndex && _shorts[i] != null && _shorts[i].pad == pad) _shorts[i].pad = -1;
-            _shorts[shortIndex].pad = pad;
+                    if (i != shortIndex && _shorts[i] != null && _shorts[i].pad == pad)
+                    { _shorts[i].pad = -1; _shorts[i].key = ""; }   // 奪取された側は key も外す
+            var sh = _shorts[shortIndex];
+            sh.pad = pad;
+            sh.key = PadKeyName(pad);
         }
 
         void PollShortInput()
@@ -374,7 +397,7 @@ namespace RewriteReality
         // 占有しない。pad=0 に割当・バインドも sourceId 空で無効）。
         static Short DefaultShort()
         {
-            return new Short { name = "Short A", key = "", pad = 0, holdLoop = true,
+            return new Short { name = "Short A", pad = 0, key = PadKeyName(0), holdLoop = true,
                                clip = new Clip { name = "SHORT 1", duration = 8 } };
         }
 

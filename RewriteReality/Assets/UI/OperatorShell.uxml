@@ -6,6 +6,7 @@
                 <ui:VisualElement class="rr-brand-dot" />
                 <ui:Label text="RewriteReality" class="rr-brand" />
                 <ui:Label name="rr-project" text="reality_set_02" class="rr-brand-sub rr-mono" />
+                <ui:Label text="⌄" class="rr-brand-caret" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:Label name="rr-remain" text="-02:07.60" class="rr-time rr-mono" />
@@ -18,9 +19,8 @@
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:VisualElement class="rr-perf-group">
-                <ui:Label name="rr-fps" text="-- FPS" class="rr-fps rr-mono" />
-                <ui:Label name="rr-frame-ms" text="-- ms" class="rr-perf rr-mono" />
-                <ui:Label name="rr-gc" text="gc --" class="rr-perf rr-mono" />
+                <ui:Label name="rr-fps" text="-- fps" class="rr-fps rr-mono" />
+                <ui:Label name="rr-perf2" text="-- ms · gc --" class="rr-perf rr-mono" />
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="rr-mid" class="rr-mid">
@@ -296,7 +296,7 @@
                 <ui:VisualElement name="rr-tl-tab-short" class="rr-tl-tab rr-tl-tab--short">
                     <ui:Label text="Short A" class="rr-tl-tab__name" style="-unity-text-align: middle-left;" />
                     <ui:Label text="SHORT" class="rr-tl-tab__badge" style="-unity-text-align: middle-left;" />
-                    <ui:Label text="P1" class="rr-tl-tab__pad rr-mono" style="-unity-text-align: lower-right;" />
+                    <ui:Label text="Q" class="rr-tl-tab__pad rr-mono" style="-unity-text-align: lower-right;" />
                 </ui:VisualElement>
                 <ui:Button name="rr-tl-add" text="+" class="rr-tl-add" />
                 <ui:VisualElement class="rr-spacer" />
@@ -405,7 +405,7 @@
             <ui:VisualElement name="rr-tl-short" class="rr-tl-short" style="display: none;">
                 <ui:VisualElement class="rr-tl-keyrow">
                     <ui:Label text="KEY" class="rr-tl-keyrow__label" />
-                    <ui:Button name="rr-short-pad" text="PAD 1" class="rr-short-pad rr-mono" />
+                    <ui:Button name="rr-short-pad" text="Q" class="rr-short-pad rr-mono" />
                     <ui:Toggle name="rr-short-holdloop" label="Hold-Loop" class="rr-short-holdloop" />
                     <ui:Label text="割当パッド/キーで Short 全体を発火 · 離すと song へ" class="rr-tl-keyrow__hint rr-mono" />
                 </ui:VisualElement>

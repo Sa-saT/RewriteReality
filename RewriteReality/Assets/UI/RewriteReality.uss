@@ -110,6 +110,8 @@
     -unity-text-align: middle-left;
 }
 .rr-project { color: var(--rr-muted); margin-left: 6px; }
+/* ブランドがメニューであることの手がかり（App.jsx の chevron-down 相当）。 */
+.rr-brand-caret { color: var(--rr-muted); font-size: 11px; margin-left: 5px; }
 
 .rr-transport { flex-direction: row; align-items: center; }
 .rr-transport-btn {
@@ -160,11 +162,10 @@
     margin-left: 8px;
 }
 .rr-fps--warn { color: var(--rr-warn); }
-/* 上部バー右の性能表示（fps + frame ms + gc・§7）。見た目の詰めは UI Builder で。 */
-.rr-perf-group { flex-direction: row; align-items: center; }
+/* 上部バー右の性能表示（App.jsx 準拠：fps 大＋ms·gc 小の 2 段・右寄せ）。 */
+.rr-perf-group { flex-direction: column; align-items: flex-end; justify-content: center; }
 .rr-perf-group > .rr-perf {
-    margin-left: 10px;
-    min-width: 52px;
+    margin-top: 2px;
     -unity-text-align: middle-right;
 }
 
@@ -780,6 +781,30 @@
     color: var(--rr-on-primary);
 }
 .rr-pad-cell--used { border-color: var(--rr-stage-scene); color: var(--rr-stage-scene); }
+/* マトリクスの割当キー表示（グリフ大＋pad 番号小・07-10 KEY 割当）。 */
+.rr-pad-matrix__head {
+    font-size: 9px;
+    -unity-font-style: bold;
+    letter-spacing: 0.8px;
+    color: var(--rr-muted);
+    margin-bottom: 6px;
+    margin-left: 2px;
+}
+.rr-pad-cell__glyph { font-size: 13px; color: var(--rr-body); }
+.rr-pad-cell--mine .rr-pad-cell__glyph { color: var(--rr-on-primary); }
+.rr-pad-cell--used .rr-pad-cell__glyph { color: var(--rr-muted-soft); }
+.rr-pad-cell__idx {
+    position: absolute;
+    bottom: 2px; right: 3px;
+    font-size: 7px;
+    color: var(--rr-muted-soft);
+}
+.rr-pad-cell--mine .rr-pad-cell__idx { color: var(--rr-on-primary); }
+/* 割当ボタン未割当時（琥珀→減光）。 */
+.rr-short-pad--unassigned {
+    border-color: var(--rr-hairline-strong);
+    color: var(--rr-muted);
+}
 .rr-short-lane { height: 40px; }
 .rr-short-hold {
     width: 24px; height: 24px;

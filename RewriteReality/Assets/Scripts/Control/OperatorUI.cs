@@ -52,8 +52,7 @@ namespace RewriteReality
         VisualElement _root;
         Image _preview;
         Label _fps;
-        Label _frameMs;         // 上部バー右・フレーム時間（ms）
-        Label _gc;              // 上部バー右・GC 収集回数（スパイク監視・§7）
+        Label _perf2;           // 上部バー右・2 段目「X.X ms · gc N」（フレーム時間＋GC 収集回数）
         int _lastGcShown = -1;
         int _lastFrameMsShown = -1;
 
@@ -181,8 +180,7 @@ namespace RewriteReality
             _preview = _root.Q<Image>("rr-preview");
             if (_preview != null) _preview.scaleMode = ScaleMode.ScaleToFit;
             _fps = _root.Q<Label>("rr-fps");
-            _frameMs = _root.Q<Label>("rr-frame-ms");
-            _gc = _root.Q<Label>("rr-gc");
+            _perf2 = _root.Q<Label>("rr-perf2");
             _inspectorTitle = _root.Q<Label>("rr-inspector-title");
             _fxList = _root.Q<ScrollView>("rr-fx-list");
             _inspector = _root.Q<ScrollView>("rr-inspector");
@@ -838,10 +836,17 @@ namespace RewriteReality
         }
 
         // 4×4 パッドセルを生成（1 度だけ）。クリックで表示中 Short に割当（他 Short は奪取＝未割当化）。
+        // 4×4 マトリクス。各セルは割当キー（Q/W/…/1/2/3/4）を大きく＋pad 番号を小さく表示（07-10）。
+        // パッド割当＝キー割当（MIDI 不在時のキーボード発火）。自分=琥珀 / 他 Short 使用中=ローズ点。
         void BuildPadMatrix()
         {
             if (_padMatrix == null) return;
             _padMatrix.Clear();
+
+            var header = new Label("ASSIGN KEY");
+            header.AddToClassList("rr-pad-matrix__head");
+            _padMatrix.Add(header);
+
             for (int r = 0; r < 4; r++)
             {
                 var row = new VisualElement();
@@ -849,9 +854,19 @@ namespace RewriteReality
                 for (int c = 0; c < 4; c++)
                 {
                     int idx = r * 4 + c;
-                    var cell = new Button { text = (idx + 1).ToString() };
+                    var cell = new Button();
                     cell.AddToClassList("rr-pad-cell");
-                    cell.AddToClassList("rr-mono");
+
+                    var glyph = new Label(ShowTimeline.PadGlyph(idx));
+                    glyph.AddToClassList("rr-pad-cell__glyph");
+                    glyph.AddToClassList("rr-mono");
+                    cell.Add(glyph);
+
+                    var sub = new Label((idx + 1).ToString());
+                    sub.AddToClassList("rr-pad-cell__idx");
+                    sub.AddToClassList("rr-mono");
+                    cell.Add(sub);
+
                     cell.clicked += () =>
                     {
                         _timeline?.AssignPad(ShownShortIndex(), idx);
@@ -872,7 +887,7 @@ namespace RewriteReality
             if (show) RefreshShortAssignment();
         }
 
-        // パッド割当・PAD ラベル・タブ P チップ・Hold-Loop を表示中 Short に同期。
+        // パッド割当・割当キーラベル・タブチップ・Hold-Loop を表示中 Short に同期。
         void RefreshShortAssignment()
         {
             var sh = _timeline?.ActiveShort;
@@ -887,11 +902,15 @@ namespace RewriteReality
                 EnableClass(cell, "rr-pad-cell--used", i != mine && owner >= 0);
             }
 
-            string padLabel = mine >= 0 ? "PAD " + (mine + 1) : "PAD —";
-            if (_shortPadBtn != null) _shortPadBtn.text = padLabel;
+            // 割当ボタン＝割当キー（グリフ）or UNASSIGNED。割当時は琥珀、未割当は減光。
+            if (_shortPadBtn != null)
+            {
+                _shortPadBtn.text = mine >= 0 ? ShowTimeline.PadGlyph(mine) : "UNASSIGNED";
+                EnableClass(_shortPadBtn, "rr-short-pad--unassigned", mine < 0);
+            }
 
             var tabPad = _tlTabShort?.Q<Label>(className: "rr-tl-tab__pad");
-            if (tabPad != null) tabPad.text = mine >= 0 ? "P" + (mine + 1) : "";
+            if (tabPad != null) tabPad.text = mine >= 0 ? ShowTimeline.PadGlyph(mine) : "";
 
             if (_holdLoopToggle != null && sh != null) _holdLoopToggle.SetValueWithoutNotify(sh.holdLoop);
         }
@@ -1232,23 +1251,23 @@ namespace RewriteReality
             if (_fps != null)
             {
                 int shown = Mathf.RoundToInt(fps);
-                if (shown != _lastFpsShown) { _fps.text = shown + " FPS"; _lastFpsShown = shown; }
+                if (shown != _lastFpsShown) { _fps.text = shown + " fps"; _lastFpsShown = shown; }
                 EnableClass(_fps, "rr-fps--warn", fps < 58f);
             }
 
-            // フレーム時間（ms・0.1ms 単位で表示更新を間引き）。
-            if (_frameMs != null)
+            // 2 段目「X.X ms · gc N」：フレーム時間（0.1ms 刻み）＋ GC 収集回数（gen0・スパイク監視）。
+            // どちらか変わった時だけ整形（毎フレーム alloc を避ける）。
+            if (_perf2 != null)
             {
-                int ms10 = Mathf.RoundToInt(_smoothedDt * 10000f);   // 0.1ms 刻み
-                if (ms10 != _lastFrameMsShown) { _frameMs.text = (ms10 / 10f).ToString("0.0") + " ms"; _lastFrameMsShown = ms10; }
-                EnableClass(_frameMs, "rr-fps--warn", _smoothedDt > 1f / 58f);
-            }
-
-            // GC 収集回数（gen0・スパイク監視）。増えたら本番で GC が走った合図。
-            if (_gc != null)
-            {
+                int ms10 = Mathf.RoundToInt(_smoothedDt * 10000f);
                 int gc = System.GC.CollectionCount(0);
-                if (gc != _lastGcShown) { _gc.text = "gc " + gc; _lastGcShown = gc; }
+                if (ms10 != _lastFrameMsShown || gc != _lastGcShown)
+                {
+                    _perf2.text = (ms10 / 10f).ToString("0.0") + " ms · gc " + gc;
+                    _lastFrameMsShown = ms10;
+                    _lastGcShown = gc;
+                }
+                EnableClass(_perf2, "rr-fps--warn", _smoothedDt > 1f / 58f);
             }
         }
 
