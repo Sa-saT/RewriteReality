@@ -406,12 +406,8 @@
                 <ui:VisualElement class="rr-tl-keyrow">
                     <ui:Label text="KEY" class="rr-tl-keyrow__label" />
                     <ui:Button name="rr-short-pad" text="PAD 1" class="rr-short-pad rr-mono" />
-                    <ui:Button name="rr-short-hold" class="rr-short-hold rr-short-fire">
-                        <RewriteReality.RrIcon icon="Zap" />
-                        <ui:Label text="FIRE" class="rr-short-fire__label" />
-                    </ui:Button>
                     <ui:Toggle name="rr-short-holdloop" label="Hold-Loop" class="rr-short-holdloop" />
-                    <ui:Label text="hold = Short 全体を発火 · release = song へ" class="rr-tl-keyrow__hint rr-mono" />
+                    <ui:Label text="割当パッド/キーで Short 全体を発火 · 離すと song へ" class="rr-tl-keyrow__hint rr-mono" />
                 </ui:VisualElement>
                 <ui:VisualElement name="rr-pad-matrix" class="rr-pad-matrix" style="display: none;" />
                 <ui:VisualElement name="rr-short-lane" class="rr-track rr-short-lane">

@@ -92,7 +92,6 @@ namespace RewriteReality
 
         // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
         VisualElement _tlTabSong, _tlTabShort, _tlSong, _tlShort, _tlTimeGroup, _tlGateGroup, _shortClip;
-        Button _shortHold;
         Button _shortPadBtn;              // KEY 行の [PAD n] ＝マトリクスのトグル
         VisualElement _padMatrix;         // 4×4 パッド割当マトリクス（§7・#13）
         readonly Button[] _padCells = new Button[16];
@@ -796,7 +795,6 @@ namespace RewriteReality
             _tlShort    = _root.Q<VisualElement>("rr-tl-short");
             _tlTimeGroup = _root.Q<VisualElement>("rr-tl-time-group");
             _tlGateGroup = _root.Q<VisualElement>("rr-tl-gate-group");
-            _shortHold  = _root.Q<Button>("rr-short-hold");
             _shortClip  = _root.Q<VisualElement>("rr-short-clip");
             _shortPadBtn = _root.Q<Button>("rr-short-pad");
             _padMatrix   = _root.Q<VisualElement>("rr-pad-matrix");
@@ -822,14 +820,8 @@ namespace RewriteReality
                     if (sh != null) sh.holdLoop = evt.newValue;
                 });
 
-            // ホールド発火（§3.5.2）: ⚡ 押下中＝最上位で発火（Piano）・離すと song に戻る。
-            // 実発火は ShowTimeline へ委譲（いま表示中の Short を叩く）。キー/パッド発火も同じ状態を UI に反映。
-            if (_shortHold != null)
-            {
-                _shortHold.RegisterCallback<PointerDownEvent>(_ => _timeline?.HoldStart(ShownShortIndex()), TrickleDown.TrickleDown);
-                _shortHold.RegisterCallback<PointerUpEvent>(_ => _timeline?.HoldEnd(ShownShortIndex()));
-                _shortHold.RegisterCallback<PointerLeaveEvent>(_ => _timeline?.HoldEnd(ShownShortIndex()));
-            }
+            // 発火トリガーは割当パッド/キーのみ（UI に FIRE ボタンは置かない・2026-07-09 設計更新）。
+            // ここでは発火状態の反映だけ購読し、held 中はレーンを Live Amber 点灯する（RefreshShortHeld）。
             if (_timeline != null)
             {
                 _timeline.ShortStateChanged -= RefreshShortHeld;
@@ -914,12 +906,16 @@ namespace RewriteReality
             if (_tlGateGroup != null) _tlGateGroup.style.display = shortMode ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
-        // Short のホールド状態を UI に反映（タイムラインが実状態を持つ＝キー発火も同じ経路で映る）。
+        // Short のホールド状態を UI に反映（発火は割当パッド/キー経由。ここは表示だけ）。
+        // held 中はレーンのクリップを Live Amber 点灯＋全幅プレビュー（§7 #8・07-09）。
         void RefreshShortHeld()
         {
             bool held = _timeline != null && _timeline.AnyShortHeld;
-            if (_shortHold != null) EnableClass(_shortHold, "rr-short-hold--held", held);
-            if (_shortClip != null) _shortClip.style.width = Length.Percent(held ? 100f : 26f);
+            if (_shortClip != null)
+            {
+                EnableClass(_shortClip, "rr-short-clip--held", held);
+                _shortClip.style.width = Length.Percent(held ? 100f : 26f);
+            }
         }
 
         // -------------------------------------------------- timeline transport（Song 再生・#5 B案）

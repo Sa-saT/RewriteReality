@@ -799,21 +799,12 @@
     border-color: var(--rr-primary);
     color: var(--rr-on-primary);
 }
-/* KEY 行の FIRE（ホールドで Short 全体を発火・§7 #8）。rr-short-hold の 24px 固定を後勝ちで解除。 */
-.rr-short-fire {
-    width: auto;
-    flex-direction: row;
-    padding-left: 8px;
-    padding-right: 10px;
-    margin-left: 8px;
-    margin-right: 0;
+/* Short 発火中のレーン点灯（Live Amber・§7 #8・07-09）。発火は割当パッド/キー経由。 */
+.rr-short-clip--held {
+    border-color: var(--rr-primary);
+    background-color: var(--rr-primary);
 }
-.rr-short-fire__label {
-    font-size: 10px;
-    -unity-font-style: bold;
-    letter-spacing: 0.6px;
-    margin-left: 5px;
-}
+.rr-short-clip--held .rr-clip__label { color: var(--rr-on-primary); }
 .rr-timeline-head {
     height: 30px;
     flex-direction: row;
