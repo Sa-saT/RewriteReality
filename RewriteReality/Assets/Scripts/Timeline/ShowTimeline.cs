@@ -126,6 +126,78 @@ namespace RewriteReality
         public Song ActiveSong =>
             (_songs != null && _activeSong >= 0 && _activeSong < _songs.Count) ? _songs[_activeSong] : null;
 
+        /// <summary>いま編集/表示中の Song の index（範囲外は -1）。</summary>
+        public int ActiveSongIndex =>
+            (_songs != null && _activeSong >= 0 && _activeSong < _songs.Count) ? _activeSong : -1;
+
+        /// <summary>Song の総数（タブ数）。</summary>
+        public int SongCount => _songs != null ? _songs.Count : 0;
+
+        /// <summary>index の Song（範囲外は null）。</summary>
+        public Song GetSong(int index) =>
+            (_songs != null && index >= 0 && index < _songs.Count) ? _songs[index] : null;
+
+        /// <summary>index の Song を選択（頭出しはしない）。</summary>
+        public void SelectSong(int index)
+        {
+            if (_songs == null || index < 0 || index >= _songs.Count) return;
+            _activeSong = index;
+        }
+
+        // ---- タブ操作（動的タブバー・07-10 App.jsx）----
+        public enum TabKind { Song, Short }
+
+        /// <summary>Song / Short の合計タブ数。</summary>
+        public int TabCount => SongCount + ShortCount;
+
+        /// <summary>新しい Song を追加して index を返す。</summary>
+        public int AddSong()
+        {
+            if (_songs == null) _songs = new List<Song>();
+            int n = _songs.Count + 1;
+            _songs.Add(new Song { name = "Song " + n.ToString("00"), length = 200.0 });
+            return _songs.Count - 1;
+        }
+
+        /// <summary>新しい Short を追加して index を返す（空きパッド/キーを自動割当）。</summary>
+        public int AddShort()
+        {
+            if (_shorts == null) _shorts = new List<Short>();
+            int pad = 0;
+            while (pad < PadCount && ShortForPad(pad) >= 0) pad++;
+            if (pad >= PadCount) pad = -1;
+            char letter = (char)('A' + _shorts.Count);
+            _shorts.Add(new Short
+            {
+                name = "Short " + letter,
+                pad = pad,
+                key = PadKeyName(pad),
+                holdLoop = true,
+                clip = new Clip { name = "SHORT " + (_shorts.Count + 1), duration = 8 }
+            });
+            return _shorts.Count - 1;
+        }
+
+        /// <summary>タブを 1 枚閉じる（合計 1 枚のときは不可）。閉じたら true。</summary>
+        public bool RemoveTab(TabKind kind, int index)
+        {
+            if (TabCount <= 1) return false;
+            if (kind == TabKind.Song)
+            {
+                if (_songs == null || index < 0 || index >= _songs.Count) return false;
+                _songs.RemoveAt(index);
+                if (_activeSong >= _songs.Count) _activeSong = Math.Max(0, _songs.Count - 1);
+            }
+            else
+            {
+                if (_shorts == null || index < 0 || index >= _shorts.Count) return false;
+                HoldReleaseAll();
+                _shorts.RemoveAt(index);
+                if (_activeShort >= _shorts.Count) _activeShort = Math.Max(0, _shorts.Count - 1);
+            }
+            return true;
+        }
+
         /// <summary>いま編集/表示中の Short（タブ選択）。</summary>
         public Short ActiveShort =>
             (_shorts != null && _activeShort >= 0 && _activeShort < _shorts.Count) ? _shorts[_activeShort] : null;
@@ -187,6 +259,13 @@ namespace RewriteReality
         public Clip ActiveAudioClip => SongClipAt(_time, TrackKind.Audio);
 
         void Awake()
+        {
+            EnsureSeeded();
+        }
+
+        /// <summary>既定の Song/Short を用意（空なら 1 枚ずつ）。Awake タイミングに依存させないため
+        /// UI 側からも呼べる（GameObject 非アクティブ等で Awake 未実行でもタブが出るように）。</summary>
+        public void EnsureSeeded()
         {
             if (_songs == null || _songs.Count == 0) _songs = new List<Song> { DefaultSong() };
             if (_shorts == null || _shorts.Count == 0) _shorts = new List<Short> { DefaultShort() };

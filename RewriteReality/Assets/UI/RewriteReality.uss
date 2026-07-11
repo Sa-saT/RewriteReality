@@ -669,27 +669,6 @@
 .rr-tl-tab--active .rr-tl-tab__dot { opacity: 1; }
 .rr-tl-tab__name { color: var(--rr-muted); font-size: 11px; -unity-font-style: bold; }
 .rr-tl-tab--active .rr-tl-tab__name { color: var(--rr-text); }
-.rr-tl-tab__badge {
-    font-size: 8px;
-    -unity-font-style: bold;
-    color: var(--rr-canvas);
-    border-radius: 9999px;
-    padding: 1px 5px;
-    margin-left: 7px;
-    opacity: 0.5;
-}
-.rr-tl-tab--song .rr-tl-tab__badge  { background-color: var(--rr-live); }
-.rr-tl-tab--short .rr-tl-tab__badge { background-color: var(--rr-primary); }
-.rr-tl-tab--active .rr-tl-tab__badge { opacity: 1; }
-.rr-tl-tab__pad {
-    font-size: 9px;
-    color: var(--rr-muted);
-    border-width: 1px;
-    border-color: var(--rr-hairline);
-    border-radius: 9999px;
-    padding: 1px 5px;
-    margin-left: 6px;
-}
 .rr-tl-add {
     width: 22px; height: 22px;
     margin-left: 4px;
@@ -705,6 +684,56 @@
 }
 .rr-tl-add:hover { background-color: var(--rr-surface-raised); }
 .rr-tl-add:disabled { opacity: 0.4; }
+/* 動的タブバー（07-10 App.jsx）：タブ生成コンテナ・kind アイコン・閉じる・追加メニュー。 */
+.rr-tl-tablist { flex-direction: row; align-items: flex-end; }
+/* keycap 型チップ（07-10）: 物理キー風＝inset 背景＋下辺 2px。glyph 大＋pad 番号小。 */
+.rr-keycap {
+    flex-direction: row;
+    align-items: center;
+    margin-left: 7px;
+    padding: 1px 6px;
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+}
+.rr-keycap__glyph { font-size: 11px; color: var(--rr-body); }
+.rr-keycap__idx { font-size: 8px; color: var(--rr-muted); margin-left: 3px; }
+.rr-keycap--active .rr-keycap__glyph { color: var(--rr-primary); }
+.rr-keycap--empty {
+    background-color: rgba(0, 0, 0, 0);
+    border-color: var(--rr-hairline);
+    border-bottom-width: 1px;
+}
+.rr-keycap--empty .rr-keycap__glyph { color: var(--rr-muted-soft); }
+.rr-tl-tab__icon { width: 13px; height: 13px; margin-right: 7px; color: var(--rr-muted); }
+.rr-tl-tab--active.rr-tl-tab--song .rr-tl-tab__icon  { color: var(--rr-live); }
+.rr-tl-tab--active.rr-tl-tab--short .rr-tl-tab__icon { color: var(--rr-primary); }
+.rr-tl-tab__close {
+    width: 15px; height: 15px;
+    margin-left: 4px;
+    padding: 0;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    border-radius: 3px;
+    color: var(--rr-muted);
+    font-size: 13px;
+    -unity-text-align: middle-center;
+}
+.rr-tl-tab__close:hover { background-color: var(--rr-surface-inset); color: var(--rr-text); }
+.rr-tl-addwrap { position: relative; flex-direction: row; align-items: flex-end; }
+.rr-tl-addmenu {
+    position: absolute;
+    top: 26px; left: 0;
+    flex-direction: column;
+    min-width: 128px;
+    background-color: var(--rr-surface-panel);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 6px;
+    padding: 4px;
+}
 
 /* head の time / gate 表示グループ（song=time・short=GATE hold-fire） */
 .rr-tl-head-group { flex-direction: row; align-items: center; }
@@ -1225,11 +1254,16 @@
     padding-right: 8px;
     background-color: rgba(0, 0, 0, 0);
     border-width: 0;
+    border-left-width: 2px;
+    border-left-color: rgba(0, 0, 0, 0);
     color: var(--rr-text);
     font-size: 12px;
 }
 .rr-menu-item:hover { background-color: var(--rr-surface-raised); }
 .rr-menu-item:disabled { color: var(--rr-muted-soft); }
+/* タイムラインの New Song/Short（07-12）: 種別を左境界色で即判別できるように。 */
+.rr-menu-item--song  { border-left-color: var(--rr-live); }
+.rr-menu-item--short { border-left-color: var(--rr-primary); }
 
 .rr-modal-overlay {
     position: absolute;

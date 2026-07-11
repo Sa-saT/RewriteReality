@@ -14,7 +14,7 @@ namespace RewriteReality
     [UxmlElement]
     public partial class RrIcon : VisualElement
     {
-        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap }
+        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines }
 
         Kind _icon = Kind.Play;
 
@@ -67,6 +67,7 @@ namespace RewriteReality
                 case Kind.SpeakerMute: Speaker(p, ox, oy, s, false); break;
                 case Kind.Diamond:     Diamond(p, ox, oy, s); break;
                 case Kind.Zap:         Zap(p, ox, oy, s); break;
+                case Kind.AudioLines:  AudioLines(p, ox, oy, s); break;
             }
         }
 
@@ -216,6 +217,20 @@ namespace RewriteReality
             p.LineTo(P(ox, oy, s, 0.53f, 0.44f));
             p.ClosePath();
             p.Fill();
+        }
+
+        // 波形/イコライザ（song タブ・lucide "audio-lines" 相当）。縦線 4 本を中央基準で高さ違いに。
+        void AudioLines(Painter2D p, float ox, float oy, float s)
+        {
+            float[] xs = { 0.22f, 0.41f, 0.60f, 0.79f };
+            float[] hh = { 0.20f, 0.34f, 0.14f, 0.26f };   // 中央からの半分の高さ
+            for (int i = 0; i < xs.Length; i++)
+            {
+                p.BeginPath();
+                p.MoveTo(P(ox, oy, s, xs[i], 0.5f - hh[i]));
+                p.LineTo(P(ox, oy, s, xs[i], 0.5f + hh[i]));
+                p.Stroke();
+            }
         }
 
         void Diamond(Painter2D p, float ox, float oy, float s)

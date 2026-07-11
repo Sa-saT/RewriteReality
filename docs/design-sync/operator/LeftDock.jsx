@@ -1,0 +1,102 @@
+// LeftDock — page-dependent dock. 3-page IA:
+//   perform: unified library (Sources / FX Chain / Audio / Scenes) — collapsible sections
+//   mapping: surfaces + inputs (mesh-warp workspace)
+//   output:  routes + output surfaces
+// Every item is selectable: clicking activates it and switches the right Inspector.
+
+function SectionLabel({ children, right }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 2px 6px' }}>
+      <span style={{ fontFamily: 'var(--rr-font-ui)', fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--rr-muted)' }}>{children}</span>
+      {right}
+    </div>
+  );
+}
+
+// Collapsible dock section (perform library)
+function DockSection({ title, right, children, defaultOpen = true }) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  return (
+    <React.Fragment>
+      <div onClick={() => setOpen(!open)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 2px 6px', cursor: 'pointer', userSelect: 'none' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'var(--rr-font-ui)', fontSize: 11, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--rr-muted)' }}>
+          <span style={{ display: 'inline-block', width: 8, fontSize: 8, color: 'var(--rr-muted-soft)', transform: open ? 'none' : 'rotate(-90deg)' }}>▾</span>
+          {title}
+        </span>
+        {right}
+      </div>
+      {open && children}
+    </React.Fragment>
+  );
+}
+
+function ListItem({ label, meta, active, dot, onClick }) {
+  const [h, setH] = React.useState(false);
+  return (
+    <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', gap: 8, height: 28, padding: '0 8px', cursor: 'pointer',
+        background: active || h ? 'var(--rr-surface-raised)' : 'transparent',
+        borderLeft: '2px solid ' + (active ? 'var(--rr-selection)' : 'transparent'), borderRadius: 2 }}>
+      {dot && <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
+      <span style={{ flex: 1, fontFamily: 'var(--rr-font-ui)', fontSize: 12, color: active ? 'var(--rr-text)' : 'var(--rr-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      {meta && <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: 'var(--rr-muted)' }}>{meta}</span>}
+    </div>
+  );
+}
+
+// ---------- LEFT DOCK ---------------------------------------------------------
+function LeftDock({ page, surfaces, sel, onSelect }) {
+  const { StagePill } = window.RR;
+  const it = (type, id, label, meta, dot, extra) => (
+    <ListItem key={id} label={label} meta={meta} dot={dot}
+      active={!!(sel && sel.id === id)}
+      onClick={() => onSelect({ type, id, label, meta, ...(extra || {}) })} />
+  );
+
+  if (page === 'mapping') {
+    return (
+      <React.Fragment>
+        <SectionLabel right={<button style={addBtn}>+ Surface</button>}>Surfaces</SectionLabel>
+        {surfaces.map((s, i) => it('surface', 'surf-' + s.id, s.name, s.grid, s.kind === 'input' ? 'var(--rr-stage-tracking)' : 'var(--rr-stage-output)', { index: i }))}
+        <SectionLabel>Input</SectionLabel>
+        {it('source-camera', 'in-cam1', 'Live Camera 1', '1080p', 'var(--rr-stage-source)')}
+        {it('source-ext', 'in-syphon', 'Syphon In', '—', 'var(--rr-stage-source)')}
+        <SectionLabel>Output Surface</SectionLabel>
+        {it('surface', 'osurf-a', 'Projector A', '6×4', 'var(--rr-stage-output)')}
+        {it('surface', 'osurf-led', 'LED Wall', '2×2', 'var(--rr-stage-output)')}
+      </React.Fragment>
+    );
+  }
+  // perform — unified library
+  return (
+    <React.Fragment>
+      <DockSection title="Sources">
+        {it('source-video', 'src-base', 'reality_base.mov', '03:20', 'var(--rr-stage-source)')}
+        {it('source-video', 'src-loop', 'loop_grid.mp4', '00:40', 'var(--rr-stage-source)')}
+        {it('source-camera', 'cam-bm', 'BlackMagic 1', '1080p', 'var(--rr-stage-source)')}
+        {it('source-camera', 'cam-ft', 'FaceTime HD', '720p')}
+      </DockSection>
+      <DockSection title="Audio" defaultOpen={false}>
+        {it('audio-input', 'ain-listener', 'AudioListener', 'mix', 'var(--rr-stage-audio)')}
+        {it('audio-input', 'ain-bh', 'BlackHole 2ch', 'ext', 'var(--rr-stage-audio)')}
+        {it('mapping', 'map-low', 'Low → Feedback', '0.6', null, { band: 'LOW', target: 'Feedback', amt: 0.6 })}
+        {it('mapping', 'map-high', 'High → RGB', '0.8', null, { band: 'HIGH', target: 'RGB Shift', amt: 0.8 })}
+        {it('mapping', 'map-onset', 'Onset → Flash', '•', null, { band: 'ONSET', target: 'Flash', amt: 1 })}
+      </DockSection>
+      <DockSection title="Scenes" right={<button style={addBtn} onClick={(e) => e.stopPropagation()}>+ Scene</button>}>
+        {it('scene', 'sc-intro', 'Intro', null, 'var(--rr-stage-scene)')}
+        {it('scene', 'sc-verse', 'Verse', null, 'var(--rr-stage-scene)')}
+        {it('scene', 'sc-drop', 'Drop 01', null, 'var(--rr-stage-scene)')}
+        {it('scene', 'sc-break', 'Breakdown', null, 'var(--rr-stage-scene)')}
+        {it('scene', 'sc-outro', 'Outro', null, 'var(--rr-stage-scene)')}
+      </DockSection>
+    </React.Fragment>
+  );
+}
+
+const addBtn = {
+  background: 'transparent', border: '1px solid var(--rr-hairline-strong)', color: 'var(--rr-body)',
+  fontFamily: 'var(--rr-font-ui)', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, cursor: 'pointer',
+};
+
+Object.assign(window, { LeftDock, SectionLabel, ListItem });

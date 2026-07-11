@@ -90,7 +90,9 @@ namespace RewriteReality
         IWarpTarget _warpTarget;   // 現在の warp 編集対象（選択 surface or Compositor）
 
         // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
-        VisualElement _tlTabSong, _tlTabShort, _tlSong, _tlShort, _tlTimeGroup, _tlGateGroup, _shortClip;
+        VisualElement _tlTablist, _tlSong, _tlShort, _shortClip, _tlAddMenu;
+        Button _tlAddButton;        // タブバーの + （追加メニューのアンカー）
+        bool _shortView;            // いま short タブを表示中か
         Button _shortPadBtn;              // KEY 行の [PAD n] ＝マトリクスのトグル
         VisualElement _padMatrix;         // 4×4 パッド割当マトリクス（§7・#13）
         readonly Button[] _padCells = new Button[16];
@@ -787,22 +789,36 @@ namespace RewriteReality
         // タブ切替（song=リニア通し / short=ホールド発火）＋ Short の 4×4 パッド割当マトリクス／Hold-Loop。
         void BuildTimelineTabs()
         {
-            _tlTabSong  = _root.Q<VisualElement>("rr-tl-tab-song");
-            _tlTabShort = _root.Q<VisualElement>("rr-tl-tab-short");
+            _tlTablist  = _root.Q<VisualElement>("rr-tl-tablist");
             _tlSong     = _root.Q<VisualElement>("rr-tl-song");
             _tlShort    = _root.Q<VisualElement>("rr-tl-short");
-            _tlTimeGroup = _root.Q<VisualElement>("rr-tl-time-group");
-            _tlGateGroup = _root.Q<VisualElement>("rr-tl-gate-group");
             _shortClip  = _root.Q<VisualElement>("rr-short-clip");
             _shortPadBtn = _root.Q<Button>("rr-short-pad");
             _padMatrix   = _root.Q<VisualElement>("rr-pad-matrix");
             _holdLoopToggle = _root.Q<Toggle>("rr-short-holdloop");
 
-            var add = _root.Q<Button>("rr-tl-add");
-            if (add != null) add.SetEnabled(false);   // + Track/New は #11 で
-
-            _tlTabSong?.RegisterCallback<MouseDownEvent>(_ => SelectTimelineTab(false));
-            _tlTabShort?.RegisterCallback<MouseDownEvent>(_ => SelectTimelineTab(true));
+            // 動的タブバー（Song/Short 追加・削除・切替・07-10 App.jsx）
+            _tlAddMenu = _root.Q<VisualElement>("rr-tl-addmenu");
+            _tlAddButton = _root.Q<Button>("rr-tl-add");
+            if (_tlAddButton != null) _tlAddButton.clicked += ToggleAddMenu;
+            var addSong = _root.Q<Button>("rr-tl-add-song");
+            var addShort = _root.Q<Button>("rr-tl-add-short");
+            if (addSong != null) addSong.clicked += () =>
+            {
+                HideAddMenu();
+                if (_timeline == null) return;
+                SelectTab(ShowTimeline.TabKind.Song, _timeline.AddSong());
+            };
+            if (addShort != null) addShort.clicked += () =>
+            {
+                HideAddMenu();
+                if (_timeline == null) return;
+                SelectTab(ShowTimeline.TabKind.Short, _timeline.AddShort());
+            };
+            if (_tlTablist == null || _tlAddMenu == null)
+                Debug.LogWarning($"[OperatorUI] タイムラインのタブ要素が見つかりません（tablist={_tlTablist != null} addmenu={_tlAddMenu != null}）。" +
+                                 "OperatorShell.uxml が最新にリインポートされているか確認してください。");
+            RebuildTimelineTabs();
 
             BuildPadMatrix();
 
@@ -871,6 +887,7 @@ namespace RewriteReality
                     {
                         _timeline?.AssignPad(ShownShortIndex(), idx);
                         RefreshShortAssignment();
+                        RebuildTimelineTabs();   // タブの keycap チップも追従
                     };
                     _padCells[idx] = cell;
                     row.Add(cell);
@@ -902,28 +919,148 @@ namespace RewriteReality
                 EnableClass(cell, "rr-pad-cell--used", i != mine && owner >= 0);
             }
 
-            // 割当ボタン＝割当キー（グリフ）or UNASSIGNED。割当時は琥珀、未割当は減光。
+            // 割当ボタン＝割当キー（グリフ）＋開閉手がかり ⌄。未割当は UNASSIGNED（減光）。
             if (_shortPadBtn != null)
             {
-                _shortPadBtn.text = mine >= 0 ? ShowTimeline.PadGlyph(mine) : "UNASSIGNED";
+                _shortPadBtn.text = mine >= 0 ? ShowTimeline.PadGlyph(mine) + "  ⌄" : "UNASSIGNED  ⌄";
                 EnableClass(_shortPadBtn, "rr-short-pad--unassigned", mine < 0);
             }
-
-            var tabPad = _tlTabShort?.Q<Label>(className: "rr-tl-tab__pad");
-            if (tabPad != null) tabPad.text = mine >= 0 ? ShowTimeline.PadGlyph(mine) : "";
 
             if (_holdLoopToggle != null && sh != null) _holdLoopToggle.SetValueWithoutNotify(sh.holdLoop);
         }
 
-        void SelectTimelineTab(bool shortMode)
+        // ---- 動的タブバー（Song/Short・07-10 App.jsx）----
+        // ShowTimeline の songs+shorts からタブを生成。クリックで切替、× で閉じる、+ で New Song/Short。
+        void RebuildTimelineTabs()
         {
-            if (_tlTabSong != null)  EnableClass(_tlTabSong, "rr-tl-tab--active", !shortMode);
-            if (_tlTabShort != null) EnableClass(_tlTabShort, "rr-tl-tab--active", shortMode);
-            if (_tlSong != null)  _tlSong.style.display  = shortMode ? DisplayStyle.None : DisplayStyle.Flex;
-            if (_tlShort != null) _tlShort.style.display = shortMode ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_tlTimeGroup != null) _tlTimeGroup.style.display = shortMode ? DisplayStyle.None : DisplayStyle.Flex;
-            if (_tlGateGroup != null) _tlGateGroup.style.display = shortMode ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_tlTablist == null) return;
+            _tlTablist.Clear();
+            if (_timeline == null) return;
+            _timeline.EnsureSeeded();   // Awake 未実行でもタブが出るよう明示シード
+
+            for (int i = 0; i < _timeline.SongCount; i++)
+                _tlTablist.Add(BuildTab(ShowTimeline.TabKind.Song, i));
+            for (int i = 0; i < _timeline.ShortCount; i++)
+                _tlTablist.Add(BuildTab(ShowTimeline.TabKind.Short, i));
+
+            ApplyTimelineView();
         }
+
+        VisualElement BuildTab(ShowTimeline.TabKind kind, int index)
+        {
+            bool isSong = kind == ShowTimeline.TabKind.Song;
+            bool active = isSong ? (!_shortView && _timeline.ActiveSongIndex == index)
+                                 : (_shortView && _timeline.ActiveShortIndex == index);
+
+            var tab = new VisualElement();
+            tab.AddToClassList("rr-tl-tab");
+            tab.AddToClassList(isSong ? "rr-tl-tab--song" : "rr-tl-tab--short");
+            EnableClass(tab, "rr-tl-tab--active", active);
+
+            var icon = new RrIcon { Icon = isSong ? RrIcon.Kind.AudioLines : RrIcon.Kind.Zap };
+            icon.AddToClassList("rr-tl-tab__icon");
+            tab.Add(icon);
+
+            var name = new Label(isSong ? _timeline.GetSong(index).name : _timeline.GetShort(index).name);
+            name.AddToClassList("rr-tl-tab__name");
+            tab.Add(name);
+
+            // SONG/SHORT バッジは廃止（2026-07-12・kind アイコンで種別は分かるため、
+            // タブ幅を Key 割当（keycap）に譲る＝視認性優先）。
+            if (!isSong)
+            {
+                // keycap 型チップ（07-10）: 割当キー（主）＋pad 番号（小）。未割当は「·」薄色。
+                int pad = _timeline.GetShort(index).pad;
+                var keycap = new VisualElement();
+                keycap.AddToClassList("rr-keycap");
+                if (pad >= 0)
+                {
+                    var glyph = new Label(ShowTimeline.PadGlyph(pad));
+                    glyph.AddToClassList("rr-keycap__glyph");
+                    glyph.AddToClassList("rr-mono");
+                    keycap.Add(glyph);
+                    var idx = new Label((pad + 1).ToString());
+                    idx.AddToClassList("rr-keycap__idx");
+                    idx.AddToClassList("rr-mono");
+                    keycap.Add(idx);
+                }
+                else
+                {
+                    keycap.AddToClassList("rr-keycap--empty");
+                    var dot = new Label("·");
+                    dot.AddToClassList("rr-keycap__glyph");
+                    keycap.Add(dot);
+                }
+                EnableClass(keycap, "rr-keycap--active", active);
+                tab.Add(keycap);
+            }
+
+            // 閉じる（合計 1 枚のときは出さない）
+            if (_timeline.TabCount > 1)
+            {
+                var close = new Button { text = "×" };
+                close.AddToClassList("rr-tl-tab__close");
+                // Button は Clickable が PointerDown を消費するため MouseDown 登録では発火しない。
+                // clicked で閉じ、PointerDown の伝播だけ止めて親タブの選択（MouseDown）を防ぐ。
+                close.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                close.clicked += () =>
+                {
+                    if (_timeline.RemoveTab(kind, index))
+                    {
+                        // 表示中の種別が空になったら、残っている種別へ切り替える。
+                        if (_shortView && _timeline.ShortCount == 0) _shortView = false;
+                        else if (!_shortView && _timeline.SongCount == 0) _shortView = true;
+                        RebuildTimelineTabs();
+                        RefreshShortAssignment();
+                    }
+                };
+                tab.Add(close);
+            }
+
+            tab.RegisterCallback<MouseDownEvent>(_ => SelectTab(kind, index));
+            return tab;
+        }
+
+        void SelectTab(ShowTimeline.TabKind kind, int index)
+        {
+            if (_timeline == null) return;
+            if (kind == ShowTimeline.TabKind.Song) { _timeline.SelectSong(index); _shortView = false; }
+            else { _timeline.SelectShort(index); _shortView = true; }
+            RebuildTimelineTabs();
+            RefreshShortAssignment();
+            if (_tlTotal != null) _tlTotal.text = "/ " + ShowTimeline.FormatTime(_timeline.Length);
+        }
+
+        // song/short の中央ビューを _shortView に合わせる（Time 表示は共通・GATE 表記は廃止＝07-10）。
+        void ApplyTimelineView()
+        {
+            if (_tlSong != null)  _tlSong.style.display  = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_tlShort != null) _tlShort.style.display = _shortView ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        // 追加メニューは _root 直下のオーバーレイに出す（タイムライン本体の裏に隠れる/クリップされるのを防ぐ）。
+        void ToggleAddMenu()
+        {
+            if (_tlAddMenu == null) return;
+            bool show = _tlAddMenu.style.display == DisplayStyle.None;
+            if (!show) { HideAddMenu(); return; }
+
+            if (_root != null && _tlAddMenu.parent != _root) _root.Add(_tlAddMenu);
+            if (_tlAddButton != null && _root != null)
+            {
+                // worldBound はパネル空間の座標。_root の局所座標系へ変換してから配置する
+                // （そのまま left/top へ入れると _root にオフセットがある場合にズレて画面外/
+                // 他パネルの裏に出て「見えない」原因になる）。
+                var b = _tlAddButton.worldBound;
+                var topLeft = _root.WorldToLocal(new Vector2(b.xMin, b.yMax + 2f));
+                _tlAddMenu.style.position = Position.Absolute;
+                _tlAddMenu.style.left = topLeft.x;
+                _tlAddMenu.style.top = topLeft.y;
+            }
+            _tlAddMenu.style.display = DisplayStyle.Flex;
+            _tlAddMenu.BringToFront();
+        }
+        void HideAddMenu() { if (_tlAddMenu != null) _tlAddMenu.style.display = DisplayStyle.None; }
 
         // Short のホールド状態を UI に反映（発火は割当パッド/キー経由。ここは表示だけ）。
         // held 中はレーンのクリップを Live Amber 点灯＋全幅プレビュー（§7 #8・07-09）。
@@ -1083,9 +1220,15 @@ namespace RewriteReality
         bool OnWantsToQuit()
         {
             if (_quitConfirmed) return true;
+#if UNITY_EDITOR
+            // Editor では Play 終了時に呼ばれ、false は無視されて警告になるだけなので横取りしない。
+            // 終了確認の見た目はブランドメニューの Quit から ShowQuitModal で確認できる。
+            return true;
+#else
             if (_quitOverlay == null) return true;
             ShowQuitModal();
             return false;
+#endif
         }
 
         // -------------------------------------------------- 汎用セレクション（§3・#15・最初のスライス）
