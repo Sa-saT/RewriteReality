@@ -140,6 +140,17 @@
     color: var(--rr-muted);
     margin-left: 4px;
 }
+/* mute アイコンのクリック領域（枠なし・アイコンのみ見せる・U3） */
+.rr-track-mute-btn {
+    width: 19px; height: 19px;
+    padding: 0;
+    margin-left: 4px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    align-items: center;
+    justify-content: center;
+}
+.rr-track-mute-btn .rr-track-icon { margin-left: 0; }
 .rr-transport-btn:hover { background-color: var(--rr-surface-raised); }
 .rr-transport-btn--active {
     background-color: var(--rr-primary);
@@ -1410,3 +1421,65 @@
     padding: 6px 8px;
 }
 .rr-code-text { color: var(--rr-text); font-size: 11px; }
+
+/* ============================================================ Timeline track（U3・動的行） */
+/* 選択行 = surface-raised 背景 + 左 2px selection（§3）。base の左境界を透明で確保しレイアウトを保つ。 */
+.rr-track-head {
+    border-left-width: 2px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+.rr-track-head--selected {
+    background-color: var(--rr-surface-raised);
+    border-left-color: var(--rr-selection);
+}
+.rr-track-head:hover { background-color: var(--rr-surface-raised); }
+
+/* + TRACK ボタン（transport 左端・ghost+hairline・uppercase・§7） */
+.rr-addtrack-wrap { position: relative; flex-direction: row; align-items: center; }
+.rr-add-track {
+    height: 22px;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 4px;
+    color: var(--rr-body);
+    font-size: 10px;
+    -unity-font-style: bold;
+    letter-spacing: 0.6px;
+}
+.rr-add-track:hover { background-color: var(--rr-surface-raised); }
+
+/* + TRACK popover: VIDEO/AUDIO グループ見出し＋ファイル行（rr-tl-addmenu を土台に再利用）。 */
+.rr-addtrack-group {
+    flex-direction: row;
+    align-items: center;
+    padding: 5px 8px 2px;
+}
+.rr-addtrack-group__dot { width: 6px; height: 6px; border-radius: 9999px; margin-right: 6px; }
+.rr-addtrack-group__label {
+    font-size: 9px;
+    -unity-font-style: bold;
+    letter-spacing: 0.8px;
+    color: var(--rr-muted);
+}
+.rr-addtrack-file {
+    flex-direction: row;
+    align-items: center;
+    height: 26px;
+    padding-left: 8px;
+    padding-right: 8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    color: var(--rr-text);
+}
+.rr-addtrack-file:hover { background-color: var(--rr-surface-raised); }
+.rr-addtrack-file__name {
+    flex-grow: 1;
+    font-size: 11px;
+    color: var(--rr-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rr-addtrack-file__dur { font-size: 10px; color: var(--rr-muted); }

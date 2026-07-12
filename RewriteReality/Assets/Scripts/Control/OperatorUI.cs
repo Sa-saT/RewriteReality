@@ -95,6 +95,23 @@ namespace RewriteReality
         // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
         VisualElement _tlTablist, _tlSong, _tlShort, _shortClip, _tlAddMenu;
         Button _tlAddButton;        // タブバーの + （追加メニューのアンカー）
+
+        // Song track 行（U3・動的生成）
+        VisualElement _tlTracklist;
+        VisualElement _addTrackWrap, _addTrackMenu, _addTrackDivider;
+        Button _addTrackBtn;
+        readonly List<(VisualElement head, int index)> _trackHeads = new List<(VisualElement, int)>();
+        static readonly (string file, string kind, string dur)[] AddTrackFileLib =
+        {
+            ("reality_base.mov", "video", "03:20"),
+            ("loop_grid.mp4",    "video", "00:40"),
+            ("overlay_pack.mov", "video", "01:12"),
+            ("master_mix.wav",   "audio", "03:20"),
+            ("sfx_hits.wav",     "audio", "00:08"),
+        };
+        // TrackInspector の表示専用パラメータ（バックエンド API 無し・当面値保持のみ・source-camera と同じ扱い）
+        float _trackVolume = 0.82f;
+        bool _trackFade = true;
         bool _shortView;            // いま short タブを表示中か
         Button _shortPadBtn;              // KEY 行の [PAD n] ＝マトリクスのトグル
         VisualElement _padMatrix;         // 4×4 パッド割当マトリクス（§7・#13）
@@ -891,6 +908,18 @@ namespace RewriteReality
                                  "OperatorShell.uxml が最新にリインポートされているか確認してください。");
             RebuildTimelineTabs();
 
+            // Song track 行（U3）。+Track ボタンで video/audio のプレースホルダファイルから追加。
+            _tlTracklist   = _root.Q<VisualElement>("rr-tl-tracklist");
+            _addTrackWrap  = _root.Q<VisualElement>("rr-addtrack-wrap");
+            _addTrackMenu  = _root.Q<VisualElement>("rr-addtrack-menu");
+            _addTrackBtn   = _root.Q<Button>("rr-add-track");
+            _addTrackDivider = _root.Q<VisualElement>("rr-addtrack-divider");
+            if (_tlTracklist == null)
+                Debug.LogWarning("[OperatorUI] rr-tl-tracklist が見つかりません。OperatorShell.uxml を Reimport してください。");
+            BuildAddTrackMenu();
+            if (_addTrackBtn != null) _addTrackBtn.clicked += ToggleAddTrackMenu;
+            RebuildSongTracks();
+
             BuildPadMatrix();
 
             // KEY 行の [PAD n] ＝マトリクスの開閉トグル。
@@ -1099,14 +1128,147 @@ namespace RewriteReality
             else { _timeline.SelectShort(index); _shortView = true; }
             RebuildTimelineTabs();
             RefreshShortAssignment();
+            RebuildSongTracks();   // Song 切替で track 行を差し替え（U3）
             if (_tlTotal != null) _tlTotal.text = "/ " + ShowTimeline.FormatTime(_timeline.Length);
         }
 
+        // -------------------------------------------------- Song track 行（U3・動的生成）
+        // ShowTimeline.ActiveSong.tracks から行を生成する。行の増減は Song 切替／+Track の時だけ
+        // （enabled/muted のトグルや選択ハイライトは行を作り直さず個別に更新・GC 回避）。
+        void RebuildSongTracks()
+        {
+            if (_tlTracklist == null) return;
+            _tlTracklist.Clear();
+            _trackHeads.Clear();
+            var song = _timeline?.ActiveSong;
+            if (song == null) return;
+
+            for (int i = 0; i < song.tracks.Count; i++)
+                _tlTracklist.Add(BuildTrackRow(i, song.tracks[i]));
+        }
+
+        VisualElement BuildTrackRow(int index, ShowTimeline.Track track)
+        {
+            bool isAudio = track.kind == ShowTimeline.TrackKind.Audio;
+
+            var row = new VisualElement(); row.AddToClassList("rr-track");
+
+            // ---- head（96px・選択トグル＋名前・クリックで track 選択）----
+            var head = new VisualElement(); head.AddToClassList("rr-track-head");
+            var enabledToggle = new Toggle(); enabledToggle.AddToClassList("rr-fx-toggle");
+            enabledToggle.SetValueWithoutNotify(track.enabled);
+            // Toggle 自体の Clickable が PointerDown を消費するため通常は伝播しないが、
+            // 選択クリックへ確実に伝えないよう明示的に止める（罠2）。
+            enabledToggle.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+            enabledToggle.RegisterValueChangedCallback(evt => track.enabled = evt.newValue);
+            var nameLabel = new Label(track.name); nameLabel.AddToClassList("rr-track-name");
+            nameLabel.AddToClassList("rr-mono");
+            EnableClass(nameLabel, "rr-track-name--off", !track.enabled);
+            enabledToggle.RegisterValueChangedCallback(evt => EnableClass(nameLabel, "rr-track-name--off", !evt.newValue));
+            head.Add(enabledToggle); head.Add(nameLabel);
+            EnableClass(head, "rr-track-head--selected", IsTrackSelected(index));
+            head.RegisterCallback<MouseDownEvent>(evt =>
+                SelectTrack(index, evt.commandKey || evt.ctrlKey || evt.shiftKey));
+            row.Add(head);
+            _trackHeads.Add((head, index));
+
+            // ---- lane（クリップ・start/duration を Song 尺に対する % に変換）----
+            var lane = new VisualElement(); lane.AddToClassList("rr-track-lane");
+            double length = _timeline != null ? _timeline.Length : 1.0;
+            for (int c = 0; c < track.clips.Count; c++)
+            {
+                var clip = track.clips[c];
+                var clipEl = new VisualElement(); clipEl.AddToClassList("rr-clip");
+                clipEl.AddToClassList(isAudio ? "rr-clip--audio" : "rr-clip--source");
+                clipEl.style.left = Length.Percent((float)(clip.start / length * 100.0));
+                clipEl.style.width = Length.Percent((float)(clip.duration / length * 100.0));
+                var clipLabel = new Label(clip.name.ToUpperInvariant()); clipLabel.AddToClassList("rr-clip__label");
+                clipEl.Add(clipLabel);
+                lane.Add(clipEl);
+            }
+            row.Add(lane);
+
+            // ---- tail（74px・VID=Opacity 実値／AUD=FADE＋mute アイコン）----
+            var tail = new VisualElement(); tail.AddToClassList("rr-track-tail");
+            if (isAudio)
+            {
+                var fade = new Label("FADE"); fade.AddToClassList("rr-track-tail__label"); fade.AddToClassList("rr-mono");
+                tail.Add(fade);
+                var muteIcon = new RrIcon { Icon = track.muted ? RrIcon.Kind.SpeakerMute : RrIcon.Kind.SpeakerOn };
+                muteIcon.AddToClassList("rr-icon"); muteIcon.AddToClassList("rr-track-icon");
+                var muteBtn = new Button();
+                muteBtn.AddToClassList("rr-track-mute-btn");
+                muteBtn.Add(muteIcon);
+                muteBtn.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                muteBtn.clicked += () =>
+                {
+                    track.muted = !track.muted;
+                    muteIcon.Icon = track.muted ? RrIcon.Kind.SpeakerMute : RrIcon.Kind.SpeakerOn;
+                };
+                tail.Add(muteBtn);
+            }
+            else
+            {
+                var opacityLabel = new Label(track.opacity.ToString("F2"));
+                opacityLabel.AddToClassList("rr-track-tail__label"); opacityLabel.AddToClassList("rr-mono");
+                tail.Add(opacityLabel);
+            }
+            row.Add(tail);
+
+            return row;
+        }
+
+        bool IsTrackSelected(int index)
+        {
+            var sel = _selection.Current;
+            if (sel.Kind != SelectionKind.Track) return false;
+            for (int i = 0; i < sel.Tracks.Count; i++)
+                if (sel.Tracks[i].Index == index) return true;
+            return false;
+        }
+
+        // track ヘッダクリック（§3）: 単一クリック=そのトラックだけ選択（既に単独選択中なら解除）、
+        // ⌘/Ctrl/Shift+クリック=トグル追加。
+        void SelectTrack(int index, bool additive)
+        {
+            var current = _selection.Current;
+            var next = new List<TrackId>();
+            if (current.Kind == SelectionKind.Track) next.AddRange(current.Tracks);
+
+            var id = new TrackId(index);
+            if (additive)
+            {
+                int existing = next.FindIndex(t => t.Index == index);
+                if (existing >= 0) next.RemoveAt(existing); else next.Add(id);
+            }
+            else
+            {
+                bool onlyThis = next.Count == 1 && next[0].Index == index;
+                next.Clear();
+                if (!onlyThis) next.Add(id);
+            }
+            _selection.SelectTracks(next);
+        }
+
+        // track 選択ハイライトのみ更新（行は作り直さない）。OnSelectionChanged から呼ぶ。
+        void RefreshTrackHighlight()
+        {
+            for (int i = 0; i < _trackHeads.Count; i++)
+            {
+                var (head, index) = _trackHeads[i];
+                EnableClass(head, "rr-track-head--selected", IsTrackSelected(index));
+            }
+        }
+
         // song/short の中央ビューを _shortView に合わせる（Time 表示は共通・GATE 表記は廃止＝07-10）。
+        // +Track は Song 専用の概念のため short 表示中は隠す（Timeline.jsx の !isShort ガードに合わせる）。
         void ApplyTimelineView()
         {
             if (_tlSong != null)  _tlSong.style.display  = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
             if (_tlShort != null) _tlShort.style.display = _shortView ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_shortView) HideAddTrackMenu();
+            if (_addTrackWrap != null) _addTrackWrap.style.display = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_addTrackDivider != null) _addTrackDivider.style.display = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         // 追加メニューは _root 直下のオーバーレイに出す（タイムライン本体の裏に隠れる/クリップされるのを防ぐ）。
@@ -1132,6 +1294,70 @@ namespace RewriteReality
             _tlAddMenu.BringToFront();
         }
         void HideAddMenu() { if (_tlAddMenu != null) _tlAddMenu.style.display = DisplayStyle.None; }
+
+        // -------------------------------------------------- + Track popover（U3・Timeline.jsx FILE_LIB 相当）
+        // VIDEO/AUDIO のプレースホルダファイル一覧を一度だけ組み立てる（クリックの度に作り直さない）。
+        // 実ファイルダイアログ（NSOpenPanel 等）は対象外＝将来タスク（■ゴール4 の但し書き）。
+        void BuildAddTrackMenu()
+        {
+            if (_addTrackMenu == null) return;
+            _addTrackMenu.Clear();
+
+            AddTrackGroup("VIDEO", "rr-list-dot--source", ShowTimeline.TrackKind.Video);
+            AddTrackGroup("AUDIO", "rr-list-dot--audio", ShowTimeline.TrackKind.Audio);
+        }
+
+        void AddTrackGroup(string label, string dotClass, ShowTimeline.TrackKind kind)
+        {
+            string kindTag = kind == ShowTimeline.TrackKind.Video ? "video" : "audio";
+
+            var group = new VisualElement(); group.AddToClassList("rr-addtrack-group");
+            var dot = new VisualElement(); dot.AddToClassList("rr-list-dot"); dot.AddToClassList(dotClass);
+            var glabel = new Label(label); glabel.AddToClassList("rr-addtrack-group__label");
+            group.Add(dot); group.Add(glabel);
+            _addTrackMenu.Add(group);
+
+            for (int i = 0; i < AddTrackFileLib.Length; i++)
+            {
+                var entry = AddTrackFileLib[i];
+                if (entry.kind != kindTag) continue;
+
+                var row = new Button(); row.AddToClassList("rr-addtrack-file");
+                var name = new Label(entry.file); name.AddToClassList("rr-addtrack-file__name");
+                var dur = new Label(entry.dur); dur.AddToClassList("rr-addtrack-file__dur"); dur.AddToClassList("rr-mono");
+                row.Add(name); row.Add(dur);
+
+                string file = entry.file;
+                row.clicked += () =>
+                {
+                    _timeline?.AddTrack(kind, file);
+                    RebuildSongTracks();
+                    HideAddTrackMenu();
+                };
+                _addTrackMenu.Add(row);
+            }
+        }
+
+        // 追加メニューと同じ罠3/4 対策（_root 直下へ reparent・WorldToLocal で配置・BringToFront）。
+        void ToggleAddTrackMenu()
+        {
+            if (_addTrackMenu == null) return;
+            bool show = _addTrackMenu.style.display == DisplayStyle.None;
+            if (!show) { HideAddTrackMenu(); return; }
+
+            if (_root != null && _addTrackMenu.parent != _root) _root.Add(_addTrackMenu);
+            if (_addTrackBtn != null && _root != null)
+            {
+                var b = _addTrackBtn.worldBound;
+                var topLeft = _root.WorldToLocal(new Vector2(b.xMin, b.yMax + 2f));
+                _addTrackMenu.style.position = Position.Absolute;
+                _addTrackMenu.style.left = topLeft.x;
+                _addTrackMenu.style.top = topLeft.y;
+            }
+            _addTrackMenu.style.display = DisplayStyle.Flex;
+            _addTrackMenu.BringToFront();
+        }
+        void HideAddTrackMenu() { if (_addTrackMenu != null) _addTrackMenu.style.display = DisplayStyle.None; }
 
         // Short のホールド状態を UI に反映（発火は割当パッド/キー経由。ここは表示だけ）。
         // held 中はレーンのクリップを Live Amber 点灯＋全幅プレビュー（§7 #8・07-09）。
@@ -1362,6 +1588,7 @@ namespace RewriteReality
                 var d = _dockItems[i];
                 EnableClass(d.item, "rr-list-item--active", sel.SameItem(d.kind, d.id));
             }
+            RefreshTrackHighlight();   // track 行のハイライトのみ更新（行は作り直さない・U3）
             RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝Master/Program）
         }
 
@@ -1585,6 +1812,118 @@ namespace RewriteReality
                 MakeButton("Fire", "primary", null, enabled: false),
                 MakeButton("Save", "secondary", null, enabled: false),
                 MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+        }
+
+        // -------------------------------------------------- track（U3・Song track 選択）
+        // 単一選択=video(Role/Opacity 実値/Blend/Track FX 一覧)・audio(Role/Volume/Fade/メーター)。
+        // 複数選択=一覧＋Group（Opacity は mixed 表示・Mute All は実際に全選択トラックへ適用）。
+        void BuildTrackInspector(SelectionRef sel)
+        {
+            if (_inspector == null) return;
+            _inspector.Clear();
+            _paramRows.Clear();
+
+            var song = _timeline?.ActiveSong;
+            if (song == null || sel.Tracks.Count == 0) { BuildMasterInspector(); return; }
+
+            if (sel.Tracks.Count > 1) { BuildMultiTrackInspector(song, sel.Tracks); return; }
+
+            int idx = sel.Tracks[0].Index;
+            if (idx < 0 || idx >= song.tracks.Count) { BuildMasterInspector(); return; }
+            var track = song.tracks[idx];
+            bool isAudio = track.kind == ShowTimeline.TrackKind.Audio;
+
+            if (_inspectorTitle != null) _inspectorTitle.text = track.name;
+            AddSectionLabel("Track", Badge(track.name, "rr-badge--selection"));
+            // Role: Track に該当フィールド無し（バックエンド API 未定義）。当面 "—" 表示のみ。
+            AddInfoRow("Role", "—");
+
+            if (isAudio)
+            {
+                AddSliderRow("Volume", _trackVolume, 0f, 1f, "", false, v => _trackVolume = v);
+                AddToggleRow("Fade", _trackFade, v => _trackFade = v);
+                if (_audioAnalyzer == null) _audioAnalyzer = FindFirstObjectByType<AudioAnalyzer>();
+                BuildAudioMeterRow();
+
+                AddSectionLabel("Audio Mappings", StagePill("AUDIO", "audio"));
+                var hint = new Label("No mappings assigned"); hint.AddToClassList("rr-hint");
+                _inspector.Add(hint);
+                AddButtonRow(
+                    MakeButton("+ Mapping", "secondary", null, enabled: false),
+                    MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+            }
+            else
+            {
+                int capturedIdx = idx;
+                AddSliderRow("Opacity", track.opacity, 0f, 1f, "", _appMode != null && _appMode.IsLive,
+                    v => { track.opacity = v; RefreshTrackOpacityLabel(capturedIdx, v); });
+                AddInfoRow("Blend", "NORMAL");
+
+                AddSectionLabel("Track FX", StagePill("EFFECTS", "effects"));
+                var hint = new Label("No FX assigned"); hint.AddToClassList("rr-hint");
+                _inspector.Add(hint);
+                AddButtonRow(
+                    MakeButton("+ Effect", "secondary", null, enabled: false),
+                    MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+            }
+        }
+
+        // Opacity スライダ操作を track 行右端の実値ラベルへも反映（行を作り直さない）。
+        void RefreshTrackOpacityLabel(int index, float value)
+        {
+            for (int i = 0; i < _trackHeads.Count; i++)
+            {
+                if (_trackHeads[i].index != index) continue;
+                var tail = _trackHeads[i].head.parent?.Q<Label>(className: "rr-track-tail__label");
+                if (tail != null) tail.text = value.ToString("F2");
+                return;
+            }
+        }
+
+        void BuildMultiTrackInspector(ShowTimeline.Song song, IReadOnlyList<TrackId> tracks)
+        {
+            if (_inspectorTitle != null) _inspectorTitle.text = tracks.Count + " Tracks";
+            AddSectionLabel("Selection", Badge(tracks.Count + " TRACKS", "rr-badge--selection"));
+
+            for (int i = 0; i < tracks.Count; i++)
+            {
+                int idx = tracks[i].Index;
+                if (idx < 0 || idx >= song.tracks.Count) continue;
+                var t = song.tracks[idx];
+                bool isAudio = t.kind == ShowTimeline.TrackKind.Audio;
+
+                var row = new VisualElement(); row.AddToClassList("rr-list-item");
+                var dot = new VisualElement(); dot.AddToClassList("rr-list-dot");
+                dot.AddToClassList(isAudio ? "rr-list-dot--audio" : "rr-list-dot--source");
+                var name = new Label(t.name); name.AddToClassList("rr-list-label");
+                row.Add(dot); row.Add(name);
+                _inspector.Add(row);
+            }
+
+            AddSectionLabel("Group");
+            AddInfoRow("Opacity", "mixed");
+            AddToggleRow("Mute All", AllSelectedMuted(song, tracks), v =>
+            {
+                for (int i = 0; i < tracks.Count; i++)
+                {
+                    int idx = tracks[i].Index;
+                    if (idx >= 0 && idx < song.tracks.Count) song.tracks[idx].muted = v;
+                }
+                RebuildSongTracks();
+            });
+
+            AddDeselectRow();
+        }
+
+        static bool AllSelectedMuted(ShowTimeline.Song song, IReadOnlyList<TrackId> tracks)
+        {
+            for (int i = 0; i < tracks.Count; i++)
+            {
+                int idx = tracks[i].Index;
+                if (idx < 0 || idx >= song.tracks.Count) continue;
+                if (!song.tracks[idx].muted) return false;
+            }
+            return true;
         }
 
         // -------------------------------------------------- Master/Program（無選択時の既定・§4a・U1）
@@ -1863,6 +2202,7 @@ namespace RewriteReality
             var vk = _selection.Current.Kind;
             if (vk == SelectionKind.AudioInput) SyncAudioMeters();
             else if (vk == SelectionKind.SourceVideo) SyncSourceVideoTime();
+            else if (vk == SelectionKind.Track) SyncTrackAudioMeter();
 
             SyncFxRows();
             SyncParamRows();
@@ -1975,6 +2315,7 @@ namespace RewriteReality
         // ドック項目選択（Fx 含む・§3）があればそれを、無選択なら Master/Program を表示。
         void RebuildInspector()
         {
+            if (_selection.Current.Kind == SelectionKind.Track) { BuildTrackInspector(_selection.Current); return; }
             if (DockSelectionActive()) { BuildDockInspector(_selection.Current); return; }
             BuildMasterInspector();
         }
@@ -1997,6 +2338,20 @@ namespace RewriteReality
                 if (centi != r.lastCenti) { r.value.text = v.ToString("F2"); r.lastCenti = centi; }
                 EnableClass(r.root, "rr-param-row--selected", r.paramIndex == _hub.SelectedParam);
             }
+        }
+
+        // Track 単一選択＝audio kind の間だけメーターを追従（LateUpdate で kind ガード済み・
+        // BuildTrackInspector の audio 分岐が BuildAudioMeterRow で同じ _meterFill* を張るため使い回せる）。
+        void SyncTrackAudioMeter()
+        {
+            var sel = _selection.Current;
+            if (sel.Tracks.Count != 1) return;
+            var song = _timeline?.ActiveSong;
+            if (song == null) return;
+            int idx = sel.Tracks[0].Index;
+            if (idx < 0 || idx >= song.tracks.Count) return;
+            if (song.tracks[idx].kind != ShowTimeline.TrackKind.Audio) return;
+            SyncAudioMeters();
         }
 
         // audio-input 表示中のみ呼ばれる（LateUpdate で kind ガード済み）。値変化時だけ高さ/文字を更新。

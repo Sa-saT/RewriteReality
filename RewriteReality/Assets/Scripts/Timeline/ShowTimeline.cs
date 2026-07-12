@@ -39,6 +39,11 @@ namespace RewriteReality
             public string name = "VID 1";
             public TrackKind kind = TrackKind.Video;
             public bool enabled = true;
+            [Range(0f, 1f)]
+            [Tooltip("重ね合成の不透明度（U3・現状は UI 表示のみ・パイプライン未結線）")]
+            public float opacity = 1f;
+            [Tooltip("音声トラックのミュート（U3・現状は UI 表示のみ）")]
+            public bool muted = false;
             public List<Clip> clips = new List<Clip>();
         }
 
@@ -176,6 +181,23 @@ namespace RewriteReality
                 clip = new Clip { name = "SHORT " + (_shorts.Count + 1), duration = 8 }
             });
             return _shorts.Count - 1;
+        }
+
+        /// <summary>アクティブ Song に新規トラックを追加（+ Track・U3）。VID n/AUD n を自動採番し、
+        /// クリップ 1 本（ファイル名ラベル・曲全尺）を仮配置する。Song が無ければ null。</summary>
+        public Track AddTrack(TrackKind kind, string fileLabel)
+        {
+            var song = ActiveSong;
+            if (song == null) return null;
+
+            int n = 1;
+            for (int i = 0; i < song.tracks.Count; i++)
+                if (song.tracks[i] != null && song.tracks[i].kind == kind) n++;
+
+            var track = new Track { name = (kind == TrackKind.Video ? "VID " : "AUD ") + n, kind = kind };
+            track.clips.Add(new Clip { name = fileLabel, start = 0, duration = song.length });
+            song.tracks.Add(track);
+            return track;
         }
 
         /// <summary>タブを 1 枚閉じる（合計 1 枚のときは不可）。閉じたら true。</summary>
@@ -457,18 +479,26 @@ namespace RewriteReality
             return found;
         }
 
-        // ---- 既定曲（スタンドアロンで即動くよう）----
+        // ---- 既定曲（スタンドアロンで即動くよう・U3 で VID2/AUD2 も追加し動的化のデモを充実）----
         static Song DefaultSong()
         {
             var s = new Song { name = "Song 01", length = 200.0 };
-            var v1 = new Track { name = "VID 1", kind = TrackKind.Video };
+            var v1 = new Track { name = "VID 1", kind = TrackKind.Video, opacity = 1f };
             v1.clips.Add(new Clip { name = "CLIP A", start = 0,   duration = 52 });
             v1.clips.Add(new Clip { name = "CLIP B", start = 54,  duration = 68 });
             v1.clips.Add(new Clip { name = "CLIP C", start = 124, duration = 40 });
+            var v2 = new Track { name = "VID 2", kind = TrackKind.Video, opacity = 0.72f };
+            v2.clips.Add(new Clip { name = "OVERLAY", start = 24,  duration = 44 });
+            v2.clips.Add(new Clip { name = "LOWERTHIRD", start = 132, duration = 48 });
             var a1 = new Track { name = "AUD 1", kind = TrackKind.Audio };
             a1.clips.Add(new Clip { name = "MASTER", start = 0, duration = 164 });
+            var a2 = new Track { name = "AUD 2", kind = TrackKind.Audio, muted = true };
+            a2.clips.Add(new Clip { name = "SFX", start = 28, duration = 20 });
+            a2.clips.Add(new Clip { name = "SFX", start = 80, duration = 24 });
             s.tracks.Add(v1);
+            s.tracks.Add(v2);
             s.tracks.Add(a1);
+            s.tracks.Add(a2);
             return s;
         }
 

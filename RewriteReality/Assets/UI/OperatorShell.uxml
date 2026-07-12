@@ -312,6 +312,11 @@
                 <ui:Label text="TIMELINE" class="rr-timeline-title" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-timeline-head">
+                <ui:VisualElement name="rr-addtrack-wrap" class="rr-addtrack-wrap">
+                    <ui:Button name="rr-add-track" text="+ TRACK" class="rr-add-track" />
+                    <ui:VisualElement name="rr-addtrack-menu" class="rr-tl-addmenu" style="display: none;" />
+                </ui:VisualElement>
+                <ui:VisualElement name="rr-addtrack-divider" class="rr-divider" />
                 <ui:Button name="rr-tl-prev" class="rr-transport-btn">
                     <RewriteReality.RrIcon icon="Prev" />
                 </ui:Button>
@@ -336,75 +341,7 @@
                     <ui:Label text="2:00" class="rr-ruler-mark rr-mono" />
                     <ui:Label text="2:30" class="rr-ruler-mark rr-mono" />
                 </ui:VisualElement>
-                <ui:VisualElement class="rr-track">
-                    <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle value="true" class="rr-fx-toggle" />
-                        <ui:Label text="VID 1" class="rr-track-name rr-mono" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 0; width: 26%;">
-                            <ui:Label text="CLIPA" class="rr-clip__label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 27%; width: 34%;">
-                            <ui:Label text="CLIPB" class="rr-clip__label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--source" style="left: 62%; width: 20%;">
-                            <ui:Label text="CLIPC" class="rr-clip__label" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-tail">
-                        <ui:Label text="OPACITY" class="rr-track-tail__label rr-mono" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="rr-track">
-                    <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle value="true" class="rr-fx-toggle" />
-                        <ui:Label text="VID 2" class="rr-track-name rr-mono" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 12%; width: 22%;">
-                            <ui:Label text="OVERLAY" class="rr-clip__label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--fx" style="left: 66%; width: 24%;">
-                            <ui:Label text="LOWERTHIRD" class="rr-clip__label" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-tail">
-                        <ui:Label text="OPACITY" class="rr-track-tail__label rr-mono" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="rr-track">
-                    <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle value="true" class="rr-fx-toggle" />
-                        <ui:Label text="AUD 1" class="rr-track-name rr-mono" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 0; width: 82%;">
-                            <ui:Label text="MASTER" class="rr-clip__label" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-tail">
-                        <ui:Label text="FADE" class="rr-track-tail__label rr-mono" />
-                        <RewriteReality.RrIcon icon="SpeakerOn" class="rr-icon rr-track-icon" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="rr-track">
-                    <ui:VisualElement class="rr-track-head">
-                        <ui:Toggle value="true" class="rr-fx-toggle" />
-                        <ui:Label text="AUD 2" class="rr-track-name rr-mono rr-track-name--off" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-lane">
-                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 14%; width: 10%;">
-                            <ui:Label text="SFX" class="rr-clip__label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-clip rr-clip--audio" style="left: 40%; width: 12%;">
-                            <ui:Label text="SFX" class="rr-clip__label" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement class="rr-track-tail">
-                        <RewriteReality.RrIcon icon="SpeakerMute" class="rr-icon rr-track-icon" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
+                <ui:VisualElement name="rr-tl-tracklist" class="rr-tl-tracklist" />
                 <ui:VisualElement name="rr-playhead" class="rr-playhead" style="left: 96px;" />
             </ui:VisualElement>
             <ui:VisualElement name="rr-tl-short" class="rr-tl-short" style="display: none;">
