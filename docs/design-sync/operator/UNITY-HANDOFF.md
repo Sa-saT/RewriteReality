@@ -112,8 +112,15 @@ Master(CC 1) / Fade to Black / 解像度 / BPM ＋ **FX CHAIN · PROGRAM**（グ
 - **Views 切替（Input and Stage Views 準拠）**: EMBED 編集時に `INPUT | SPLIT | OUTPUT` セグメントで表示切替（片側最大化）。Unity: WarpEditorView の 2 ペインを flex-grow 切替。
 - **Surface リストの Show/Hide + Lock（Surfaces List 準拠）**: MAPPING 左ドックの各 Surface 行末に eye / lock アイコン。lock 中は warp 編集を拒否（誤操作防止・warn 色）。Unity: `Surface.visible` / `Surface.locked`、locked は WarpEditor で pin 非表示＋ドラッグ無効。
 - **メディア使用数バッジ（Media Bin 準拠）**: Sources の各行に `×N` チップ（N Surface で使用中）。クリックで該当 Surface 選択は将来対応。Unity: `MediaPool.UsageCount(mediaId)`。
-- **Master Speed / Freeze（Master Settings 準拠）**: Master/Program Inspector に `Speed`（ParamRow・Live 中 armed）と `Freeze` トグル（エンジン停止・出力は維持）。Unity: `ControlHub.MasterSpeed` / `FreezeEngine`。
+- **Master Speed（Master Settings 準拠）**: Master/Program Inspector に `Speed`（ParamRow・Live 中 armed）。Unity: `ControlHub.MasterSpeed`。
+- **Freeze トグルは削除（2026-07-12）**: 出力フレーム全体を静止させる機能だったが、再生停止（Timeline 再生ボタン）や Fade to Black と役割が重複し混同を招くため撤去。Unity 側でも `FreezeEngine` は実装不要（もし着手済みなら削除）。空間的な追従（マスター動画内の領域に Surface を貼り付け・追尾）は別概念であり、この Freeze とは無関係。
 - **不採用**: DMX/Laser 系、Materials/ISF ライブラリ、AI/Code Editor、Quartz Composer、3D Surface（.OBJ）、Soft-Edge（単一プロジェクタ運用のため現状不要 — マルチプロジェクタ化する際に再検討）。
+
+### タイムラインのトラック縦スクロール（2026-07-13）
+
+- **トラック行が増えて下端が見切れる問題に対応**: Song / Short とも、トラック行の領域だけを縦スクロール可能に。**ルーラー（時間軸）と再生ヘッドは固定**（スクロールしない）。
+- **スクロールバーは非表示**（`.rr-noscroll`: `scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）。ホイール/トラックパッドでスクロール。
+- Unity: TimelineView のトラック領域を `ScrollView`（`verticalScrollerVisibility = Hidden`、`mode = Vertical`）でラップ。ルーラーとプレイヘッドは ScrollView の外（オーバーレイ）に配置し固定。
 
 ### 発火バインドのキーボードフォールバック（MadMapper 流・2026-07-10）
 
