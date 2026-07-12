@@ -26,6 +26,8 @@ namespace RewriteReality
         [SerializeField] int _id;
         [SerializeField] string _name = "Surface";
         [SerializeField] bool _enabled = true;
+        [Tooltip("ON中は WarpCanvas の pin 編集を拒否（MadMapper 流の誤操作防止・U4）")]
+        [SerializeField] bool _locked = false;
         [Range(0f, 1f)]
         [Tooltip("重ね合成時の不透明度（CornerPin の _Opacity としてブレンド）")]
         [SerializeField] float _opacity = 1f;
@@ -62,6 +64,7 @@ namespace RewriteReality
         public int Id { get => _id; set => _id = value; }
         public string Name { get => _name; set => _name = value; }
         public bool Enabled { get => _enabled; set => _enabled = value; }
+        public bool Locked { get => _locked; set => _locked = value; }
         public float Opacity { get => _opacity; set => _opacity = Mathf.Clamp01(value); }
         public ContentKind Content { get => _content; set => _content = value; }
         public FitMode Fit { get => _fit; set => _fit = value; }

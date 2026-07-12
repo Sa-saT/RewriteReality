@@ -295,42 +295,15 @@
     padding-top: 4px; padding-bottom: 6px;
     white-space: normal;
 }
-.rr-surface-props {
-    flex-direction: column;
-    margin-top: 4px;
-    padding: 6px 8px;
-    background-color: var(--rr-surface-inset);
-    border-top-width: 1px; border-bottom-width: 1px;
-    border-color: var(--rr-hairline-soft);
+/* Surface 一覧行の trailing eye/lock ボタン（U4・SurfaceInspector 本体は右 Inspector へ移設） */
+.rr-surf-icon-btn {
+    width: 18px; height: 18px; padding: 0; margin-left: 2px;
+    background-color: rgba(0, 0, 0, 0); border-width: 0;
+    align-items: center; justify-content: center;
 }
-.rr-surf-prop-row {
-    flex-direction: row;
-    align-items: center;
-    height: 24px;
-}
-.rr-surf-prop-label {
-    color: var(--rr-body);
-    font-size: 11px;
-    margin-right: 6px;
-}
-.rr-surf-prop-val {
-    color: var(--rr-text);
-    font-size: 11px;
-    min-width: 26px;
-    -unity-text-align: middle-center;
-}
-.rr-surf-slider { flex-grow: 1; margin-right: 6px; }
-.rr-surf-chip {
-    height: 18px;
-    padding-left: 6px; padding-right: 6px;
-    font-size: 9px;
-    color: var(--rr-selection);
-    background-color: var(--rr-canvas-soft);
-    border-width: 1px; border-color: var(--rr-hairline-strong);
-    border-radius: 3px;
-}
-.rr-surf-chip:hover { border-color: var(--rr-selection); }
-.rr-surf-chip { margin-left: 4px; }
+.rr-surf-icon--on   { color: var(--rr-body); }
+.rr-surf-icon--dim  { color: var(--rr-muted-soft); }
+.rr-surf-icon--warn { color: var(--rr-warn); }
 
 /* Fit Mode セグメント（MASK|GRID・inset 溝 + raised 選択・UNITY-HANDOFF §5） */
 .rr-seg {
@@ -355,8 +328,7 @@
 .rr-seg__btn:hover { color: var(--rr-body); }
 .rr-seg__btn--active { background-color: var(--rr-surface-raised); color: var(--rr-text); }
 
-/* Surface モード別セクション（Mask/Grid で出し分け）・ヒント・Interp バッジ */
-.rr-surf-sec { flex-direction: column; }
+/* SurfaceInspector（右 Inspector・U4）のヒント・Interp バッジ */
 .rr-surf-hint {
     padding: 4px 8px 2px 8px;
     font-size: 11px;
@@ -382,16 +354,6 @@
 }
 .rr-surf-step:hover { color: var(--rr-text); border-color: var(--rr-selection); }
 .rr-surf-step:disabled { opacity: 0.4; }
-.rr-surf-remove {
-    width: 20px; height: 18px;
-    font-size: 10px;
-    color: var(--rr-muted);
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 1px; border-color: var(--rr-hairline-strong);
-    border-radius: 3px;
-}
-.rr-surf-remove:hover { color: var(--rr-primary); border-color: var(--rr-primary); }
-.rr-surf-remove:disabled { opacity: 0.4; }
 
 /* ---------------------------------------------------------- Center stage */
 .rr-center {

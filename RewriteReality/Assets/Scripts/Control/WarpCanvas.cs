@@ -128,7 +128,8 @@ namespace RewriteReality
                 p.Stroke();
             }
 
-            // ハンドル（正方形・選択はアンバー＋やや大きく）
+            // ハンドル（正方形・選択はアンバー＋やや大きく）。locked 中は編集不能なので隠す（メッシュ線のみ残す・U4）。
+            if (_target.Locked) return;
             for (int j = 0; j < rows; j++)
             {
                 for (int i = 0; i < cols; i++)
@@ -213,7 +214,7 @@ namespace RewriteReality
 
         void OnPointerDown(PointerDownEvent evt)
         {
-            if (_target == null) return;
+            if (_target == null || _target.Locked) return;   // locked 中は編集拒否（U4）
             _target.EnsureWarpPoints();
             var r = contentRect;
             Vector2 px = (Vector2)evt.localPosition;

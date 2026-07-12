@@ -128,17 +128,10 @@ namespace RewriteReality
         const float TimelineLaneLeft = 96f;
         const float TimelineLaneRight = 74f;
 
-        // Surface パネル（左ドック・#22）＋モード切替
-        VisualElement _surfaceList, _surfaceProps;
+        // Surface 一覧（左ドック・#22）＋モード切替。プロパティ本体は右 Inspector（BuildSurfaceInspector・U4）。
+        VisualElement _surfaceList;
         Label _surfaceEmpty;
-        Button _surfaceAdd, _surfContent, _surfRemove;
-        Button _surfFitMask, _surfFitGrid, _surfResetWarp;   // Fit Mode セグメント＋Grid の Reset Warp（§5）
-        VisualElement _surfMaskSec, _surfGridSec;            // Mask/Grid で出し分けるセクション
-        Button _surfColsDec, _surfColsInc, _surfRowsDec, _surfRowsInc;
-        Button _surfScaleDec, _surfScaleInc;
-        Label _surfColsVal, _surfRowsVal, _surfOpacityVal, _surfZoomVal;
-        Toggle _surfEnabled, _surfTestPat;
-        Slider _surfOpacity, _surfZoom;
+        Button _surfaceAdd;
         VisualElement _modeEdit, _modeLive;
 
         // ページタブ（2ページ IA・PERFORM/MAPPING・UNITY-HANDOFF §1）
@@ -155,8 +148,11 @@ namespace RewriteReality
         sealed class SurfRow
         {
             public VisualElement root; public VisualElement dot; public Label name; public Label meta; public int id;
-            // 毎フレームの文字列生成を避けるための直近値キャッシュ（変化時のみ .text 更新）
+            public RrIcon eyeIcon, lockIcon;   // trailing eye/lock ボタン（U4・罠2＝クリックは選択に伝播させない）
+            // 毎フレームの文字列生成を避けるための直近値キャッシュ（変化時のみ .text/アイコン更新）
             public int lastId = int.MinValue, lastCols = -1, lastRows = -1; public string lastName;
+            public bool lastEnabled = true, lastLocked = false;
+            public string idStr;   // s.Id.ToString() キャッシュ（選択比較の毎フレーム alloc を避ける・罠7）
         }
 
         // FX 行・パラメータ行のバインド保持（再構築判定/毎フレーム同期用）
@@ -480,7 +476,7 @@ namespace RewriteReality
                 if (s == null) return;
                 s.Content = s.Content == Surface.ContentKind.Pattern
                     ? Surface.ContentKind.Camera : Surface.ContentKind.Pattern;
-                SyncSurfaceProps();   // 左ドックの content チップ表示を追従
+                RebuildInspector();   // Surface 選択中なら Test Pattern トグル表示を追従（U4）
             }
             RefreshWarpTestBtn();
         }
@@ -565,7 +561,7 @@ namespace RewriteReality
                 if (s != null && s.Content == Surface.ContentKind.Pattern)
                 {
                     s.Content = Surface.ContentKind.Camera;
-                    SyncSurfaceProps();
+                    RebuildInspector();   // Surface 選択中なら Test Pattern トグル表示を追従（U4）
                 }
                 RefreshWarpTestBtn();
             }
@@ -575,83 +571,23 @@ namespace RewriteReality
                 _cornerPins[i].style.display = _warpEditing ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
-        // -------------------------------------------------- surface panel (#22)
+        // -------------------------------------------------- surface panel (#22・一覧＝左ドック／プロパティ＝右 Inspector・U4)
         void BuildSurfacePanel()
         {
             _surfaceList = _root.Q<VisualElement>("rr-surface-list");
             _surfaceEmpty = _root.Q<Label>("rr-surface-empty");
-            _surfaceProps = _root.Q<VisualElement>("rr-surface-props");
             _surfaceAdd = _root.Q<Button>("rr-surface-add");
-            _surfEnabled = _root.Q<Toggle>("rr-surf-enabled");
-            _surfOpacity = _root.Q<Slider>("rr-surf-opacity");
-            _surfOpacityVal = _root.Q<Label>("rr-surf-opacity-val");
-            _surfContent = _root.Q<Button>("rr-surf-content");
-            _surfFitMask = _root.Q<Button>("rr-surf-fit-mask");
-            _surfFitGrid = _root.Q<Button>("rr-surf-fit-grid");
-            _surfMaskSec = _root.Q<VisualElement>("rr-surf-mask-sec");
-            _surfGridSec = _root.Q<VisualElement>("rr-surf-grid-sec");
-            _surfTestPat = _root.Q<Toggle>("rr-surf-testpat");
-            _surfResetWarp = _root.Q<Button>("rr-surf-resetwarp");
-            _surfColsDec = _root.Q<Button>("rr-surf-cols-dec");
-            _surfColsInc = _root.Q<Button>("rr-surf-cols-inc");
-            _surfColsVal = _root.Q<Label>("rr-surf-cols-val");
-            _surfRowsDec = _root.Q<Button>("rr-surf-rows-dec");
-            _surfRowsInc = _root.Q<Button>("rr-surf-rows-inc");
-            _surfRowsVal = _root.Q<Label>("rr-surf-rows-val");
-            _surfScaleDec = _root.Q<Button>("rr-surf-scale-dec");
-            _surfScaleInc = _root.Q<Button>("rr-surf-scale-inc");
-            _surfZoom = _root.Q<Slider>("rr-surf-zoom");
-            _surfZoomVal = _root.Q<Label>("rr-surf-zoom-val");
-            _surfRemove = _root.Q<Button>("rr-surf-remove");
 
             if (_surfaceAdd != null) _surfaceAdd.clicked += () =>
             {
                 if (_surfaces == null) return;
-                if (_surfaces.Add("Surface") != null) _builtSurfaceCount = -1; // 再構築＋選択反映
+                var s = _surfaces.Add("Surface");
+                if (s != null) { _builtSurfaceCount = -1; _selection.Select(SelectionKind.Surface, s.Id.ToString()); }
             };
-            if (_surfRemove != null) _surfRemove.clicked += () =>
-            {
-                if (_surfaces?.Active != null && _surfaces.Remove(_surfaces.Active)) _builtSurfaceCount = -1;
-            };
-            if (_surfEnabled != null) _surfEnabled.RegisterValueChangedCallback(evt =>
-            { if (_surfaces?.Active != null) _surfaces.Active.Enabled = evt.newValue; });
-            if (_surfOpacity != null) _surfOpacity.RegisterValueChangedCallback(evt =>
-            {
-                if (_surfaces?.Active != null) _surfaces.Active.Opacity = evt.newValue;
-                if (_surfOpacityVal != null) _surfOpacityVal.text = evt.newValue.ToString("F2");
-            });
-            if (_surfContent != null) _surfContent.clicked += CycleContent;
-            if (_surfFitMask != null) _surfFitMask.clicked += () => SetFit(false);
-            if (_surfFitGrid != null) _surfFitGrid.clicked += () => SetFit(true);
-            if (_surfResetWarp != null) _surfResetWarp.clicked += () =>
-            {
-                var s = _surfaces?.Active;
-                if (s == null) return;
-                s.ResetWarp();
-                _warpCanvas?.MarkDirtyRepaint();
-            };
-            if (_surfTestPat != null) _surfTestPat.RegisterValueChangedCallback(evt =>
-            {
-                var s = _surfaces?.Active;
-                if (s == null) return;
-                s.Content = evt.newValue ? Surface.ContentKind.Pattern : Surface.ContentKind.Camera;   // §5 校正
-                if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
-                RefreshWarpTestBtn();   // ビューポート TEST ボタンと状態を一致
-            });
-            if (_surfColsDec != null) _surfColsDec.clicked += () => NudgeGrid(-1, 0);
-            if (_surfColsInc != null) _surfColsInc.clicked += () => NudgeGrid(+1, 0);
-            if (_surfRowsDec != null) _surfRowsDec.clicked += () => NudgeGrid(0, -1);
-            if (_surfRowsInc != null) _surfRowsInc.clicked += () => NudgeGrid(0, +1);
-            if (_surfScaleDec != null) _surfScaleDec.clicked += () => ScaleWarpTarget(1f / 1.1f);
-            if (_surfScaleInc != null) _surfScaleInc.clicked += () => ScaleWarpTarget(1.1f);
-            if (_surfZoom != null) _surfZoom.RegisterValueChangedCallback(evt =>
-            {
-                if (_surfaces?.Active != null) _surfaces.Active.ContentZoom = evt.newValue;
-                if (_surfZoomVal != null) _surfZoomVal.text = evt.newValue.ToString("F1");
-            });
         }
 
-        /// <summary>現在の warp 対象（選択 surface / Compositor）の制御点を重心中心に拡大縮小（窓自体のスケール）。</summary>
+        /// <summary>現在の warp 対象（選択 surface / Compositor）の制御点を重心中心に拡大縮小（窓自体のスケール）。
+        /// SurfaceInspector の Scale ステッパー（Mask セクション）から使う。</summary>
         void ScaleWarpTarget(float factor)
         {
             var t = _warpTarget;
@@ -675,42 +611,13 @@ namespace RewriteReality
             _warpCanvas?.MarkDirtyRepaint();
         }
 
-        void CycleContent()
-        {
-            var s = _surfaces?.Active;
-            if (s == null) return;
-            s.Content = (Surface.ContentKind)(((int)s.Content + 1) % 4);   // Camera→Video→None→Pattern
-            if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
-            if (_surfTestPat != null) _surfTestPat.SetValueWithoutNotify(s.Content == Surface.ContentKind.Pattern);
-            RefreshWarpTestBtn();   // TEST トグルの ON 表示は content=Pattern と連動
-        }
-
-        // Fit Mode セグメント（MASK|GRID・UNITY-HANDOFF §5）。Mask=歪まない窓抜き（既定）、
-        // Grid=Bezier グリッドで歪ませて流し込む（#34）。選択でモード別セクションを出し分ける。
-        void SetFit(bool grid)
-        {
-            var s = _surfaces?.Active;
-            if (s == null) return;
-            s.Fit = grid ? Surface.FitMode.Grid : Surface.FitMode.Mask;
-            RefreshFit(s);
-        }
-
-        void RefreshFit(Surface s)
-        {
-            bool grid = s != null && s.Fit == Surface.FitMode.Grid;
-            if (_surfFitMask != null) EnableClass(_surfFitMask, "rr-seg__btn--active", !grid);
-            if (_surfFitGrid != null) EnableClass(_surfFitGrid, "rr-seg__btn--active", grid);
-            if (_surfMaskSec != null) _surfMaskSec.style.display = grid ? DisplayStyle.None : DisplayStyle.Flex;
-            if (_surfGridSec != null) _surfGridSec.style.display = grid ? DisplayStyle.Flex : DisplayStyle.None;
-        }
-
+        // Grid X/Y 解像度の増減（SurfaceInspector の Mesh Warping セクション）。ラベル更新は
+        // 呼び出し側が RebuildInspector() で行う（ここでは値の変更と WarpCanvas 再バインドのみ）。
         void NudgeGrid(int dCols, int dRows)
         {
             var s = _surfaces?.Active;
             if (s == null) return;
             s.SetGridResolution(s.WarpCols + dCols, s.WarpRows + dRows);
-            if (_surfColsVal != null) _surfColsVal.text = s.WarpCols.ToString();
-            if (_surfRowsVal != null) _surfRowsVal.text = s.WarpRows.ToString();
             _warpCanvas?.Bind(s);   // グリッド解像度が変わったので再バインド＋再描画
         }
 
@@ -723,13 +630,14 @@ namespace RewriteReality
             if (activeId != _selectedSurfaceId)
             {
                 _selectedSurfaceId = activeId;
-                SyncSurfaceProps();
                 SetWarpTarget(ResolveWarpTarget());   // 選択が変われば WARP 対象も切替
                 RefreshWarpTestBtn();                 // TEST の ON 表示は選択 surface の content 依存
             }
             SyncSurfaceRows();
         }
 
+        // Surface 一覧行（左ドック）。trailing の eye/lock は選択に伝播させず単独でトグルする（罠2）。
+        // 行クリックは SelectionModel へ統合（Goal2・U4）＝ドック項目/track と排他になる。
         void RebuildSurfaceList()
         {
             _surfRows.Clear();
@@ -745,28 +653,50 @@ namespace RewriteReality
                 {
                     var s = list[i];
                     if (s == null) continue;
-                    int index = i;
 
                     var row = new VisualElement(); row.AddToClassList("rr-list-item");
                     var dot = new VisualElement(); dot.AddToClassList("rr-list-dot"); dot.AddToClassList("rr-list-dot--tracking");
                     var name = new Label(); name.AddToClassList("rr-list-label");
                     var meta = new Label(); meta.AddToClassList("rr-list-meta"); meta.AddToClassList("rr-mono");
                     row.Add(dot); row.Add(name); row.Add(meta);
-                    row.RegisterCallback<MouseDownEvent>(_ => { if (_surfaces != null) _surfaces.ActiveIndex = index; });
+
+                    string id = s.Id.ToString();
+                    row.RegisterCallback<MouseDownEvent>(_ => _selection.Select(SelectionKind.Surface, id));
+
+                    var eyeIcon = new RrIcon { Icon = s.Enabled ? RrIcon.Kind.Eye : RrIcon.Kind.EyeOff };
+                    eyeIcon.AddToClassList("rr-icon");
+                    EnableClass(eyeIcon, "rr-surf-icon--on", s.Enabled);
+                    EnableClass(eyeIcon, "rr-surf-icon--dim", !s.Enabled);
+                    var eyeBtn = new Button(); eyeBtn.AddToClassList("rr-surf-icon-btn"); eyeBtn.Add(eyeIcon);
+                    eyeBtn.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                    eyeBtn.clicked += () => { s.Enabled = !s.Enabled; };
+
+                    var lockIcon = new RrIcon { Icon = s.Locked ? RrIcon.Kind.Lock : RrIcon.Kind.LockOpen };
+                    lockIcon.AddToClassList("rr-icon");
+                    EnableClass(lockIcon, "rr-surf-icon--warn", s.Locked);
+                    EnableClass(lockIcon, "rr-surf-icon--dim", !s.Locked);
+                    var lockBtn = new Button(); lockBtn.AddToClassList("rr-surf-icon-btn"); lockBtn.Add(lockIcon);
+                    lockBtn.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                    lockBtn.clicked += () => { s.Locked = !s.Locked; _warpCanvas?.MarkDirtyRepaint(); };
+
+                    row.Add(eyeBtn); row.Add(lockBtn);
 
                     _surfaceList.Add(row);
-                    _surfRows.Add(new SurfRow { root = row, dot = dot, name = name, meta = meta, id = s.Id });
+                    _surfRows.Add(new SurfRow
+                    {
+                        root = row, dot = dot, name = name, meta = meta, id = s.Id, idStr = id,
+                        eyeIcon = eyeIcon, lockIcon = lockIcon, lastEnabled = s.Enabled, lastLocked = s.Locked,
+                    });
                 }
             }
             _builtSurfaceCount = count;
-            _selectedSurfaceId = int.MinValue; // 次の同期で props/target を作り直す
+            _selectedSurfaceId = int.MinValue; // 次の同期で WARP 対象を作り直す
         }
 
         void SyncSurfaceRows()
         {
             if (_surfaces == null) return;
             var list = _surfaces.Surfaces;
-            int active = _surfaces.ActiveIndex;
             for (int i = 0; i < _surfRows.Count && i < list.Count; i++)
             {
                 var s = list[i];
@@ -775,35 +705,32 @@ namespace RewriteReality
                 if (r.lastId != s.Id || !ReferenceEquals(r.lastName, s.Name))
                 {
                     r.name.text = $"{s.Id + 1}. {s.Name}";
-                    r.lastId = s.Id; r.lastName = s.Name;
+                    r.lastId = s.Id; r.lastName = s.Name; r.idStr = s.Id.ToString();
                 }
                 if (r.lastCols != s.WarpCols || r.lastRows != s.WarpRows)
                 {
                     r.meta.text = $"{s.WarpCols}×{s.WarpRows}";
                     r.lastCols = s.WarpCols; r.lastRows = s.WarpRows;
                 }
-                EnableClass(r.root, "rr-list-item--active", i == active);
-                EnableClass(r.name, "rr-list-label--off", !s.Enabled && i != active);
+                bool active = _selection.Current.SameItem(SelectionKind.Surface, r.idStr);
+                EnableClass(r.root, "rr-list-item--active", active);
+                EnableClass(r.name, "rr-list-label--off", !s.Enabled && !active);
+
+                if (r.lastEnabled != s.Enabled)
+                {
+                    r.lastEnabled = s.Enabled;
+                    r.eyeIcon.Icon = s.Enabled ? RrIcon.Kind.Eye : RrIcon.Kind.EyeOff;
+                    EnableClass(r.eyeIcon, "rr-surf-icon--on", s.Enabled);
+                    EnableClass(r.eyeIcon, "rr-surf-icon--dim", !s.Enabled);
+                }
+                if (r.lastLocked != s.Locked)
+                {
+                    r.lastLocked = s.Locked;
+                    r.lockIcon.Icon = s.Locked ? RrIcon.Kind.Lock : RrIcon.Kind.LockOpen;
+                    EnableClass(r.lockIcon, "rr-surf-icon--warn", s.Locked);
+                    EnableClass(r.lockIcon, "rr-surf-icon--dim", !s.Locked);
+                }
             }
-        }
-
-        void SyncSurfaceProps()
-        {
-            var s = _surfaces?.Active;
-            bool show = s != null;
-            if (_surfaceProps != null) _surfaceProps.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
-            if (!show) return;
-
-            if (_surfEnabled != null) _surfEnabled.SetValueWithoutNotify(s.Enabled);
-            if (_surfOpacity != null) _surfOpacity.SetValueWithoutNotify(s.Opacity);
-            if (_surfOpacityVal != null) _surfOpacityVal.text = s.Opacity.ToString("F2");
-            if (_surfContent != null) _surfContent.text = s.Content.ToString().ToUpperInvariant();
-            RefreshFit(s);
-            if (_surfTestPat != null) _surfTestPat.SetValueWithoutNotify(s.Content == Surface.ContentKind.Pattern);
-            if (_surfColsVal != null) _surfColsVal.text = s.WarpCols.ToString();
-            if (_surfRowsVal != null) _surfRowsVal.text = s.WarpRows.ToString();
-            if (_surfZoom != null) _surfZoom.SetValueWithoutNotify(s.ContentZoom);
-            if (_surfZoomVal != null) _surfZoomVal.text = s.ContentZoom.ToString("F1");
         }
 
         // -------------------------------------------------- mode switch (#22)
@@ -824,9 +751,8 @@ namespace RewriteReality
             bool edit = _appMode == null || _appMode.IsEdit;
             if (_modeEdit != null) EnableClass(_modeEdit, "rr-mode-opt--active", edit);
             if (_modeLive != null) EnableClass(_modeLive, "rr-mode-opt--live-active", !edit);
-            // 構成変更（追加/削除）は準備 Edit のみ許可
+            // 構成変更（追加/削除）は準備 Edit のみ許可（Remove は SurfaceInspector 側・都度ビルド時に反映）
             if (_surfaceAdd != null) _surfaceAdd.SetEnabled(edit);
-            if (_surfRemove != null) _surfRemove.SetEnabled(edit);
         }
 
         // -------------------------------------------------- page tabs (2-page IA・UNITY-HANDOFF §1)
@@ -1589,7 +1515,19 @@ namespace RewriteReality
                 EnableClass(d.item, "rr-list-item--active", sel.SameItem(d.kind, d.id));
             }
             RefreshTrackHighlight();   // track 行のハイライトのみ更新（行は作り直さない・U3）
+            if (sel.Kind == SelectionKind.Surface) SyncActiveSurfaceFromSelection(sel);   // WARP 対象を選択へ追従（U4）
             RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝Master/Program）
+        }
+
+        // Surface 選択（左ドック行 or 将来の他経路）を _surfaces.ActiveIndex へ反映する。
+        // WARP 編集対象の解決（ResolveWarpTarget）は今まで通り ActiveIndex を見るため、
+        // 選択の一本化後もここだけ橋渡しすればよい（Goal2・U4）。
+        void SyncActiveSurfaceFromSelection(SelectionRef sel)
+        {
+            if (_surfaces == null || !int.TryParse(sel.Id, out int wantId)) return;
+            var list = _surfaces.Surfaces;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i] != null && list[i].Id == wantId) { _surfaces.ActiveIndex = i; return; }
         }
 
         // ドック項目（track 以外の単一選択）が Inspector を占有するか。
@@ -1615,6 +1553,7 @@ namespace RewriteReality
                 case SelectionKind.AudioInput:   BuildAudioInputInspector(sel); return;
                 case SelectionKind.Mapping:      BuildMappingInspector(sel); return;
                 case SelectionKind.Scene:        BuildSceneInspector(sel); return;
+                case SelectionKind.Surface:      BuildSurfaceInspector(sel); return;
                 default:                         BuildGenericDockInspector(sel); return;
             }
         }
@@ -1812,6 +1751,125 @@ namespace RewriteReality
                 MakeButton("Fire", "primary", null, enabled: false),
                 MakeButton("Save", "secondary", null, enabled: false),
                 MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+        }
+
+        // -------------------------------------------------- surface（U4・MAPPING 左ドックから移設）
+        // Input Surface のみ対応（Output Surface は SurfaceManager が管理する一覧に無く、
+        // WARP エディタの EMBED⇄OUTPUT トグル経由で編集する既存方式のまま・#27 で扱う）。
+        void BuildSurfaceInspector(SelectionRef sel)
+        {
+            var s = FindSurfaceById(sel.Id);
+            if (s == null) { BuildGenericDockInspector(sel); return; }
+
+            bool live = _appMode != null && _appMode.IsLive;
+
+            if (_inspectorTitle != null) _inspectorTitle.text = s.Name;
+            AddSectionLabel("Surface", Badge(s.Name, "rr-badge--selection"));
+            AddInfoRow("Grid", $"{s.WarpCols}×{s.WarpRows}");
+            AddSliderRow("Opacity", s.Opacity, 0f, 1f, "", live, v => s.Opacity = v);
+
+            AddFitModeRow(s);
+
+            if (s.Fit == Surface.FitMode.Mask)
+            {
+                AddSectionLabel("Shape");
+                AddStepRow("Scale", () => ScaleWarpTarget(1f / 1.1f), () => ScaleWarpTarget(1.1f));
+                AddSectionLabel("Content");
+                AddSliderRow("Zoom", s.ContentZoom, 0.2f, 5f, "x", live, v => s.ContentZoom = v);
+                AddInfoRow("Pan", "DRAG");
+                var hint = new Label("Window cutout — content stays undistorted.");
+                hint.AddToClassList("rr-surf-hint");
+                _inspector.Add(hint);
+            }
+            else
+            {
+                AddSectionLabel("Mesh Warping");
+                AddToggleRow("Enabled", true, v => { });   // Grid Fit＝常時ワープ有効（表示のみ・■ゴール3）
+                AddGridStepRow(s);
+                AddToggleRow("Bezier", s.BezierInterp, v => { s.BezierInterp = v; _warpCanvas?.MarkDirtyRepaint(); });
+                AddToggleRow("Test Pattern", s.Content == Surface.ContentKind.Pattern, v =>
+                {
+                    s.Content = v ? Surface.ContentKind.Pattern : Surface.ContentKind.Camera;   // §5 校正
+                    RefreshWarpTestBtn();
+                });
+                AddButtonRow(MakeButton("Reset Warp", "secondary", () =>
+                {
+                    s.ResetWarp();
+                    _warpCanvas?.MarkDirtyRepaint();
+                }));
+            }
+
+            bool edit = _appMode == null || _appMode.IsEdit;   // 構成変更（削除）は準備 Edit のみ許可
+            AddButtonRow(
+                MakeButton("Remove", "ghost", () =>
+                {
+                    if (_surfaces != null && _surfaces.Remove(s)) { _builtSurfaceCount = -1; _selection.Deselect(); }
+                }, enabled: edit),
+                MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+        }
+
+        Surface FindSurfaceById(string id)
+        {
+            if (_surfaces == null || !int.TryParse(id, out int wantId)) return null;
+            return _surfaces.Get(wantId);
+        }
+
+        // Fit Mode セグメント（MASK|GRID・UNITY-HANDOFF §5）。切替はセクション出し分けが伴うため
+        // Inspector 全体を作り直す（クリック起点のみ・毎フレームではないので GC 上問題なし）。
+        void AddFitModeRow(Surface s)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-param-row");
+            var lbl = new Label("Fit Mode"); lbl.AddToClassList("rr-param-label");
+            var spacer = new VisualElement(); spacer.style.flexGrow = 1f;
+            var seg = new VisualElement(); seg.AddToClassList("rr-seg");
+            var maskBtn = new Button { text = "MASK" }; maskBtn.AddToClassList("rr-seg__btn"); maskBtn.AddToClassList("rr-mono");
+            var gridBtn = new Button { text = "GRID" }; gridBtn.AddToClassList("rr-seg__btn"); gridBtn.AddToClassList("rr-mono");
+            EnableClass(maskBtn, "rr-seg__btn--active", s.Fit == Surface.FitMode.Mask);
+            EnableClass(gridBtn, "rr-seg__btn--active", s.Fit == Surface.FitMode.Grid);
+            maskBtn.clicked += () => { s.Fit = Surface.FitMode.Mask; RebuildInspector(); };
+            gridBtn.clicked += () => { s.Fit = Surface.FitMode.Grid; RebuildInspector(); };
+            seg.Add(maskBtn); seg.Add(gridBtn);
+            row.Add(lbl); row.Add(spacer); row.Add(seg);
+            _inspector.Add(row);
+        }
+
+        // ラベル＋−/+ ステッパー（値表示なし＝ Scale は重心基準の相対操作でバックエンドに永続値が無い）。
+        void AddStepRow(string label, System.Action onDec, System.Action onInc)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-param-row");
+            var lbl = new Label(label); lbl.AddToClassList("rr-param-label");
+            var spacer = new VisualElement(); spacer.style.flexGrow = 1f;
+            var dec = new Button { text = "−" }; dec.AddToClassList("rr-surf-step"); dec.clicked += onDec;
+            var inc = new Button { text = "+" }; inc.AddToClassList("rr-surf-step"); inc.clicked += onInc;
+            row.Add(lbl); row.Add(spacer); row.Add(dec); row.Add(inc);
+            _inspector.Add(row);
+        }
+
+        // Grid X×Y ステッパー（NudgeGrid・変更後は RebuildInspector で値表示を作り直す）。
+        void AddGridStepRow(Surface s)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-param-row");
+            var lbl = new Label("Grid"); lbl.AddToClassList("rr-param-label");
+            var spacer = new VisualElement(); spacer.style.flexGrow = 1f;
+            row.Add(lbl); row.Add(spacer);
+
+            var colsDec = new Button { text = "−" }; colsDec.AddToClassList("rr-surf-step");
+            var colsVal = new Label(s.WarpCols.ToString()); colsVal.AddToClassList("rr-param-value"); colsVal.AddToClassList("rr-mono");
+            var colsInc = new Button { text = "+" }; colsInc.AddToClassList("rr-surf-step");
+            var x = new Label("×"); x.AddToClassList("rr-param-label"); x.AddToClassList("rr-mono");
+            var rowsDec = new Button { text = "−" }; rowsDec.AddToClassList("rr-surf-step");
+            var rowsVal = new Label(s.WarpRows.ToString()); rowsVal.AddToClassList("rr-param-value"); rowsVal.AddToClassList("rr-mono");
+            var rowsInc = new Button { text = "+" }; rowsInc.AddToClassList("rr-surf-step");
+
+            colsDec.clicked += () => { NudgeGrid(-1, 0); RebuildInspector(); };
+            colsInc.clicked += () => { NudgeGrid(+1, 0); RebuildInspector(); };
+            rowsDec.clicked += () => { NudgeGrid(0, -1); RebuildInspector(); };
+            rowsInc.clicked += () => { NudgeGrid(0, +1); RebuildInspector(); };
+
+            row.Add(colsDec); row.Add(colsVal); row.Add(colsInc);
+            row.Add(x);
+            row.Add(rowsDec); row.Add(rowsVal); row.Add(rowsInc);
+            _inspector.Add(row);
         }
 
         // -------------------------------------------------- track（U3・Song track 選択）

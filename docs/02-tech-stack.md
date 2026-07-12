@@ -10,6 +10,17 @@
 > URP を選ぶ理由: Blit ベースのカスタムエフェクト・Shader Graph・VFX Graph・Fullscreen
 > シェーダが扱いやすく、Metal で軽快。HDRP は重く今回はオーバースペック。
 
+## セキュリティパッチ（Unity Runtime 脆弱性・2026-07 告知）
+
+Unity から Runtime の脆弱性が告知されている
+（[Unity Platform Protection – Take Immediate Action](https://discussions.unity.com/t/unity-platform-protection-take-immediate-action-to-protect-your-games-and-apps/1688031)）。
+Editor 側の修正ではなく **ビルド成果物（.app）に対する後処理パッチ**のため、スタンドアロン
+ビルドのたびに適用が要る。
+- パッチ本体「**Unity Patcher 1.3.3 macOS**」はダウンロード済み。
+- 適用タイミング＝**ビルド後**（.app 生成後にパッチを当てる）。配布/実機テストの前に必須。
+- 既存のビルド確認フロー（`docs/M0-test-procedure.md`・#23 ビルド準備）に、この後処理ステップを
+  組み込むこと。
+
 ## 導入パッケージ（すべて無料）
 
 ### Unity 公式（Package Manager から）

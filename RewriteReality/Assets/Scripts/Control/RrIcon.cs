@@ -14,7 +14,7 @@ namespace RewriteReality
     [UxmlElement]
     public partial class RrIcon : VisualElement
     {
-        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines }
+        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines, Eye, EyeOff, Lock, LockOpen }
 
         Kind _icon = Kind.Play;
 
@@ -68,6 +68,10 @@ namespace RewriteReality
                 case Kind.Diamond:     Diamond(p, ox, oy, s); break;
                 case Kind.Zap:         Zap(p, ox, oy, s); break;
                 case Kind.AudioLines:  AudioLines(p, ox, oy, s); break;
+                case Kind.Eye:         Eye(p, ox, oy, s, true); break;
+                case Kind.EyeOff:      Eye(p, ox, oy, s, false); break;
+                case Kind.Lock:        LockGlyph(p, ox, oy, s, true); break;
+                case Kind.LockOpen:    LockGlyph(p, ox, oy, s, false); break;
             }
         }
 
@@ -231,6 +235,75 @@ namespace RewriteReality
                 p.LineTo(P(ox, oy, s, xs[i], 0.5f + hh[i]));
                 p.Stroke();
             }
+        }
+
+        // 目（lens 形＝上下 2 本の二次曲線）＋瞳（開）／斜線（閉＝Hide）。lucide "eye"/"eye-off" 相当。
+        void Eye(Painter2D p, float ox, float oy, float s, bool open)
+        {
+            Vector2 l = P(ox, oy, s, 0.14f, 0.5f);
+            Vector2 r = P(ox, oy, s, 0.86f, 0.5f);
+            Vector2 topCtrl = P(ox, oy, s, 0.5f, 0.16f);
+            Vector2 botCtrl = P(ox, oy, s, 0.5f, 0.84f);
+
+            p.BeginPath();
+            p.MoveTo(l);
+            p.QuadraticCurveTo(topCtrl, r);
+            p.QuadraticCurveTo(botCtrl, l);
+            p.ClosePath();
+            p.Stroke();
+
+            if (open)
+            {
+                FilledCircle(p, P(ox, oy, s, 0.5f, 0.5f), s * 0.10f);
+            }
+            else
+            {
+                p.BeginPath();
+                p.MoveTo(P(ox, oy, s, 0.20f, 0.74f));
+                p.LineTo(P(ox, oy, s, 0.80f, 0.26f));
+                p.Stroke();
+            }
+        }
+
+        // 錠（本体＋シャックル弧＋キーホール）。locked=閉じた弧／unlocked=片側の開いた弧。lucide "lock"/"lock-open" 相当。
+        void LockGlyph(Painter2D p, float ox, float oy, float s, bool locked)
+        {
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.22f, 0.46f));
+            p.LineTo(P(ox, oy, s, 0.78f, 0.46f));
+            p.LineTo(P(ox, oy, s, 0.78f, 0.86f));
+            p.LineTo(P(ox, oy, s, 0.22f, 0.86f));
+            p.ClosePath();
+            p.Fill();
+
+            Vector2 c = P(ox, oy, s, locked ? 0.5f : 0.58f, 0.46f);
+            float r = s * 0.20f;
+            const int steps = 16;
+            float a0 = 180f * Mathf.Deg2Rad, a1 = (locked ? 360f : 340f) * Mathf.Deg2Rad;
+            p.BeginPath();
+            for (int k = 0; k <= steps; k++)
+            {
+                float a = Mathf.Lerp(a0, a1, (float)k / steps);
+                var pt = new Vector2(c.x + Mathf.Cos(a) * r, c.y - Mathf.Sin(a) * r);
+                if (k == 0) p.MoveTo(pt); else p.LineTo(pt);
+            }
+            p.Stroke();
+
+            FilledCircle(p, P(ox, oy, s, 0.5f, 0.63f), s * 0.05f);
+        }
+
+        void FilledCircle(Painter2D p, Vector2 c, float r)
+        {
+            const int steps = 16;
+            p.BeginPath();
+            for (int k = 0; k <= steps; k++)
+            {
+                float a = (float)k / steps * 360f * Mathf.Deg2Rad;
+                var pt = new Vector2(c.x + Mathf.Cos(a) * r, c.y + Mathf.Sin(a) * r);
+                if (k == 0) p.MoveTo(pt); else p.LineTo(pt);
+            }
+            p.ClosePath();
+            p.Fill();
         }
 
         void Diamond(Painter2D p, float ox, float oy, float s)

@@ -106,6 +106,7 @@ namespace RewriteReality
             _warpPoints = null; // 次の EnsureGrid で等間隔生成＋メッシュ再構成
         }
         public bool BezierInterp { get => _bezier; set => _bezier = value; }
+        public bool Locked => false;   // 出力変形にロック概念は無い（Surface のみ・U4）
 
         Material WarpMat
         {

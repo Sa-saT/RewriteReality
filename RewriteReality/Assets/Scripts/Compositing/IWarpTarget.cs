@@ -20,5 +20,8 @@ namespace RewriteReality
         bool BezierInterp { get; set; }
         /// <summary>制御点配列を保証（未生成/解像度不一致なら等間隔で確保）。UI 読み取り前に呼ぶ。</summary>
         void EnsureWarpPoints();
+        /// <summary>true の間は WarpCanvas が pin を隠しドラッグを拒否する（誤操作防止・U4）。
+        /// Surface のみ実データを持ち、Compositor/OutputWarp は常に false。</summary>
+        bool Locked { get; }
     }
 }

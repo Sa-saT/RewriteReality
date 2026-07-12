@@ -69,6 +69,7 @@ namespace RewriteReality
             _warpPoints = null; // 次の EnsureWarpPoints で等間隔生成（メッシュは GetMesh が位相ごとにプール）
         }
         public bool BezierInterp { get => _bezier; set => _bezier = value; }
+        public bool Locked => false;   // 単一 surface 経路の全体ワープにロック概念は無い（Surface のみ・U4）
 
         /// <summary>四隅ワープ用マテリアル。Inspector 未設定なら CornerPin シェーダから自動生成。</summary>
         Material WarpMat
