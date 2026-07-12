@@ -49,7 +49,8 @@ namespace RewriteReality
         [SerializeField] Key _toggleVisibilityKey = Key.H;
 
         UIDocument _doc;
-        VisualElement _root;
+        VisualElement _root;         // UIDocument.rootVisualElement（.rr-theme の外側＝カスタムプロパティ未継承）
+        VisualElement _themeRoot;    // "rr-root"（.rr-theme が付く要素）。popover の reparent 先はこちら
         Image _preview;
         Label _fps;
         Label _perf2;           // 上部バー右・2 段目「X.X ms · gc N」（フレーム時間＋GC 収集回数）
@@ -72,11 +73,12 @@ namespace RewriteReality
         ScrollView _inspector;
         bool _built;
 
-        // 上バー OUTPUT メニュー＋状態チップ（Fu/Sy/ND）
-        Button _outputBtn;
-        VisualElement _outputMenu;
-        Button _chipFs, _chipSyphon, _chipNdi;   // OUTPUT 右の状態チップ（クリックで切替）
-        Toggle _outFs, _outSyphon, _outNdi;       // メニュー内トグル
+        // 上バー OUTPUT 状態チップ（Full/Syphon/NDI）。Edit 中は即トグル、Live 中は誤配信防止の
+        // 確認 popover を経由する（§2・U5）。
+        Button _chipFs, _chipSyphon, _chipNdi;
+        VisualElement _routeConfirmPopover;
+        int _routeConfirmRoute = -1;   // 確認 popover が対象にしている route（-1=非表示）
+        bool _routeConfirmHooked;      // 外側クリックで閉じるグローバルハンドラの二重登録防止
 
         // WARP 編集オーバーレイ（#21・メッシュ制御点ドラッグ）
         WarpCanvas _warpCanvas;
@@ -207,6 +209,12 @@ namespace RewriteReality
             if (_styleSheet != null && !_root.styleSheets.Contains(_styleSheet))
                 _root.styleSheets.Add(_styleSheet);
 
+            // popover の reparent 先は _root（UIDocument.rootVisualElement）ではなく _themeRoot
+            // （.rr-theme が付いた "rr-root"）にする。--rr-* はカスタムプロパティで .rr-theme の
+            // 子孫にしか継承されないため、_root 直下へ逃がすと var(--rr-*) が解決できず
+            // 背景/枠線が消え、下の要素と文字が透けて重なって見える（実機で発覚・修正済み）。
+            _themeRoot = _root.Q<VisualElement>("rr-root") ?? _root;
+
             _preview = _root.Q<Image>("rr-preview");
             if (_preview != null) _preview.scaleMode = ScaleMode.ScaleToFit;
             _fps = _root.Q<Label>("rr-fps");
@@ -243,36 +251,27 @@ namespace RewriteReality
 
         // -------------------------------------------------- output routes (top bar)
         // ルート番号: 0=Fullscreen, 1=Syphon, 2=NDI
+        static readonly string[] RouteLabel = { "Full", "Syphon", "NDI" };
+
         void BuildOutputControls()
         {
-            _outputBtn = _root.Q<Button>("rr-output-btn");
-            _outputMenu = _root.Q<VisualElement>("rr-output-menu");
             _chipFs = _root.Q<Button>("rr-out-chip-fs");
             _chipSyphon = _root.Q<Button>("rr-out-chip-syphon");
             _chipNdi = _root.Q<Button>("rr-out-chip-ndi");
-            _outFs = _root.Q<Toggle>("rr-out-fs");
-            _outSyphon = _root.Q<Toggle>("rr-out-syphon");
-            _outNdi = _root.Q<Toggle>("rr-out-ndi");
+            _routeConfirmPopover = _root.Q<VisualElement>("rr-route-confirm");
 
-            if (_outputMenu != null) _outputMenu.style.display = DisplayStyle.None;
-            if (_outputBtn != null) _outputBtn.clicked += ToggleOutputMenu;
+            if (_chipFs != null)     _chipFs.clicked     += () => OnRouteChipClicked(0, _chipFs);
+            if (_chipSyphon != null) _chipSyphon.clicked += () => OnRouteChipClicked(1, _chipSyphon);
+            if (_chipNdi != null)    _chipNdi.clicked    += () => OnRouteChipClicked(2, _chipNdi);
 
-            // チップ・メニュートグルの両方から同じルートを切替（状態は共有）
-            if (_chipFs != null)     _chipFs.clicked     += () => ToggleRoute(0);
-            if (_chipSyphon != null) _chipSyphon.clicked += () => ToggleRoute(1);
-            if (_chipNdi != null)    _chipNdi.clicked    += () => ToggleRoute(2);
-            if (_outFs != null)     _outFs.RegisterValueChangedCallback(evt => SetRoute(0, evt.newValue));
-            if (_outSyphon != null) _outSyphon.RegisterValueChangedCallback(evt => SetRoute(1, evt.newValue));
-            if (_outNdi != null)    _outNdi.RegisterValueChangedCallback(evt => SetRoute(2, evt.newValue));
+            if (!_routeConfirmHooked && _root != null)
+            {
+                // 外側クリックで閉じる（capture フェーズ＝チップ自身のクリックより先に判定できる）。
+                _root.RegisterCallback<PointerDownEvent>(OnRootPointerDownForRouteConfirm, TrickleDown.TrickleDown);
+                _routeConfirmHooked = true;
+            }
 
             RefreshOutputStatus();
-        }
-
-        void ToggleOutputMenu()
-        {
-            if (_outputMenu == null) return;
-            bool show = _outputMenu.style.display == DisplayStyle.None;
-            _outputMenu.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         bool RouteAvailable(int route) => _output != null &&
@@ -281,10 +280,13 @@ namespace RewriteReality
         bool RouteEnabled(int route) => _output != null &&
             (route == 0 ? _output.FullscreenEnabled : route == 1 ? _output.SyphonEnabled : _output.NdiEnabled);
 
-        void ToggleRoute(int route)
+        // 準備 Edit 中は即トグル（従来どおり）。本番 Live 中は誤配信防止のため確認 popover を経由する（§2・U5）。
+        void OnRouteChipClicked(int route, Button anchor)
         {
             if (!RouteAvailable(route)) return;
-            SetRoute(route, !RouteEnabled(route));
+            bool live = _appMode != null && _appMode.IsLive;
+            if (!live) { SetRoute(route, !RouteEnabled(route)); return; }
+            ShowRouteConfirm(route, anchor);
         }
 
         void SetRoute(int route, bool on)
@@ -298,26 +300,83 @@ namespace RewriteReality
 
         void RefreshOutputStatus()
         {
-            ApplyRoute(_chipFs, _outFs, 0);
-            ApplyRoute(_chipSyphon, _outSyphon, 1);
-            ApplyRoute(_chipNdi, _outNdi, 2);
+            ApplyRoute(_chipFs, 0);
+            ApplyRoute(_chipSyphon, 1);
+            ApplyRoute(_chipNdi, 2);
         }
 
-        void ApplyRoute(Button chip, Toggle t, int route)
+        void ApplyRoute(Button chip, int route)
         {
+            if (chip == null) return;
             bool available = RouteAvailable(route);
             bool on = available && RouteEnabled(route);
-            if (chip != null)
+            chip.SetEnabled(available);
+            EnableClass(chip, "rr-out-chip--on", on);
+            EnableClass(chip, "rr-out-chip--off", !on);
+        }
+
+        // 確認 popover（_root 直下へ reparent＋WorldToLocal 配置＝罠3/4）。ON にする側の確定は
+        // primary、OFF にする側は secondary（MakeButton の既存 variant を流用）。modal ではないので
+        // 外側クリックで閉じる（OnRootPointerDownForRouteConfirm）。
+        void ShowRouteConfirm(int route, Button anchor)
+        {
+            if (_routeConfirmPopover == null) { SetRoute(route, !RouteEnabled(route)); return; }   // popover 未配線なら従来通り即時
+            _routeConfirmRoute = route;
+            bool turningOn = !RouteEnabled(route);
+
+            _routeConfirmPopover.Clear();
+            var row = new VisualElement(); row.AddToClassList("rr-route-confirm-row");
+            var dot = new VisualElement(); dot.AddToClassList("rr-route-confirm-dot");
+            dot.AddToClassList(turningOn ? "rr-route-confirm-dot--on" : "rr-route-confirm-dot--off");
+            var label = new Label(RouteLabel[route] + " → " + (turningOn ? "ON" : "OFF"));
+            label.AddToClassList("rr-route-confirm-text"); label.AddToClassList("rr-mono");
+            row.Add(dot); row.Add(label);
+            _routeConfirmPopover.Add(row);
+
+            var btnRow = new VisualElement(); btnRow.AddToClassList("rr-btn-row");
+            btnRow.Add(MakeButton("Cancel", "ghost", HideRouteConfirm));
+            btnRow.Add(MakeButton(turningOn ? "Turn On" : "Turn Off", turningOn ? "primary" : "secondary", () =>
             {
-                chip.SetEnabled(available);
-                EnableClass(chip, "rr-out-chip--on", on);
-                EnableClass(chip, "rr-out-chip--off", !on);
-            }
-            if (t != null)
+                SetRoute(route, turningOn);
+                HideRouteConfirm();
+            }));
+            _routeConfirmPopover.Add(btnRow);
+
+            if (_themeRoot != null && _routeConfirmPopover.parent != _themeRoot) _themeRoot.Add(_routeConfirmPopover);
+            if (anchor != null && _themeRoot != null)
             {
-                t.SetEnabled(available);
-                t.SetValueWithoutNotify(on);
+                var b = anchor.worldBound;
+                var topLeft = _themeRoot.WorldToLocal(new Vector2(b.xMin, b.yMax + 4f));
+                _routeConfirmPopover.style.position = Position.Absolute;
+                _routeConfirmPopover.style.left = topLeft.x;
+                _routeConfirmPopover.style.top = topLeft.y;
             }
+            _routeConfirmPopover.style.display = DisplayStyle.Flex;
+            _routeConfirmPopover.BringToFront();
+        }
+
+        void HideRouteConfirm()
+        {
+            if (_routeConfirmPopover != null) _routeConfirmPopover.style.display = DisplayStyle.None;
+            _routeConfirmRoute = -1;
+        }
+
+        void OnRootPointerDownForRouteConfirm(PointerDownEvent evt)
+        {
+            if (_routeConfirmRoute < 0 || _routeConfirmPopover == null) return;
+            if (_routeConfirmPopover.style.display == DisplayStyle.None) return;
+            if (IsDescendantOf(evt.target as VisualElement, _routeConfirmPopover)) return;   // ポップオーバー内クリックは無視
+            HideRouteConfirm();
+        }
+
+        static bool IsDescendantOf(VisualElement el, VisualElement ancestor)
+        {
+            while (el != null)
+            {
+                if (el == ancestor) return true;
+                el = el.parent;
+            }
+            return false;
         }
 
         // -------------------------------------------------- warp editor (#21)
@@ -1197,21 +1256,25 @@ namespace RewriteReality
             if (_addTrackDivider != null) _addTrackDivider.style.display = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
-        // 追加メニューは _root 直下のオーバーレイに出す（タイムライン本体の裏に隠れる/クリップされるのを防ぐ）。
+        // 追加メニューは _themeRoot 直下のオーバーレイに出す（タイムライン本体の裏に隠れる/クリップされる
+        // のを防ぐ）。reparent 先は _root（UIDocument.rootVisualElement）ではなく _themeRoot（"rr-root"）＝
+        // .rr-theme の内側にする。--rr-* カスタムプロパティは .rr-theme の子孫にしか継承されないため、
+        // _root 直下へ逃がすと var(--rr-*) が解決できず背景/枠線が消え、裏の要素と文字が透けて重なる
+        // （実機で発覚・修正済み・U5）。
         void ToggleAddMenu()
         {
             if (_tlAddMenu == null) return;
             bool show = _tlAddMenu.style.display == DisplayStyle.None;
             if (!show) { HideAddMenu(); return; }
 
-            if (_root != null && _tlAddMenu.parent != _root) _root.Add(_tlAddMenu);
-            if (_tlAddButton != null && _root != null)
+            if (_themeRoot != null && _tlAddMenu.parent != _themeRoot) _themeRoot.Add(_tlAddMenu);
+            if (_tlAddButton != null && _themeRoot != null)
             {
-                // worldBound はパネル空間の座標。_root の局所座標系へ変換してから配置する
-                // （そのまま left/top へ入れると _root にオフセットがある場合にズレて画面外/
+                // worldBound はパネル空間の座標。_themeRoot の局所座標系へ変換してから配置する
+                // （そのまま left/top へ入れると _themeRoot にオフセットがある場合にズレて画面外/
                 // 他パネルの裏に出て「見えない」原因になる）。
                 var b = _tlAddButton.worldBound;
-                var topLeft = _root.WorldToLocal(new Vector2(b.xMin, b.yMax + 2f));
+                var topLeft = _themeRoot.WorldToLocal(new Vector2(b.xMin, b.yMax + 2f));
                 _tlAddMenu.style.position = Position.Absolute;
                 _tlAddMenu.style.left = topLeft.x;
                 _tlAddMenu.style.top = topLeft.y;
@@ -1271,11 +1334,11 @@ namespace RewriteReality
             bool show = _addTrackMenu.style.display == DisplayStyle.None;
             if (!show) { HideAddTrackMenu(); return; }
 
-            if (_root != null && _addTrackMenu.parent != _root) _root.Add(_addTrackMenu);
-            if (_addTrackBtn != null && _root != null)
+            if (_themeRoot != null && _addTrackMenu.parent != _themeRoot) _themeRoot.Add(_addTrackMenu);
+            if (_addTrackBtn != null && _themeRoot != null)
             {
                 var b = _addTrackBtn.worldBound;
-                var topLeft = _root.WorldToLocal(new Vector2(b.xMin, b.yMax + 2f));
+                var topLeft = _themeRoot.WorldToLocal(new Vector2(b.xMin, b.yMax + 2f));
                 _addTrackMenu.style.position = Position.Absolute;
                 _addTrackMenu.style.left = topLeft.x;
                 _addTrackMenu.style.top = topLeft.y;

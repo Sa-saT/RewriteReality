@@ -1227,34 +1227,22 @@
 .rr-out-chip--off { color: var(--rr-muted); }
 .rr-out-chip:disabled { opacity: 0.4; }
 
-/* OUTPUT ルート メニュー（ポップオーバー・絶対配置） */
-.rr-output-menu {
+/* 本番 Live 中の出力ルート確認ポップオーバー（誤配信防止・U5・§2） */
+.rr-route-confirm {
     position: absolute;
-    top: 50px;
-    right: 12px;
-    width: 180px;
-    background-color: var(--rr-surface-raised);
+    flex-direction: column;
+    min-width: 168px;
+    background-color: var(--rr-surface-panel);
     border-width: 1px;
     border-color: var(--rr-hairline-strong);
     border-radius: 6px;
-    padding: 8px;
+    padding: 10px;
 }
-.rr-output-menu__title {
-    color: var(--rr-muted);
-    font-size: 11px;
-    -unity-font-style: bold;
-    margin-bottom: 6px;
-}
-.rr-output-menu__row {
-    height: 26px;
-    flex-direction: row;
-    align-items: center;
-}
-.rr-output-menu__label {
-    margin-left: 8px;
-    color: var(--rr-body);
-    font-size: 12px;
-}
+.rr-route-confirm-row { flex-direction: row; align-items: center; margin-bottom: 8px; }
+.rr-route-confirm-dot { width: 7px; height: 7px; border-radius: 9999px; margin-right: 8px; flex-shrink: 0; }
+.rr-route-confirm-dot--on  { background-color: var(--rr-live); }
+.rr-route-confirm-dot--off { background-color: var(--rr-muted-soft); }
+.rr-route-confirm-text { color: var(--rr-text); font-size: 12px; }
 
 .rr-hint {
     color: var(--rr-muted-soft);

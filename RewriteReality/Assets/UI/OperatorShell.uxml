@@ -16,6 +16,7 @@
                 <ui:Button name="rr-out-chip-fs" text="Full" class="rr-out-chip rr-out-chip--off" />
                 <ui:Button name="rr-out-chip-syphon" text="Syphon" class="rr-out-chip rr-out-chip--off" />
                 <ui:Button name="rr-out-chip-ndi" text="NDI" class="rr-out-chip rr-out-chip--off" />
+                <ui:VisualElement name="rr-route-confirm" class="rr-route-confirm" style="display: none;" />
             </ui:VisualElement>
             <ui:VisualElement class="rr-divider" />
             <ui:VisualElement class="rr-perf-group">
