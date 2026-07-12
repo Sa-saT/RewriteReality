@@ -1373,3 +1373,40 @@
     border-radius: 3px;
 }
 .rr-quit-onair__routes { color: var(--rr-record); font-size: 11px; margin-left: 8px; }
+
+/* ============================================================ per-kind Inspector（U2） */
+/* オーディオ帯域メーター（audio-input・毎フレーム高さ更新は OperatorUI 側） */
+.rr-meter-row {
+    flex-direction: row;
+    align-items: flex-end;
+    height: 64px;
+    padding: 6px 2px 10px;
+}
+.rr-meter {
+    width: 16px;
+    height: 100%;
+    margin-right: 8px;
+    background-color: var(--rr-surface-inset);
+    border-radius: 2px;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+.rr-meter__fill { width: 100%; background-color: var(--rr-stage-audio); }
+
+/* OSC アドレス表示（fx・CodeSurface 相当の簡易版） */
+.rr-code-row { margin-top: 8px; padding-left: 6px; padding-right: 6px; }
+.rr-code-label {
+    font-size: 10px;
+    -unity-font-style: bold;
+    letter-spacing: 0.6px;
+    color: var(--rr-muted);
+    margin-bottom: 3px;
+}
+.rr-code-box {
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 4px;
+    padding: 6px 8px;
+}
+.rr-code-text { color: var(--rr-text); font-size: 11px; }

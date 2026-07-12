@@ -27,56 +27,56 @@
             <ui:VisualElement name="rr-dock-left" class="rr-dock rr-dock-left">
                 <ui:VisualElement name="rr-dock-perform" class="rr-dock-page">
                     <ui:Foldout text="Sources" value="true" class="rr-lib-fold">
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-source-video">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
                             <ui:Label text="reality_base.mov" class="rr-list-label" />
                             <ui:Label text="03:20" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-source-video">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
                             <ui:Label text="loop_grid.mp4" class="rr-list-label" />
                             <ui:Label text="00:40" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-source-camera">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
                             <ui:Label text="BlackMagic 1" class="rr-list-label" />
                             <ui:Label text="1080p" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-source-camera">
                             <ui:Label text="FaceTime HD" class="rr-list-label" />
                             <ui:Label text="720p" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
                     </ui:Foldout>
                     <ui:Foldout text="Audio" value="false" class="rr-lib-fold">
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-audio-input">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--audio" />
                             <ui:Label text="AudioListener" class="rr-list-label" />
                             <ui:Label text="mix" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-audio-input">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--audio" />
                             <ui:Label text="BlackHole 2ch" class="rr-list-label" />
                             <ui:Label text="ext" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-mapping">
                             <ui:Label text="Low → Feedback" class="rr-list-label" />
                             <ui:Label text="0.6" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-mapping">
                             <ui:Label text="High → RGB" class="rr-list-label" />
                             <ui:Label text="0.8" class="rr-list-meta rr-mono" />
                         </ui:VisualElement>
                     </ui:Foldout>
                     <ui:Foldout text="Scenes" value="true" class="rr-lib-fold">
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-scene">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
                             <ui:Label text="Intro" class="rr-list-label" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-scene">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
                             <ui:Label text="Drop 01" class="rr-list-label" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item">
+                        <ui:VisualElement class="rr-list-item rr-item-scene">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
                             <ui:Label text="Outro" class="rr-list-label" />
                         </ui:VisualElement>

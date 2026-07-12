@@ -58,8 +58,8 @@ namespace RewriteReality
 
         // 汎用セレクションモデル（§3・#15）
         readonly SelectionModel _selection = new SelectionModel();
-        readonly List<(VisualElement item, SelectionKind kind, string id)> _dockItems
-            = new List<(VisualElement, SelectionKind, string)>();
+        readonly List<(VisualElement item, SelectionKind kind, string id, string meta)> _dockItems
+            = new List<(VisualElement, SelectionKind, string, string)>();
 
         // 終了 UX（§7・#12）
         VisualElement _brandMenu, _quitOverlay, _quitOnAir;
@@ -147,13 +147,23 @@ namespace RewriteReality
         readonly List<ParamRow> _paramRows = new List<ParamRow>();
         int _builtEffectCount = -1;
         int _inspectorEffect = -1;
-        // true＝FX 行クリックで選んだ FX パラメータ表示中／false＝無選択（Master/Program ビュー・U1）
-        bool _fxInspectorActive;
         float _smoothedDt;
         int _lastFpsShown = -1;
 
+        // per-kind Inspector（U2）: ソース参照はキャッシュ（FindFirstObjectByType の毎回呼び出しを避ける）
+        SourceVideo _sourceVideo;
+        SourceCamera _sourceCamera;
+        AudioAnalyzer _audioAnalyzer;
+        // カメラ/オーディオの表示専用パラメータ（バックエンド API 無し・当面値保持のみ）
+        float _camExposure = 0.6f, _camZoom = 1f; bool _camEmbed = true;
+        float _audioSensitivity = 0.72f;
+        // 毎フレーム更新するライブ表示（値変化時のみ更新・罠7）
+        VisualElement _meterFillRms, _meterFillLow, _meterFillMid, _meterFillHigh;
+        Label _rmsValueLabel; int _lastRmsCenti = int.MinValue;
+        Label _srcVideoTimeLabel; double _lastSrcVideoTime = -1d;
+
         sealed class FxRow { public VisualElement root; public Toggle toggle; public Label name; }
-        sealed class ParamRow { public VisualElement root; public Slider slider; public Label value; public EffectParameter param; public int lastCenti = int.MinValue; }
+        sealed class ParamRow { public VisualElement root; public Slider slider; public Label value; public EffectParameter param; public int paramIndex; public int lastCenti = int.MinValue; }
 
         void Awake()
         {
@@ -826,11 +836,9 @@ namespace RewriteReality
         void SelectPage(int page)
         {
             _page = page;
-            // ページ切替でドック選択はクリア（track 選択は保持・§3）。FX 選択も同様に Master へ戻す。
-            // Deselect() は既に無選択なら Changed を発火しない（no-op）ため、FX 表示中だった場合に
-            // 備えて明示的に RebuildInspector も呼ぶ（さもないと FX ビューが残留する）。
+            // ページ切替でドック選択はクリア（track 選択は保持・§3）。FX 選択（SelectionKind.Fx）も
+            // 同じ経路で Master へ戻る（U2 で FX 選択を _selection に統合したため特別扱い不要）。
             if (_selection.Current.Kind != SelectionKind.Track) _selection.Deselect();
-            if (_fxInspectorActive) { _fxInspectorActive = false; RebuildInspector(); }
             if (_pagePerform != null) EnableClass(_pagePerform, "rr-page-tab--active", page == 0);
             if (_pageMapping != null) EnableClass(_pageMapping, "rr-page-tab--active", page == 1);
 
@@ -1297,38 +1305,54 @@ namespace RewriteReality
         // -------------------------------------------------- 汎用セレクション（§3・#15・最初のスライス）
         // 左ドック PERFORM ライブラリ（Sources/Audio/Scenes）を選択可能化し、単一 SelectionModel で駆動。
         // 選択→行ハイライト＋ Inspector タイトル反映。per-kind Inspector 本体・track/WARP は後続スライス。
+        // 静的プレースホルダ行の kind は行の marker クラス（rr-item-*）で判別する
+        // （foldout 単位ではなく行単位＝Audio 内に audio-input と mapping が混在するため・U2）。
+        // 実データ連動（左ドックの実体化）は #3/#11。
+        static readonly (string cls, SelectionKind kind)[] DockItemKindMarkers =
+        {
+            ("rr-item-source-video",  SelectionKind.SourceVideo),
+            ("rr-item-source-camera", SelectionKind.SourceCamera),
+            ("rr-item-audio-input",   SelectionKind.AudioInput),
+            ("rr-item-mapping",       SelectionKind.Mapping),
+            ("rr-item-scene",         SelectionKind.Scene),
+        };
+
         void BuildDockSelection()
         {
             _dockItems.Clear();
             var perform = _root.Q<VisualElement>("rr-dock-perform");
-            if (perform != null)
-            {
-                perform.Query<Foldout>().ForEach(f =>
-                {
-                    SelectionKind kind = f.text switch
-                    {
-                        "Sources" => SelectionKind.SourceVideo,   // 動画/カメラ細分は後続スライス
-                        "Audio"   => SelectionKind.AudioInput,
-                        "Scenes"  => SelectionKind.Scene,
-                        _         => SelectionKind.None,
-                    };
-                    if (kind != SelectionKind.None) WireDockList(f, kind);
-                });
-            }
+            if (perform != null) WireDockItems(perform);
 
             _selection.Changed -= OnSelectionChanged;
             _selection.Changed += OnSelectionChanged;
         }
 
-        void WireDockList(VisualElement container, SelectionKind kind)
+        void WireDockItems(VisualElement container)
         {
             container.Query<VisualElement>(className: "rr-list-item").ForEach(item =>
             {
+                SelectionKind kind = SelectionKind.None;
+                foreach (var (cls, k) in DockItemKindMarkers)
+                    if (item.ClassListContains(cls)) { kind = k; break; }
+                if (kind == SelectionKind.None) return;   // 未分類行は選択対象にしない（安全側）
+
                 var lbl = item.Q<Label>(className: "rr-list-label");
+                var meta = item.Q<Label>(className: "rr-list-meta");
                 string id = lbl != null ? lbl.text : "";
-                _dockItems.Add((item, kind, id));
+                _dockItems.Add((item, kind, id, meta != null ? meta.text : null));
                 item.RegisterCallback<MouseDownEvent>(_ => _selection.Select(kind, id));
             });
+        }
+
+        // _dockItems から一致する行のメタ文字列（尺・解像度・アマウント等の右寄せ表示）を探す。
+        string FindDockMeta(SelectionRef sel)
+        {
+            for (int i = 0; i < _dockItems.Count; i++)
+            {
+                var d = _dockItems[i];
+                if (d.kind == sel.Kind && d.id == sel.Id) return d.meta;
+            }
+            return null;
         }
 
         void OnSelectionChanged(SelectionRef sel)
@@ -1338,10 +1362,7 @@ namespace RewriteReality
                 var d = _dockItems[i];
                 EnableClass(d.item, "rr-list-item--active", sel.SameItem(d.kind, d.id));
             }
-            // ドック選択が実際に入った時は FX 表示より優先（RebuildInspector 側の判定順と対応）。
-            // 無選択に戻った時は Master ビューへ（FX クリック直後の残留状態を持ち越さない）。
-            if (sel.IsNone) _fxInspectorActive = false;
-            RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝Master/Program・U1）
+            RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝Master/Program）
         }
 
         // ドック項目（track 以外の単一選択）が Inspector を占有するか。
@@ -1351,21 +1372,219 @@ namespace RewriteReality
             return k != SelectionKind.None && k != SelectionKind.Track;
         }
 
-        // ドック選択の簡易 Inspector（per-kind の本体は §4 後続スライス）。
+        // ドック選択の Inspector を kind ごとにディスパッチ（§4b・U2）。
+        // Surface/SourceExt（MAPPING 側）は未対応（U4 で実装）＝簡易プレースホルダのまま。
         void BuildDockInspector(SelectionRef sel)
         {
             if (_inspector == null) return;
             _inspector.Clear();
             _paramRows.Clear();
+
+            switch (sel.Kind)
+            {
+                case SelectionKind.Fx:           BuildFxInspector(); return;
+                case SelectionKind.SourceVideo:  BuildSourceVideoInspector(sel); return;
+                case SelectionKind.SourceCamera: BuildSourceCameraInspector(sel); return;
+                case SelectionKind.AudioInput:   BuildAudioInputInspector(sel); return;
+                case SelectionKind.Mapping:      BuildMappingInspector(sel); return;
+                case SelectionKind.Scene:        BuildSceneInspector(sel); return;
+                default:                         BuildGenericDockInspector(sel); return;
+            }
+        }
+
+        // Surface/SourceExt 等・per-kind 未実装分の簡易表示（U4 で置き換え）。
+        void BuildGenericDockInspector(SelectionRef sel)
+        {
             // _inspectorEffect は更新しない（LateUpdate の FX ポーリングはこのビュー中は走らない）。
             if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
-
             var kindLabel = new Label(KindLabel(sel.Kind));
             kindLabel.AddToClassList("rr-hint");
             _inspector.Add(kindLabel);
-            var todo = new Label("Inspector controls: §4 後続スライスで実装");
+            var todo = new Label("Inspector controls: 後続スライスで実装（U4）");
             todo.AddToClassList("rr-hint");
             _inspector.Add(todo);
+        }
+
+        // -------------------------------------------------- fx（U2・既存 FX パラメータ表示の後継）
+        // FX Chain 一覧（常設の rr-fx-list）の行クリックがここへ来る。Amount/Audio Gain/Mix は
+        // 実際の EffectParameter にバインド（ParamRow として登録し SyncParamRows で毎フレーム追従・
+        // ドラッグ中は上書きしない）。Enabled トグル・Scope・OSC アドレス表示も実データ。
+        void BuildFxInspector()
+        {
+            if (_hub == null) { if (_inspectorTitle != null) _inspectorTitle.text = "FX"; return; }
+            var fx = _hub.GetEffect(_hub.SelectedEffect);
+            _inspectorEffect = _hub.SelectedEffect;
+            if (_inspectorTitle != null) _inspectorTitle.text = fx != null ? fx.Name : "FX";
+            if (fx == null) return;
+
+            bool live = _appMode != null && _appMode.IsLive;
+
+            AddSectionLabel(fx.Name, StagePill("EFFECTS", "effects"));
+            AddToggleRow("Enabled", fx.enabled, v => fx.enabled = v);
+
+            TryFindParam(fx, "Amount", out var amountP, out int amountIdx);
+            if (amountP == null && fx.Parameters.Count > 1) { amountIdx = 1; amountP = fx.Parameters[1]; }
+            AddFxParamRow("Amount", amountP, amountIdx, live);
+
+            TryFindParam(fx, "Audio Gain", out var gainP, out int gainIdx);
+            AddFxParamRow("Audio Gain", gainP, gainIdx, live);
+
+            TryFindParam(fx, "Mix", out var mixP, out int mixIdx);
+            if (mixP == null) { mixIdx = 0; mixP = fx.Parameters[0]; }   // Mix は基底で必ず [0] に存在
+            AddFxParamRow("Mix", mixP, mixIdx, false);
+
+            AddSectionLabel("Scope");
+            string scopeText = fx.scope == EffectScope.Surface ? "SURFACE " + fx.targetSurfaceId : "GLOBAL";
+            AddInfoRow("Target", scopeText);
+
+            string slug = Slugify(fx.Name);
+            float oscVal = amountP != null ? amountP.Value : 0f;
+            AddCodeRow("OSC", "/rr/fx/" + slug + "/amount " + oscVal.ToString("F2"));
+
+            AddDeselectRow();
+        }
+
+        static string Slugify(string s)
+        {
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (char c in s.ToLowerInvariant())
+                if (c >= 'a' && c <= 'z' || c >= '0' && c <= '9') sb.Append(c);
+            return sb.ToString();
+        }
+
+        static void TryFindParam(EffectBase fx, string name, out EffectParameter param, out int index)
+        {
+            var ps = fx.Parameters;
+            for (int i = 0; i < ps.Count; i++)
+                if (ps[i].Name == name) { param = ps[i]; index = i; return; }
+            param = null; index = -1;
+        }
+
+        // -------------------------------------------------- source-video（U2）
+        void BuildSourceVideoInspector(SelectionRef sel)
+        {
+            if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
+            AddSectionLabel(sel.Id, StagePill("SOURCE", "source"));
+
+            if (_sourceVideo == null) _sourceVideo = FindFirstObjectByType<SourceVideo>();
+            var video = _sourceVideo;
+            bool live = _appMode != null && _appMode.IsLive;
+
+            AddSliderRow("Speed", video != null ? video.Speed : 1f, 0.1f, 4f, "x", live,
+                v => { if (video != null) video.Speed = v; });
+            AddToggleRow("Loop", video != null && video.Loop, v => { if (video != null) video.Loop = v; });
+
+            _srcVideoTimeLabel = AddInfoRow("Time", video != null ? ShowTimeline.FormatTime(video.Time) : "00:00.00");
+            _lastSrcVideoTime = video != null ? video.Time : -1d;
+
+            string dur = video != null ? ShowTimeline.FormatTime(video.Duration) : FindDockMeta(sel);
+            AddInfoRow("Duration", dur ?? "—");
+
+            AddDeselectRow();
+        }
+
+        // -------------------------------------------------- source-camera（U2・当面表示のみ）
+        void BuildSourceCameraInspector(SelectionRef sel)
+        {
+            if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
+            AddSectionLabel(sel.Id, StagePill("SOURCE", "source"));
+
+            if (_sourceCamera == null) _sourceCamera = FindFirstObjectByType<SourceCamera>();
+            string res = null;
+            if (_sourceCamera != null && _sourceCamera.Texture != null)
+                res = _sourceCamera.Texture.width + "×" + _sourceCamera.Texture.height;
+            AddInfoRow("Resolution", res ?? FindDockMeta(sel) ?? "—");
+
+            // Exposure/Zoom/Embed: SourceCamera に該当 API 無し。当面 UI 側で値保持のみ。
+            AddSliderRow("Exposure", _camExposure, 0f, 1f, "", false, v => _camExposure = v);
+            AddSliderRow("Zoom", _camZoom, 0.5f, 3f, "x", false, v => _camZoom = v);
+            AddToggleRow("Embed", _camEmbed, v => _camEmbed = v);
+
+            AddDeselectRow();
+        }
+
+        // -------------------------------------------------- audio-input（U2・メーターは毎フレーム更新）
+        void BuildAudioInputInspector(SelectionRef sel)
+        {
+            if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
+            AddSectionLabel(sel.Id, StagePill("AUDIO", "audio"));
+
+            if (_audioAnalyzer == null) _audioAnalyzer = FindFirstObjectByType<AudioAnalyzer>();
+            BuildAudioMeterRow();
+
+            AddSliderRow("Sensitivity", _audioSensitivity, 0f, 1f, "", false, v => _audioSensitivity = v);
+            float rms = _audioAnalyzer != null ? _audioAnalyzer.Features.Rms : 0f;
+            _rmsValueLabel = AddInfoRow("RMS", rms.ToString("F2"));
+            _lastRmsCenti = Mathf.RoundToInt(rms * 100f);
+            AddInfoRow("Source", FindDockMeta(sel) ?? "—");
+
+            AddDeselectRow();
+        }
+
+        void BuildAudioMeterRow()
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-meter-row");
+            _meterFillRms  = AddMeterTo(row);
+            _meterFillLow  = AddMeterTo(row);
+            _meterFillMid  = AddMeterTo(row);
+            _meterFillHigh = AddMeterTo(row);
+            _inspector.Add(row);
+        }
+
+        static VisualElement AddMeterTo(VisualElement row)
+        {
+            var meter = new VisualElement(); meter.AddToClassList("rr-meter");
+            var fill = new VisualElement(); fill.AddToClassList("rr-meter__fill");
+            meter.Add(fill);
+            row.Add(meter);
+            return fill;
+        }
+
+        // -------------------------------------------------- mapping（U2・実データ無し＝表示のみ）
+        // ラベル文字列「Low → Feedback」から band/target を、meta から amount を読む
+        // （左ドックの実データ連動＝#3/#11 が入るまでのプレースホルダ解析）。
+        void BuildMappingInspector(SelectionRef sel)
+        {
+            if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
+            AddSectionLabel(sel.Id, StagePill("AUDIO", "audio"));
+
+            string band = "—", target = "—";
+            int arrow = sel.Id.IndexOf('→');
+            if (arrow >= 0)
+            {
+                band = sel.Id.Substring(0, arrow).Trim().ToUpperInvariant();
+                target = sel.Id.Substring(arrow + 1).Trim().ToUpperInvariant();
+            }
+            AddInfoRow("Band", band);
+            AddInfoRow("Target", target);
+
+            // TryParse は失敗時も out を 0 で埋めるため、既定値は成功時のみ上書きする。
+            float amt = 0.5f;
+            if (float.TryParse(FindDockMeta(sel), out var parsedAmt)) amt = parsedAmt;
+            AddSliderRow("Amount", amt, 0f, 1f, "", false, v => { });
+            AddSliderRow("Smoothing", 0.2f, 0f, 1f, "", false, v => { });
+            AddInfoRow("Curve", "EXP");
+
+            AddDeselectRow();
+        }
+
+        // -------------------------------------------------- scene（U2・実データ無し＝表示のみ）
+        void BuildSceneInspector(SelectionRef sel)
+        {
+            if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
+            AddSectionLabel(sel.Id, StagePill("SCENE", "scene"));
+
+            AddSliderRow("Fade In", 0.5f, 0f, 5f, "s", false, v => { });
+            AddSliderRow("Fade Out", 1.2f, 0f, 5f, "s", false, v => { });
+
+            AddSectionLabel("Trigger");
+            AddInfoRow("Key", "PAD 4");
+            AddToggleRow("Hold", true, v => { });
+
+            AddButtonRow(
+                MakeButton("Fire", "primary", null, enabled: false),
+                MakeButton("Save", "secondary", null, enabled: false),
+                MakeButton("Deselect", "ghost", () => _selection.Deselect()));
         }
 
         // -------------------------------------------------- Master/Program（無選択時の既定・§4a・U1）
@@ -1381,7 +1600,7 @@ namespace RewriteReality
 
             bool live = _appMode != null && _appMode.IsLive;
 
-            AddSectionLabel("Master", "PROGRAM", "rr-badge--live");
+            AddSectionLabel("Master", Badge("PROGRAM", "rr-badge--live"));
 
             AddSliderRow("Master", _hub != null ? _hub.Master : 1f, 0f, 1f, "", live,
                 v => { if (_hub != null) _hub.Master = v; });
@@ -1400,20 +1619,30 @@ namespace RewriteReality
             AddBpmRow(_hub != null ? _hub.Bpm : 128f, v => { if (_hub != null) _hub.Bpm = v; });
         }
 
-        // 小見出し（右に任意でバッジ）。既存 UXML の SURFACES 見出しと同じクラスを使う。
-        void AddSectionLabel(string text, string badgeText = null, string badgeClass = null)
+        // 小見出し（右に任意で Badge/StagePill 等）。既存 UXML の SURFACES 見出しと同じクラスを使う。
+        void AddSectionLabel(string text, VisualElement right = null)
         {
             var row = new VisualElement(); row.AddToClassList("rr-section-label");
             var lbl = new Label(text); lbl.AddToClassList("rr-section-label__text");
             row.Add(lbl);
-            if (!string.IsNullOrEmpty(badgeText))
-            {
-                var badge = new Label(badgeText);
-                badge.AddToClassList("rr-badge");
-                if (!string.IsNullOrEmpty(badgeClass)) badge.AddToClassList(badgeClass);
-                row.Add(badge);
-            }
+            if (right != null) row.Add(right);
             _inspector.Add(row);
+        }
+
+        // Badge（Master の PROGRAM 等・角丸縁取り）。
+        static Label Badge(string text, string toneClass = null)
+        {
+            var badge = new Label(text); badge.AddToClassList("rr-badge");
+            if (!string.IsNullOrEmpty(toneClass)) badge.AddToClassList(toneClass);
+            return badge;
+        }
+
+        // StagePill（項目種別の色付きピル・見出し右）。suffix は rr-stage-pill--{suffix} に対応。
+        static Label StagePill(string text, string suffix)
+        {
+            var pill = new Label(text); pill.AddToClassList("rr-stage-pill");
+            pill.AddToClassList("rr-stage-pill--" + suffix);
+            return pill;
         }
 
         // スライダ行（Master/Fade to Black/Speed 用）。既存 FX パラメータ行と同じ見た目・テンプレ規約。
@@ -1465,8 +1694,9 @@ namespace RewriteReality
             _inspector.Add(row);
         }
 
-        // 情報行（編集不可・Output 解像度用）。ラベル＋右寄せ値。
-        void AddInfoRow(string label, string valueText)
+        // 情報行（編集不可・Output 解像度用）。ラベル＋右寄せ値。呼び出し側が値 Label を保持すれば
+        // 毎フレーム更新（Time/RMS 等）に使える。
+        Label AddInfoRow(string label, string valueText)
         {
             var row = new VisualElement(); row.AddToClassList("rr-param-row");
             var lbl = new Label(label); lbl.AddToClassList("rr-param-label");
@@ -1474,6 +1704,87 @@ namespace RewriteReality
             var val = new Label(valueText); val.AddToClassList("rr-param-value"); val.AddToClassList("rr-mono");
             row.Add(lbl); row.Add(spacer); row.Add(val);
             _inspector.Add(row);
+            return val;
+        }
+
+        // FX パラメータ行（Amount/Audio Gain/Mix 用）。実際の EffectParameter にバインドし、
+        // _paramRows に登録して SyncParamRows で毎フレーム追従（ドラッグ中は上書きしない）。
+        // param が見つからない効果（例: Feedback に Audio Gain 無し）は "—" の情報行にフォールバック。
+        void AddFxParamRow(string label, EffectParameter p, int paramIndex, bool armed)
+        {
+            if (p == null) { AddInfoRow(label, "—"); return; }
+
+            VisualElement row = null; Label lbl = null; Slider slider = null; Label val = null;
+            if (_paramRowTemplate != null)
+            {
+                row = _paramRowTemplate.Instantiate().Q("param-row");
+                lbl = row?.Q<Label>("param-label");
+                slider = row?.Q<Slider>("param-slider");
+                val = row?.Q<Label>("param-value");
+            }
+            if (row == null || lbl == null || slider == null || val == null)
+            {
+                row = new VisualElement(); row.AddToClassList("rr-param-row");
+                lbl = new Label(); lbl.AddToClassList("rr-param-label");
+                slider = new Slider(); slider.AddToClassList("rr-param-slider");
+                val = new Label(); val.AddToClassList("rr-param-value"); val.AddToClassList("rr-mono");
+                row.Add(lbl); row.Add(slider); row.Add(val);
+            }
+
+            lbl.text = label;
+            slider.lowValue = p.Min;
+            slider.highValue = p.Max;
+            slider.SetValueWithoutNotify(p.Value);
+            val.text = p.Value.ToString("F2");
+            EnableClass(val, "rr-param-value--armed", armed);
+
+            int effectIndex = _inspectorEffect;
+            slider.RegisterValueChangedCallback(evt =>
+            {
+                p.Value = evt.newValue;
+                _hub.SelectEffect(effectIndex);
+                _hub.SelectParam(paramIndex);
+            });
+            slider.RegisterCallback<MouseDownEvent>(_ =>
+            {
+                _hub.SelectEffect(effectIndex);
+                _hub.SelectParam(paramIndex);
+            });
+
+            _inspector.Add(row);
+            _paramRows.Add(new ParamRow { root = row, slider = slider, value = val, param = p, paramIndex = paramIndex });
+        }
+
+        // ボタン（primary/secondary/ghost・既存 .rr-btn 系トークンを使用）。
+        static Button MakeButton(string text, string variant, System.Action onClick, bool enabled = true)
+        {
+            var btn = new Button { text = text };
+            if (onClick != null) btn.clicked += onClick;
+            btn.AddToClassList("rr-btn");
+            btn.AddToClassList("rr-btn--" + variant);
+            btn.SetEnabled(enabled);
+            return btn;
+        }
+
+        void AddButtonRow(params VisualElement[] buttons)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-btn-row");
+            foreach (var b in buttons) row.Add(b);
+            _inspector.Add(row);
+        }
+
+        void AddDeselectRow() => AddButtonRow(MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+
+        // OSC アドレス表示（fx 用・CodeSurface 相当の簡易表現）。
+        void AddCodeRow(string label, string code)
+        {
+            var wrap = new VisualElement(); wrap.AddToClassList("rr-code-row");
+            var lbl = new Label(label); lbl.AddToClassList("rr-code-label");
+            var box = new VisualElement(); box.AddToClassList("rr-code-box");
+            var txt = new Label(code); txt.AddToClassList("rr-code-text"); txt.AddToClassList("rr-mono");
+            box.Add(txt);
+            wrap.Add(lbl); wrap.Add(box);
+            _inspector.Add(wrap);
         }
 
         // BPM 行（数値入力）。将来のビート同期まで値を保持するだけ（ControlHub.Bpm）。
@@ -1502,20 +1813,6 @@ namespace RewriteReality
             SelectionKind.Surface      => "Surface",
             _                          => "Item",
         };
-
-        // Inspector タイトル：ドック選択があればその名前、無ければ従来の FX/Program 表示。
-        void RefreshInspectorTitle()
-        {
-            if (_inspectorTitle == null) return;
-            var sel = _selection.Current;
-            if (!sel.IsNone && sel.Kind != SelectionKind.Track && !string.IsNullOrEmpty(sel.Id))
-            {
-                _inspectorTitle.text = sel.Id;
-                return;
-            }
-            var fx = _hub != null ? _hub.GetEffect(_hub.SelectedEffect) : null;
-            _inspectorTitle.text = fx != null ? fx.Name : "Inspector";
-        }
 
         void OnDisable()
         {
@@ -1556,12 +1853,16 @@ namespace RewriteReality
 
             // FX 一覧はエフェクト数が変わった時だけ再構築（毎フレーム new を避ける）
             if (_hub.Count != _builtEffectCount) RebuildFxList();
-            // inspector は「FX パラメータ表示中」かつ選択エフェクトが変わった時だけ再構築。
-            // Master/ドック表示中は外部要因で変わる値が無いため毎フレーム比較しない
-            // （BuildDockInspector/BuildMasterInspector は _inspectorEffect を更新しないため、
-            //  ここを無条件にすると常に不一致になり毎フレーム作り直してしまう＝GC スパイク）。
-            if (_fxInspectorActive && !DockSelectionActive() && _hub.SelectedEffect != _inspectorEffect)
+            // inspector は「fx 選択中」かつキーボード/IMGUI 側で SelectedEffect が変わった時だけ
+            // 再構築（Master/他ドックビューは _inspectorEffect を更新しないため、ここを無条件に
+            // すると常に不一致になり毎フレーム作り直してしまう＝GC スパイク）。
+            if (_selection.Current.Kind == SelectionKind.Fx && _hub.SelectedEffect != _inspectorEffect)
                 RebuildInspector();
+
+            // per-kind ビューのライブ表示（audio-input のメーター・source-video の Time）。
+            var vk = _selection.Current.Kind;
+            if (vk == SelectionKind.AudioInput) SyncAudioMeters();
+            else if (vk == SelectionKind.SourceVideo) SyncSourceVideoTime();
 
             SyncFxRows();
             SyncParamRows();
@@ -1642,11 +1943,10 @@ namespace RewriteReality
                 name.text = $"{index + 1}. {fx.Name}";
                 name.RegisterCallback<MouseDownEvent>(_ =>
                 {
-                    // FX 行クリック＝従来の FX パラメータ表示へ（per-kind の専用ビューは U2）。
-                    // 同じ index を選び直しても Master → FX へ切り替わるよう即時再構築する。
-                    _fxInspectorActive = true;
+                    // FX 行クリック＝ドック項目と同じ SelectionModel 経由（§3・U2）。
+                    // 同じ行の再クリックで解除＝Master へ戻る（SelectionModel.Select のトグル仕様）。
                     _hub.SelectEffect(index);
-                    RebuildInspector();
+                    _selection.Select(SelectionKind.Fx, "fx" + index);
                 });
 
                 _fxList.Add(row);
@@ -1672,72 +1972,15 @@ namespace RewriteReality
         }
 
         // -------------------------------------------------- inspector (param rows)
+        // ドック項目選択（Fx 含む・§3）があればそれを、無選択なら Master/Program を表示。
         void RebuildInspector()
         {
-            // ドック項目が選択中ならその Inspector を優先（§3・FX/Program より上位）。
             if (DockSelectionActive()) { BuildDockInspector(_selection.Current); return; }
-
-            // ドック未選択時：FX 行クリック済みなら従来の FX パラメータ表示、そうでなければ
-            // Master/Program ビュー（無選択時の既定・§4a・U1）。
-            if (!_fxInspectorActive) { BuildMasterInspector(); return; }
-
-            _inspector.Clear();
-            _paramRows.Clear();
-            if (_hub == null) { if (_inspectorTitle != null) _inspectorTitle.text = "Inspector"; return; }
-
-            var fx = _hub.GetEffect(_hub.SelectedEffect);
-            _inspectorEffect = _hub.SelectedEffect;
-            RefreshInspectorTitle();   // ドック選択があればそれを優先（§3）
-            if (fx == null) return;
-
-            var ps = fx.Parameters;
-            for (int j = 0; j < ps.Count; j++)
-            {
-                var p = ps[j];
-                int pIndex = j;
-
-                VisualElement row = null;
-                Label label = null;
-                Slider slider = null;
-                Label value = null;
-                if (_paramRowTemplate != null)
-                {
-                    row = _paramRowTemplate.Instantiate().Q("param-row");
-                    label = row?.Q<Label>("param-label");
-                    slider = row?.Q<Slider>("param-slider");
-                    value = row?.Q<Label>("param-value");
-                }
-                if (row == null || label == null || slider == null || value == null)
-                {
-                    row = new VisualElement(); row.AddToClassList("rr-param-row");
-                    label = new Label(); label.AddToClassList("rr-param-label");
-                    slider = new Slider(); slider.AddToClassList("rr-param-slider");
-                    value = new Label(); value.AddToClassList("rr-param-value"); value.AddToClassList("rr-mono");
-                    row.Add(label); row.Add(slider); row.Add(value);
-                }
-
-                label.text = p.Name;
-                slider.lowValue = p.Min;
-                slider.highValue = p.Max;
-                slider.SetValueWithoutNotify(p.Value);
-                slider.RegisterValueChangedCallback(evt =>
-                {
-                    p.Value = evt.newValue;
-                    _hub.SelectEffect(_inspectorEffect);
-                    _hub.SelectParam(pIndex);
-                });
-                slider.RegisterCallback<MouseDownEvent>(_ =>
-                {
-                    _hub.SelectEffect(_inspectorEffect);
-                    _hub.SelectParam(pIndex);
-                });
-                value.text = p.Value.ToString("F2");
-
-                _inspector.Add(row);
-                _paramRows.Add(new ParamRow { root = row, slider = slider, value = value, param = p });
-            }
+            BuildMasterInspector();
         }
 
+        // FX パラメータ行（Amount/Audio Gain/Mix）の毎フレーム同期。fx 以外のビュー表示中は
+        // _paramRows が空なのでループ 0 回＝実質ノーコスト。
         void SyncParamRows()
         {
             for (int j = 0; j < _paramRows.Count; j++)
@@ -1752,8 +1995,41 @@ namespace RewriteReality
                 // F2 表示（小数2桁）は centi 単位で変化した時だけ更新（毎フレームの ToString を避ける）
                 int centi = Mathf.RoundToInt(v * 100f);
                 if (centi != r.lastCenti) { r.value.text = v.ToString("F2"); r.lastCenti = centi; }
-                EnableClass(r.root, "rr-param-row--selected", j == _hub.SelectedParam);
+                EnableClass(r.root, "rr-param-row--selected", r.paramIndex == _hub.SelectedParam);
             }
+        }
+
+        // audio-input 表示中のみ呼ばれる（LateUpdate で kind ガード済み）。値変化時だけ高さ/文字を更新。
+        void SyncAudioMeters()
+        {
+            if (_audioAnalyzer == null) return;
+            var f = _audioAnalyzer.Features;
+            SetMeterFill(_meterFillRms, f.Rms);
+            SetMeterFill(_meterFillLow, f.Low);
+            SetMeterFill(_meterFillMid, f.Mid);
+            SetMeterFill(_meterFillHigh, f.High);
+
+            if (_rmsValueLabel != null)
+            {
+                int centi = Mathf.RoundToInt(f.Rms * 100f);
+                if (centi != _lastRmsCenti) { _rmsValueLabel.text = f.Rms.ToString("F2"); _lastRmsCenti = centi; }
+            }
+        }
+
+        static void SetMeterFill(VisualElement fill, float v)
+        {
+            if (fill == null) return;
+            fill.style.height = Length.Percent(Mathf.Clamp01(v) * 100f);
+        }
+
+        // source-video 表示中のみ呼ばれる。~30ms 未満の変化は無視（毎フレームの ToString を避ける）。
+        void SyncSourceVideoTime()
+        {
+            if (_srcVideoTimeLabel == null || _sourceVideo == null) return;
+            double t = _sourceVideo.Time;
+            if (System.Math.Abs(t - _lastSrcVideoTime) < 0.03) return;
+            _lastSrcVideoTime = t;
+            _srcVideoTimeLabel.text = ShowTimeline.FormatTime(t);
         }
 
         // -------------------------------------------------- helpers
