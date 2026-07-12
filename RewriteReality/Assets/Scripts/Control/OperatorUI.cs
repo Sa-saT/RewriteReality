@@ -147,6 +147,8 @@ namespace RewriteReality
         readonly List<ParamRow> _paramRows = new List<ParamRow>();
         int _builtEffectCount = -1;
         int _inspectorEffect = -1;
+        // true＝FX 行クリックで選んだ FX パラメータ表示中／false＝無選択（Master/Program ビュー・U1）
+        bool _fxInspectorActive;
         float _smoothedDt;
         int _lastFpsShown = -1;
 
@@ -212,6 +214,7 @@ namespace RewriteReality
             _builtSurfaceCount = -1;
             _selectedSurfaceId = int.MinValue;
             _inspectorEffect = -1;
+            RebuildInspector();   // 初期表示（無選択＝Master/Program・U1）。以後は選択変化/FX クリックで駆動。
             ApplyVisibility();
         }
 
@@ -823,8 +826,11 @@ namespace RewriteReality
         void SelectPage(int page)
         {
             _page = page;
-            // ページ切替でドック選択はクリア（track 選択は保持・§3）。
+            // ページ切替でドック選択はクリア（track 選択は保持・§3）。FX 選択も同様に Master へ戻す。
+            // Deselect() は既に無選択なら Changed を発火しない（no-op）ため、FX 表示中だった場合に
+            // 備えて明示的に RebuildInspector も呼ぶ（さもないと FX ビューが残留する）。
             if (_selection.Current.Kind != SelectionKind.Track) _selection.Deselect();
+            if (_fxInspectorActive) { _fxInspectorActive = false; RebuildInspector(); }
             if (_pagePerform != null) EnableClass(_pagePerform, "rr-page-tab--active", page == 0);
             if (_pageMapping != null) EnableClass(_pageMapping, "rr-page-tab--active", page == 1);
 
@@ -1332,7 +1338,10 @@ namespace RewriteReality
                 var d = _dockItems[i];
                 EnableClass(d.item, "rr-list-item--active", sel.SameItem(d.kind, d.id));
             }
-            RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝FX/Program）
+            // ドック選択が実際に入った時は FX 表示より優先（RebuildInspector 側の判定順と対応）。
+            // 無選択に戻った時は Master ビューへ（FX クリック直後の残留状態を持ち越さない）。
+            if (sel.IsNone) _fxInspectorActive = false;
+            RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝Master/Program・U1）
         }
 
         // ドック項目（track 以外の単一選択）が Inspector を占有するか。
@@ -1348,7 +1357,7 @@ namespace RewriteReality
             if (_inspector == null) return;
             _inspector.Clear();
             _paramRows.Clear();
-            _inspectorEffect = -1;
+            // _inspectorEffect は更新しない（LateUpdate の FX ポーリングはこのビュー中は走らない）。
             if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
 
             var kindLabel = new Label(KindLabel(sel.Kind));
@@ -1357,6 +1366,128 @@ namespace RewriteReality
             var todo = new Label("Inspector controls: §4 後続スライスで実装");
             todo.AddToClassList("rr-hint");
             _inspector.Add(todo);
+        }
+
+        // -------------------------------------------------- Master/Program（無選択時の既定・§4a・U1）
+        // FX Chain の一覧自体は常設の rr-fx-list（右ドック上段）が担うため、ここでは重複させない
+        // （FX 行クリックは RebuildFxList 側の配線で従来の FX パラメータ表示へ切り替える）。
+        void BuildMasterInspector()
+        {
+            if (_inspector == null) return;
+            _inspector.Clear();
+            _paramRows.Clear();
+            // _inspectorEffect は更新しない（LateUpdate の FX ポーリングはこのビュー中は走らない）。
+            if (_inspectorTitle != null) _inspectorTitle.text = "Master";
+
+            bool live = _appMode != null && _appMode.IsLive;
+
+            AddSectionLabel("Master", "PROGRAM", "rr-badge--live");
+
+            AddSliderRow("Master", _hub != null ? _hub.Master : 1f, 0f, 1f, "", live,
+                v => { if (_hub != null) _hub.Master = v; });
+            AddSliderRow("Fade to Black", _hub != null ? _hub.FadeToBlack : 0f, 0f, 1f, "", false,
+                v => { if (_hub != null) _hub.FadeToBlack = v; });
+            AddSliderRow("Speed", _hub != null ? _hub.MasterSpeed : 1f, 0f, 4f, "x", live,
+                v => { if (_hub != null) _hub.MasterSpeed = v; });
+            AddToggleRow("Freeze", _hub != null && _hub.FreezeEngine,
+                v => { if (_hub != null) _hub.FreezeEngine = v; });
+
+            string res = "1920×1080";
+            if (_chain != null && _chain.FinalTexture != null)
+                res = _chain.FinalTexture.width + "×" + _chain.FinalTexture.height;
+            AddInfoRow("Output", res);
+
+            AddBpmRow(_hub != null ? _hub.Bpm : 128f, v => { if (_hub != null) _hub.Bpm = v; });
+        }
+
+        // 小見出し（右に任意でバッジ）。既存 UXML の SURFACES 見出しと同じクラスを使う。
+        void AddSectionLabel(string text, string badgeText = null, string badgeClass = null)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-section-label");
+            var lbl = new Label(text); lbl.AddToClassList("rr-section-label__text");
+            row.Add(lbl);
+            if (!string.IsNullOrEmpty(badgeText))
+            {
+                var badge = new Label(badgeText);
+                badge.AddToClassList("rr-badge");
+                if (!string.IsNullOrEmpty(badgeClass)) badge.AddToClassList(badgeClass);
+                row.Add(badge);
+            }
+            _inspector.Add(row);
+        }
+
+        // スライダ行（Master/Fade to Black/Speed 用）。既存 FX パラメータ行と同じ見た目・テンプレ規約。
+        void AddSliderRow(string label, float value, float min, float max, string unit, bool armed,
+                          System.Action<float> onChange)
+        {
+            VisualElement row = null; Label lbl = null; Slider slider = null; Label val = null;
+            if (_paramRowTemplate != null)
+            {
+                row = _paramRowTemplate.Instantiate().Q("param-row");
+                lbl = row?.Q<Label>("param-label");
+                slider = row?.Q<Slider>("param-slider");
+                val = row?.Q<Label>("param-value");
+            }
+            if (row == null || lbl == null || slider == null || val == null)
+            {
+                row = new VisualElement(); row.AddToClassList("rr-param-row");
+                lbl = new Label(); lbl.AddToClassList("rr-param-label");
+                slider = new Slider(); slider.AddToClassList("rr-param-slider");
+                val = new Label(); val.AddToClassList("rr-param-value"); val.AddToClassList("rr-mono");
+                row.Add(lbl); row.Add(slider); row.Add(val);
+            }
+
+            lbl.text = label;
+            slider.lowValue = min;
+            slider.highValue = max;
+            slider.SetValueWithoutNotify(value);
+            string Fmt(float v) => v.ToString("F2") + unit;
+            val.text = Fmt(value);
+            EnableClass(val, "rr-param-value--armed", armed);
+            slider.RegisterValueChangedCallback(evt =>
+            {
+                onChange(evt.newValue);
+                val.text = Fmt(evt.newValue);
+            });
+            _inspector.Add(row);
+        }
+
+        // トグル行（Freeze 用）。ラベル＋右寄せ Toggle。
+        void AddToggleRow(string label, bool value, System.Action<bool> onChange)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-param-row");
+            var lbl = new Label(label); lbl.AddToClassList("rr-param-label");
+            var spacer = new VisualElement(); spacer.style.flexGrow = 1f;
+            var toggle = new Toggle(); toggle.AddToClassList("rr-fx-toggle");
+            toggle.SetValueWithoutNotify(value);
+            toggle.RegisterValueChangedCallback(evt => onChange(evt.newValue));
+            row.Add(lbl); row.Add(spacer); row.Add(toggle);
+            _inspector.Add(row);
+        }
+
+        // 情報行（編集不可・Output 解像度用）。ラベル＋右寄せ値。
+        void AddInfoRow(string label, string valueText)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-param-row");
+            var lbl = new Label(label); lbl.AddToClassList("rr-param-label");
+            var spacer = new VisualElement(); spacer.style.flexGrow = 1f;
+            var val = new Label(valueText); val.AddToClassList("rr-param-value"); val.AddToClassList("rr-mono");
+            row.Add(lbl); row.Add(spacer); row.Add(val);
+            _inspector.Add(row);
+        }
+
+        // BPM 行（数値入力）。将来のビート同期まで値を保持するだけ（ControlHub.Bpm）。
+        void AddBpmRow(float value, System.Action<float> onChange)
+        {
+            var row = new VisualElement(); row.AddToClassList("rr-param-row");
+            var lbl = new Label("BPM"); lbl.AddToClassList("rr-param-label");
+            var spacer = new VisualElement(); spacer.style.flexGrow = 1f;
+            var field = new FloatField { value = value };
+            field.AddToClassList("rr-mono");
+            field.style.width = 72;
+            field.RegisterValueChangedCallback(evt => onChange(evt.newValue));
+            row.Add(lbl); row.Add(spacer); row.Add(field);
+            _inspector.Add(row);
         }
 
         static string KindLabel(SelectionKind k) => k switch
@@ -1425,8 +1556,12 @@ namespace RewriteReality
 
             // FX 一覧はエフェクト数が変わった時だけ再構築（毎フレーム new を避ける）
             if (_hub.Count != _builtEffectCount) RebuildFxList();
-            // inspector は選択エフェクトが変わった時だけ再構築
-            if (_hub.SelectedEffect != _inspectorEffect) RebuildInspector();
+            // inspector は「FX パラメータ表示中」かつ選択エフェクトが変わった時だけ再構築。
+            // Master/ドック表示中は外部要因で変わる値が無いため毎フレーム比較しない
+            // （BuildDockInspector/BuildMasterInspector は _inspectorEffect を更新しないため、
+            //  ここを無条件にすると常に不一致になり毎フレーム作り直してしまう＝GC スパイク）。
+            if (_fxInspectorActive && !DockSelectionActive() && _hub.SelectedEffect != _inspectorEffect)
+                RebuildInspector();
 
             SyncFxRows();
             SyncParamRows();
@@ -1505,7 +1640,14 @@ namespace RewriteReality
                 toggle.SetValueWithoutNotify(fx.enabled);
                 toggle.RegisterValueChangedCallback(evt => _hub.SetEffectEnabled(index, evt.newValue));
                 name.text = $"{index + 1}. {fx.Name}";
-                name.RegisterCallback<MouseDownEvent>(_ => _hub.SelectEffect(index));
+                name.RegisterCallback<MouseDownEvent>(_ =>
+                {
+                    // FX 行クリック＝従来の FX パラメータ表示へ（per-kind の専用ビューは U2）。
+                    // 同じ index を選び直しても Master → FX へ切り替わるよう即時再構築する。
+                    _fxInspectorActive = true;
+                    _hub.SelectEffect(index);
+                    RebuildInspector();
+                });
 
                 _fxList.Add(row);
                 _fxRows.Add(new FxRow { root = row, toggle = toggle, name = name });
@@ -1534,6 +1676,10 @@ namespace RewriteReality
         {
             // ドック項目が選択中ならその Inspector を優先（§3・FX/Program より上位）。
             if (DockSelectionActive()) { BuildDockInspector(_selection.Current); return; }
+
+            // ドック未選択時：FX 行クリック済みなら従来の FX パラメータ表示、そうでなければ
+            // Master/Program ビュー（無選択時の既定・§4a・U1）。
+            if (!_fxInspectorActive) { BuildMasterInspector(); return; }
 
             _inspector.Clear();
             _paramRows.Clear();

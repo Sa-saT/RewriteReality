@@ -12,13 +12,42 @@ namespace RewriteReality
     public sealed class ControlHub : MonoBehaviour
     {
         [SerializeField] EffectChain _effectChain;
+        [Tooltip("Master Speed を song トランスポートへ反映する先（未設定なら自動取得）")]
+        [SerializeField] ShowTimeline _timeline;
 
         static readonly IReadOnlyList<EffectBase> _empty = new EffectBase[0];
 
         void Awake()
         {
             if (_effectChain == null) _effectChain = FindFirstObjectByType<EffectChain>();
+            if (_timeline == null) _timeline = FindFirstObjectByType<ShowTimeline>();
         }
+
+        // ---- Master/Program（右 Inspector 無選択時・§4a・U1）----
+        // 実効果は段階的（当面 UI 値の保持のみ。Master/FadeToBlack は将来 EffectChain 側の合成に反映）。
+        float _master = 1f;
+        float _fadeToBlack = 0f;
+        float _masterSpeed = 1f;
+        float _bpm = 128f;
+        bool _freezeEngine;
+
+        public float Master { get => _master; set => _master = Mathf.Clamp01(value); }
+        public float FadeToBlack { get => _fadeToBlack; set => _fadeToBlack = Mathf.Clamp01(value); }
+        public float Bpm { get => _bpm; set => _bpm = Mathf.Clamp(value, 20f, 300f); }
+
+        /// <summary>本番全体の再生速度（0..4）。song トランスポート（ShowTimeline.Rate）へ反映する。</summary>
+        public float MasterSpeed
+        {
+            get => _masterSpeed;
+            set
+            {
+                _masterSpeed = Mathf.Clamp(value, 0f, 4f);
+                if (_timeline != null) _timeline.Rate = _masterSpeed;
+            }
+        }
+
+        /// <summary>ON でエンジン（映像パイプライン）を停止・直前フレームを出力し続ける（Manager が参照・§7b-D）。</summary>
+        public bool FreezeEngine { get => _freezeEngine; set => _freezeEngine = value; }
 
         /// <summary>対象エフェクト列（順序＝適用順）。</summary>
         public IReadOnlyList<EffectBase> Effects => _effectChain != null ? _effectChain.Effects : _empty;
