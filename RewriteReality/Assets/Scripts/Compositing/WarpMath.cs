@@ -95,23 +95,28 @@ namespace RewriteReality
         static Vector2 Cr(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t)
             => new Vector2(Cr(p0.x, p1.x, p2.x, p3.x, t), Cr(p0.y, p1.y, p2.y, p3.y, t));
 
-        static Vector2 GridPoint(Vector2[] pts, int cols, int rows, int i, int j)
+        // 範囲外（±1 まで）は端点の点対称で外挿する: P(-1)=2·P(0)−P(1) / P(n)=2·P(n−1)−P(n−2)。
+        // クランプ複製（旧実装）だと端セグメントの接線が弦の半分になり、**等間隔グリッド＝ワープ無し**でも
+        // 恒等写像にならず画の端が縮む（グリッド解像度を変えるだけで画像の比率が変わって見えるバグの原因）。
+        // 点対称外挿なら等間隔グリッドはどの解像度でも厳密に線形＝恒等になる。
+        static Vector2 GridPointX(Vector2[] pts, int cols, int j, int i)
         {
-            i = Mathf.Clamp(i, 0, cols - 1);
-            j = Mathf.Clamp(j, 0, rows - 1);
+            if (i < 0)     return 2f * pts[j * cols] - pts[j * cols + 1];
+            if (i >= cols) return 2f * pts[j * cols + (cols - 1)] - pts[j * cols + (cols - 2)];
             return pts[j * cols + i];
         }
 
-        // 行 j の i-1..i+2（クランプ）を u 方向に Catmull-Rom 補間
-        static Vector2 RowCr(Vector2[] pts, int cols, int rows, int j, int i, float tx)
-            => Cr(GridPoint(pts, cols, rows, i - 1, j),
-                  GridPoint(pts, cols, rows, i,     j),
-                  GridPoint(pts, cols, rows, i + 1, j),
-                  GridPoint(pts, cols, rows, i + 2, j), tx);
+        // 行 j（範囲内であること）の i-1..i+2 を u 方向に Catmull-Rom 補間（i は外挿対応）
+        static Vector2 RowCr(Vector2[] pts, int cols, int j, int i, float tx)
+            => Cr(GridPointX(pts, cols, j, i - 1),
+                  GridPointX(pts, cols, j, i),
+                  GridPointX(pts, cols, j, i + 1),
+                  GridPointX(pts, cols, j, i + 2), tx);
 
         /// <summary>
         /// 制御点グリッド（row-major・各点 [0,1]²）を bicubic Catmull-Rom 補間して parametric (u,v)∈[0,1]² の
         /// ローカル位置を返す。制御点を通る滑らかな面（Bezier 相当）。細分化した各頂点でこれを評価する。
+        /// 等間隔グリッドは厳密に恒等（端は点対称外挿・上のコメント参照）。
         /// </summary>
         public static Vector2 SampleGridSmooth(Vector2[] pts, int cols, int rows, float u, float v)
         {
@@ -124,12 +129,39 @@ namespace RewriteReality
             int j = Mathf.Min((int)fy, rows - 2);
             float ty = fy - j;
 
-            Vector2 r0 = RowCr(pts, cols, rows, j - 1, i, tx);
-            Vector2 r1 = RowCr(pts, cols, rows, j,     i, tx);
-            Vector2 r2 = RowCr(pts, cols, rows, j + 1, i, tx);
-            Vector2 r3 = RowCr(pts, cols, rows, j + 2, i, tx);
+            // 行方向も点対称外挿（Cr は制御点に線形なので、行の評価結果を外挿してよい）
+            Vector2 r1 = RowCr(pts, cols, j,     i, tx);
+            Vector2 r2 = RowCr(pts, cols, j + 1, i, tx);
+            Vector2 r0 = (j - 1 >= 0)   ? RowCr(pts, cols, j - 1, i, tx) : 2f * r1 - r2;
+            Vector2 r3 = (j + 2 < rows) ? RowCr(pts, cols, j + 2, i, tx) : 2f * r2 - r1;
             return Cr(r0, r1, r2, r3, ty);
         }
+
+        /// <summary>
+        /// 制御点グリッドを bilinear（区分線形）補間して parametric (u,v) のローカル位置を返す。
+        /// Bezier OFF（§7b Mesh Warping の Linear）用。制御点間は直線＝MadMapper の Bezier 無効時と同じ。
+        /// </summary>
+        public static Vector2 SampleGridLinear(Vector2[] pts, int cols, int rows, float u, float v)
+        {
+            if (pts == null || cols < 2 || rows < 2) return new Vector2(u, v);
+
+            float fx = Mathf.Clamp01(u) * (cols - 1);
+            int i = Mathf.Min((int)fx, cols - 2);
+            float tx = fx - i;
+            float fy = Mathf.Clamp01(v) * (rows - 1);
+            int j = Mathf.Min((int)fy, rows - 2);
+            float ty = fy - j;
+
+            Vector2 p00 = pts[j * cols + i],       p10 = pts[j * cols + i + 1];
+            Vector2 p01 = pts[(j + 1) * cols + i], p11 = pts[(j + 1) * cols + i + 1];
+            return Vector2.LerpUnclamped(Vector2.LerpUnclamped(p00, p10, tx),
+                                         Vector2.LerpUnclamped(p01, p11, tx), ty);
+        }
+
+        /// <summary>bezier=true なら Catmull-Rom 面、false なら bilinear。呼び出し側の分岐を 1 箇所に。</summary>
+        public static Vector2 SampleGrid(Vector2[] pts, int cols, int rows, float u, float v, bool bezier)
+            => bezier ? SampleGridSmooth(pts, cols, rows, u, v)
+                      : SampleGridLinear(pts, cols, rows, u, v);
 
         /// <summary>Grid(Bezier) 細分化の 1 辺あたり頂点数（制御 n → 細分後 (n-1)*sub+1）。</summary>
         public static int FineCount(int n, int sub) => (Mathf.Max(2, n) - 1) * Mathf.Max(1, sub) + 1;

@@ -82,6 +82,9 @@ namespace RewriteReality
         WarpCanvas _warpCanvas;
         Button _warpToggle, _warpReset, _warpTargetBtn, _warpEditModeBtn;
         Button _warpGridBtn, _warpTestBtn;   // GRID=格子オーバーレイ / TEST・CALIB=テストパターン校正（#34/#35）
+        VisualElement _warpMeshGroup;        // Grid X/Y 解像度ステッパー（§7b-A Mesh Warping）
+        Label _warpXVal, _warpYVal;
+        Button _warpBezierBtn;               // Bezier ⇄ Linear 補間トグル（§7b-A）
         bool _warpEditing;
         bool _warpOutputMode;   // true=OUTPUT(出力変形) を編集 / false=EMBED(埋め込み)
         bool _warpContentMode;  // true=CONTENT(枠内映像 pan) / false=SHAPE(窓の形)
@@ -326,10 +329,61 @@ namespace RewriteReality
             if (_warpEditModeBtn != null) _warpEditModeBtn.clicked += ToggleWarpEditMode;
             if (_warpGridBtn != null) _warpGridBtn.clicked += ToggleWarpGrid;
             if (_warpTestBtn != null) _warpTestBtn.clicked += ToggleWarpTest;
+
+            // Grid 解像度ステッパー（§7b-A・Mesh Warping）: 2..8 で全 warp ターゲット共通に再生成。
+            _warpMeshGroup = _root.Q<VisualElement>("rr-warp-mesh");
+            _warpXVal = _root.Q<Label>("rr-warp-x-val");
+            _warpYVal = _root.Q<Label>("rr-warp-y-val");
+            WireStep("rr-warp-x-dec", -1, true);
+            WireStep("rr-warp-x-inc", +1, true);
+            WireStep("rr-warp-y-dec", -1, false);
+            WireStep("rr-warp-y-inc", +1, false);
+            _warpBezierBtn = _root.Q<Button>("rr-warp-bezier");
+            if (_warpBezierBtn == null)
+                Debug.LogWarning("[OperatorUI] BEZIER ボタンが見つかりません。OperatorShell.uxml が古いままです" +
+                                 "（Assets/UI を右クリック → Reimport してください）。");
+            if (_warpBezierBtn != null) _warpBezierBtn.clicked += () =>
+            {
+                if (_warpTarget == null) return;
+                _warpTarget.BezierInterp = !_warpTarget.BezierInterp;
+                _warpCanvas?.MarkDirtyRepaint();
+                RefreshWarpMesh();
+            };
+
             RefreshWarpTargetBtn();
             RefreshWarpEditModeBtn();
             RefreshWarpGridBtn();
             RefreshWarpTestBtn();
+            RefreshWarpMesh();
+        }
+
+        void WireStep(string name, int delta, bool isX)
+        {
+            var b = _root.Q<Button>(name);
+            if (b != null) b.clicked += () => ChangeGridResolution(delta, isX);
+        }
+
+        // Grid X/Y 解像度を 2..8 で変更（§7b-A）。全 warp ターゲット共通（IWarpTarget.SetGridResolution）。
+        void ChangeGridResolution(int delta, bool isX)
+        {
+            if (_warpTarget == null) return;
+            _warpTarget.EnsureWarpPoints();
+            int cols = _warpTarget.WarpCols, rows = _warpTarget.WarpRows;
+            if (isX) cols = Mathf.Clamp(cols + delta, 2, 8);
+            else     rows = Mathf.Clamp(rows + delta, 2, 8);
+            _warpTarget.SetGridResolution(cols, rows);
+            _warpCanvas?.MarkDirtyRepaint();
+            RefreshWarpMesh();
+        }
+
+        void RefreshWarpMesh()
+        {
+            if (_warpTarget == null) return;
+            _warpTarget.EnsureWarpPoints();
+            if (_warpXVal != null) _warpXVal.text = _warpTarget.WarpCols.ToString();
+            if (_warpYVal != null) _warpYVal.text = _warpTarget.WarpRows.ToString();
+            if (_warpBezierBtn != null)
+                EnableClass(_warpBezierBtn, "rr-warp-step__bezier--on", _warpTarget.BezierInterp);
         }
 
         // CONTENT モードのドラッグ量（正規化 delta）を選択 surface の content offset に反映（Mask のみ意味を持つ）。
@@ -441,6 +495,7 @@ namespace RewriteReality
             if (ReferenceEquals(_warpTarget, t)) return;
             _warpTarget = t;
             _warpCanvas?.Bind(t);
+            RefreshWarpMesh();   // 新ターゲットの Grid X/Y を表示に反映（§7b-A）
         }
 
         void ToggleWarpEditing()
@@ -462,6 +517,8 @@ namespace RewriteReality
             if (_warpEditModeBtn != null) _warpEditModeBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
             if (_warpGridBtn != null) _warpGridBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
             if (_warpTestBtn != null) _warpTestBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_warpMeshGroup != null) _warpMeshGroup.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_warpEditing) RefreshWarpMesh();
 
             if (!_warpEditing && _warpContentMode)   // 編集終了時は SHAPE に戻す
             {

@@ -22,6 +22,8 @@ namespace RewriteReality
         [SerializeField] int _warpRows = 2;
         [Tooltip("制御点のローカル位置（[0..1]², row-major: j*cols+i）。既定は等間隔＝ワープ無し。")]
         [SerializeField] Vector2[] _warpPoints;
+        [Tooltip("Grid の補間: ON=Bezier（Catmull-Rom 面・滑らか）/ OFF=Linear（区分線形）。§7b Mesh Warping")]
+        [SerializeField] bool _bezier = true;
 
         RenderTexture _sceneRT;
         Material _runtimeMat;
@@ -66,6 +68,7 @@ namespace RewriteReality
             _warpRows = Mathf.Max(2, rows);
             _warpPoints = null; // 次の EnsureWarpPoints で等間隔生成（メッシュは GetMesh が位相ごとにプール）
         }
+        public bool BezierInterp { get => _bezier; set => _bezier = value; }
 
         /// <summary>四隅ワープ用マテリアル。Inspector 未設定なら CornerPin シェーダから自動生成。</summary>
         Material WarpMat
@@ -98,7 +101,7 @@ namespace RewriteReality
             if (mat != null && camTex != null)
             {
                 EnsureWarpPoints(); // 組込み単一 surface の制御点を保証
-                DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat, false, Vector2.zero, 1f, 1f);
+                DrawContent(camTex, corners, _warpPoints, _warpCols, _warpRows, mat, false, Vector2.zero, 1f, 1f, _bezier);
             }
             return _sceneRT;
         }
@@ -136,7 +139,7 @@ namespace RewriteReality
                     var corners = surf.UpdateCorners(time);
                     bool mask = surf.Fit == Surface.FitMode.Mask;
                     DrawContent(content, corners, surf.WarpPoints, surf.WarpCols, surf.WarpRows, mat, mask,
-                                surf.ContentOffset, surf.ContentZoom, surf.Opacity);
+                                surf.ContentOffset, surf.ContentZoom, surf.Opacity, surf.BezierInterp);
                 }
             }
             return _sceneRT;
@@ -155,7 +158,7 @@ namespace RewriteReality
         /// false なら Grid（Bezier 面へ射影で流し込む・<see cref="GridSubdiv"/> で細分化した滑らかメッシュ・#34）。
         /// </summary>
         void DrawContent(Texture content, in Corners corners, Vector2[] points, int cols, int rows, Material mat,
-                         bool mask, Vector2 contentOffset, float contentZoom, float opacity)
+                         bool mask, Vector2 contentOffset, float contentZoom, float opacity, bool bezier)
         {
             MeshEntry e;
             if (mask)
@@ -168,7 +171,7 @@ namespace RewriteReality
                 int sub = (cols >= 3 || rows >= 3) ? GridSubdiv : 1;   // 2×2 は線形＝細分化不要
                 int fc = WarpMath.FineCount(cols, sub), fr = WarpMath.FineCount(rows, sub);
                 e = GetMesh(fc, fr);
-                WriteMeshGrid(e, corners, points, cols, rows, fc, fr);
+                WriteMeshGrid(e, corners, points, cols, rows, fc, fr, bezier);
             }
             mat.SetTexture(MainTexID, content);
             mat.SetFloat(OpacityID, opacity);
@@ -270,7 +273,7 @@ namespace RewriteReality
         /// content UV = parametric × 同次分母 w'（frag で /q で perspective-correct）。制御点を動かすと折れ線でなく
         /// 滑らかな膨らみになる（MadMapper GridGenerator 手本）。2×2 は線形へ縮退（fc=cols・従来と同一）。
         /// </summary>
-        void WriteMeshGrid(MeshEntry e, in Corners c, Vector2[] points, int cols, int rows, int fc, int fr)
+        void WriteMeshGrid(MeshEntry e, in Corners c, Vector2[] points, int cols, int rows, int fc, int fr, bool bezier)
         {
             var hmg = WarpMath.Solve(c.BottomLeft, c.BottomRight, c.TopRight, c.TopLeft);
             float invFx = 1f / (fc - 1), invFy = 1f / (fr - 1);
@@ -281,7 +284,7 @@ namespace RewriteReality
                 {
                     int idx = j * fc + i;
                     float a = i * invFx, b = j * invFy;                       // parametric [0,1]²
-                    Vector2 p = WarpMath.SampleGridSmooth(points, cols, rows, a, b);   // Bezier 面上のローカル位置
+                    Vector2 p = WarpMath.SampleGrid(points, cols, rows, a, b, bezier);   // 面上のローカル位置
                     WarpMath.Project(hmg, p.x, p.y, out float xp, out float yp, out float wp);
                     e.verts[idx] = new Vector3(xp, yp, 0f);
                     e.uvq[idx]   = new Vector3(a * wp, b * wp, wp);

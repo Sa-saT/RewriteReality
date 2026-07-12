@@ -51,6 +51,8 @@ namespace RewriteReality
         [SerializeField] int _warpRows = 2;
         [Tooltip("制御点のローカル位置（[0..1]²・row-major）。既定は等間隔＝ワープ無し。")]
         [SerializeField] Vector2[] _warpPoints;
+        [Tooltip("Grid の補間: ON=Bezier（滑らか）/ OFF=Linear（区分線形）。§7b Mesh Warping")]
+        [SerializeField] bool _bezier = true;
 
         // ---- runtime ----
         ICornerSource _cornerSource;
@@ -68,6 +70,7 @@ namespace RewriteReality
         public void ResetContent() { _contentOffset = Vector2.zero; _contentZoom = 1f; }
         public int WarpCols => _warpCols;
         public int WarpRows => _warpRows;
+        public bool BezierInterp { get => _bezier; set => _bezier = value; }
         public Corners CurrentCorners => _lastCorners;
 
         /// <summary>Inspector 参照から ICornerSource を束ねる（Awake 等で一度呼ぶ）。</summary>

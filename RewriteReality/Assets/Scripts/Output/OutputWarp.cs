@@ -36,6 +36,8 @@ namespace RewriteReality
         [SerializeField] int _warpRows = 2;
         [Tooltip("制御点のローカル位置（[0..1]², row-major: j*cols+i）。既定は等間隔＝ワープ無し。")]
         [SerializeField] Vector2[] _warpPoints;
+        [Tooltip("Grid の補間: ON=Bezier（滑らか）/ OFF=Linear（区分線形）。§7b Mesh Warping")]
+        [SerializeField] bool _bezier = true;
 
         // Grid(Bezier) 細分化数（#34・Compositor と同値）。制御 n → (n-1)*Sub+1 頂点。
         // 2×2（cols<3 && rows<3）は Catmull-Rom が線形へ縮退するため細分化しない（sub=1・従来キーストーンと同一）。
@@ -103,6 +105,7 @@ namespace RewriteReality
             _warpRows = Mathf.Max(2, rows);
             _warpPoints = null; // 次の EnsureGrid で等間隔生成＋メッシュ再構成
         }
+        public bool BezierInterp { get => _bezier; set => _bezier = value; }
 
         Material WarpMat
         {
@@ -230,7 +233,7 @@ namespace RewriteReality
                 {
                     int idx = j * fc + i;
                     float a = i * invFx, b = j * invFy;                              // parametric [0,1]²
-                    Vector2 p = WarpMath.SampleGridSmooth(_warpPoints, _warpCols, _warpRows, a, b);
+                    Vector2 p = WarpMath.SampleGrid(_warpPoints, _warpCols, _warpRows, a, b, _bezier);
                     WarpMath.Project(hmg, p.x, p.y, out float xp, out float yp, out float wp);
 
                     _verts[idx] = new Vector3(xp, yp, 0f);

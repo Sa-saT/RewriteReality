@@ -30,7 +30,7 @@ function DockSection({ title, right, children, defaultOpen = true }) {
   );
 }
 
-function ListItem({ label, meta, active, dot, onClick }) {
+function ListItem({ label, meta, active, dot, onClick, usage, trailing }) {
   const [h, setH] = React.useState(false);
   return (
     <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} onClick={onClick}
@@ -39,7 +39,11 @@ function ListItem({ label, meta, active, dot, onClick }) {
         borderLeft: '2px solid ' + (active ? 'var(--rr-selection)' : 'transparent'), borderRadius: 2 }}>
       {dot && <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
       <span style={{ flex: 1, fontFamily: 'var(--rr-font-ui)', fontSize: 12, color: active ? 'var(--rr-text)' : 'var(--rr-body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+      {usage != null && usage > 0 && (
+        <span title={usage + ' surface(s) use this media'} style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 9, color: 'var(--rr-muted)', border: '1px solid var(--rr-hairline)', borderRadius: 9999, padding: '1px 5px' }}>×{usage}</span>
+      )}
       {meta && <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: 'var(--rr-muted)' }}>{meta}</span>}
+      {trailing}
     </div>
   );
 }
@@ -47,11 +51,27 @@ function ListItem({ label, meta, active, dot, onClick }) {
 // ---------- LEFT DOCK ---------------------------------------------------------
 function LeftDock({ page, surfaces, sel, onSelect }) {
   const { StagePill } = window.RR;
+  // MadMapper surface-list options: show/hide (eye) + lock per surface
+  const [surfState, setSurfState] = React.useState({});
+  const surfOpt = (id) => surfState[id] || { visible: true, locked: false };
+  const toggleSurf = (id, key) => setSurfState((s) => ({ ...s, [id]: { ...surfOpt(id), [key]: !surfOpt(id)[key] } }));
   const it = (type, id, label, meta, dot, extra) => (
     <ListItem key={id} label={label} meta={meta} dot={dot}
       active={!!(sel && sel.id === id)}
+      usage={extra && extra.usage}
+      trailing={type === 'surface' ? (
+        <span style={{ display: 'inline-flex', gap: 2 }}>
+          <button title={surfOpt(id).visible ? 'Hide' : 'Show'} onClick={(e) => { e.stopPropagation(); toggleSurf(id, 'visible'); }} style={surfIconBtn}>
+            <span data-lucide={surfOpt(id).visible ? 'eye' : 'eye-off'} data-stroke="1.6" style={{ width: 12, height: 12, display: 'inline-flex', color: surfOpt(id).visible ? 'var(--rr-body)' : 'var(--rr-muted-soft)' }} />
+          </button>
+          <button title={surfOpt(id).locked ? 'Unlock' : 'Lock'} onClick={(e) => { e.stopPropagation(); toggleSurf(id, 'locked'); }} style={surfIconBtn}>
+            <span data-lucide={surfOpt(id).locked ? 'lock' : 'lock-open'} data-stroke="1.6" style={{ width: 12, height: 12, display: 'inline-flex', color: surfOpt(id).locked ? 'var(--rr-semantic-warn)' : 'var(--rr-muted-soft)' }} />
+          </button>
+        </span>
+      ) : null}
       onClick={() => onSelect({ type, id, label, meta, ...(extra || {}) })} />
   );
+  window.useLucide();
 
   if (page === 'mapping') {
     return (
@@ -71,9 +91,9 @@ function LeftDock({ page, surfaces, sel, onSelect }) {
   return (
     <React.Fragment>
       <DockSection title="Sources">
-        {it('source-video', 'src-base', 'reality_base.mov', '03:20', 'var(--rr-stage-source)')}
-        {it('source-video', 'src-loop', 'loop_grid.mp4', '00:40', 'var(--rr-stage-source)')}
-        {it('source-camera', 'cam-bm', 'BlackMagic 1', '1080p', 'var(--rr-stage-source)')}
+        {it('source-video', 'src-base', 'reality_base.mov', '03:20', 'var(--rr-stage-source)', { usage: 2 })}
+        {it('source-video', 'src-loop', 'loop_grid.mp4', '00:40', 'var(--rr-stage-source)', { usage: 1 })}
+        {it('source-camera', 'cam-bm', 'BlackMagic 1', '1080p', 'var(--rr-stage-source)', { usage: 1 })}
         {it('source-camera', 'cam-ft', 'FaceTime HD', '720p')}
       </DockSection>
       <DockSection title="Audio" defaultOpen={false}>
@@ -97,6 +117,11 @@ function LeftDock({ page, surfaces, sel, onSelect }) {
 const addBtn = {
   background: 'transparent', border: '1px solid var(--rr-hairline-strong)', color: 'var(--rr-body)',
   fontFamily: 'var(--rr-font-ui)', fontSize: 10, fontWeight: 500, padding: '2px 7px', borderRadius: 4, cursor: 'pointer',
+};
+
+const surfIconBtn = {
+  width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  background: 'transparent', border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0,
 };
 
 Object.assign(window, { LeftDock, SectionLabel, ListItem });

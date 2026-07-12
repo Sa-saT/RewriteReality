@@ -475,6 +475,63 @@
     border-color: var(--rr-primary);
     background-color: var(--rr-canvas-soft);
 }
+/* Grid X/Y 解像度ステッパー（§7b-A Mesh Warping・2–8） */
+.rr-warp-mesh {
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+    padding-left: 6px; padding-right: 6px;
+    background-color: var(--rr-surface-panel);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+    border-radius: 4px;
+}
+.rr-warp-step__lbl {
+    font-size: 9px;
+    -unity-font-style: bold;
+    color: var(--rr-muted);
+    margin-left: 4px;
+    margin-right: 3px;
+}
+.rr-warp-step__btn {
+    width: 16px; height: 16px;
+    padding: 0;
+    font-size: 12px;
+    color: var(--rr-body);
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 3px;
+    -unity-text-align: middle-center;
+}
+.rr-warp-step__btn:hover { border-color: var(--rr-selection); color: var(--rr-text); }
+.rr-warp-step__val {
+    font-size: 11px;
+    color: var(--rr-text);
+    min-width: 14px;
+    margin-left: 3px; margin-right: 3px;
+    -unity-text-align: middle-center;
+}
+/* BEZIER ⇄ Linear 補間トグル（§7b-A）。ON=selection 青（滑らか面が有効） */
+.rr-warp-step__bezier {
+    height: 16px;
+    margin-left: 8px;
+    padding-left: 6px; padding-right: 6px;
+    font-size: 9px;
+    -unity-font-style: bold;
+    letter-spacing: 0.6px;
+    color: var(--rr-muted);
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 3px;
+}
+.rr-warp-step__bezier:hover { border-color: var(--rr-selection); }
+.rr-warp-step__bezier--on {
+    color: var(--rr-selection);
+    border-color: var(--rr-selection);
+    background-color: var(--rr-canvas-soft);
+}
 
 /* Mapping（TRACK=Input/Output 分割・OUTPUT=単一 warp）— warp のドラッグ/メッシュ線は #21 */
 .rr-map-col { flex-grow: 1; flex-direction: column; }

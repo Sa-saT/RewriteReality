@@ -14,6 +14,10 @@ namespace RewriteReality
         Vector2 GetWarpPoint(int i, int j);
         void SetWarpPoint(int i, int j, Vector2 local);
         void ResetWarp();
+        /// <summary>制御点グリッドの解像度を変更（等間隔で再生成・#34/§7b Mesh Warping）。</summary>
+        void SetGridResolution(int cols, int rows);
+        /// <summary>true=Bezier（Catmull-Rom 面・滑らか）/ false=Linear（区分線形）。§7b Mesh Warping。</summary>
+        bool BezierInterp { get; set; }
         /// <summary>制御点配列を保証（未生成/解像度不一致なら等間隔で確保）。UI 読み取り前に呼ぶ。</summary>
         void EnsureWarpPoints();
     }

@@ -36,7 +36,7 @@ function VideoFill({ label, tone }) {
   );
 }
 
-function WarpGrid({ cols, rows, points, setPoints, selected, setSelected, showSafe }) {
+function WarpGrid({ cols, rows, points, setPoints, selected, setSelected, showSafe, bezier }) {
   const ref = React.useRef(null);
   const drag = React.useRef(null);
 
@@ -59,15 +59,20 @@ function WarpGrid({ cols, rows, points, setPoints, selected, setSelected, showSa
     return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
   }, [setPoints]);
 
-  // build mesh line segments (horizontal + vertical neighbors)
+  // build mesh polylines (rows + columns); bezier = Catmull-Rom smoothed paths (MadMapper Bezier Mesh Warping)
   const at = (c, r) => points[r * cols + c];
-  const lines = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (c < cols - 1) { const a = at(c, r), b = at(c + 1, r); lines.push([a, b]); }
-      if (r < rows - 1) { const a = at(c, r), b = at(c, r + 1); lines.push([a, b]); }
+  const polyPath = (pts) => {
+    if (!bezier) return 'M ' + pts.map((p) => p.x + ' ' + p.y).join(' L ');
+    let d = 'M ' + pts[0].x + ' ' + pts[0].y;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      d += ' C ' + (p1.x + (p2.x - p0.x) / 6) + ' ' + (p1.y + (p2.y - p0.y) / 6) + ' ' + (p2.x - (p3.x - p1.x) / 6) + ' ' + (p2.y - (p3.y - p1.y) / 6) + ' ' + p2.x + ' ' + p2.y;
     }
-  }
+    return d;
+  };
+  const paths = [];
+  for (let r = 0; r < rows; r++) paths.push(polyPath(Array.from({ length: cols }, (_, c) => at(c, r))));
+  for (let c = 0; c < cols; c++) paths.push(polyPath(Array.from({ length: rows }, (_, r) => at(c, r))));
 
   return (
     <div ref={ref} style={{ position: 'absolute', inset: 0 }}>
@@ -75,8 +80,8 @@ function WarpGrid({ cols, rows, points, setPoints, selected, setSelected, showSa
         {showSafe && (
           <rect x="5" y="5" width="90" height="90" fill="none" stroke="var(--rr-hairline)" strokeWidth="0.4" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
         )}
-        {lines.map((l, i) => (
-          <line key={i} x1={l[0].x} y1={l[0].y} x2={l[1].x} y2={l[1].y} stroke="var(--rr-selection)" strokeOpacity="0.5" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        {paths.map((d, i) => (
+          <path key={i} d={d} fill="none" stroke="var(--rr-selection)" strokeOpacity="0.5" strokeWidth="1" vectorEffect="non-scaling-stroke" />
         ))}
       </svg>
       {points.map((p) => {

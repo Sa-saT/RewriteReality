@@ -101,6 +101,20 @@ Master(CC 1) / Fade to Black / 解像度 / BPM ＋ **FX CHAIN · PROGRAM**（グ
   - Unity 実装: ボタンは `.rr-add-track`（ghost + hairline 枠・uppercase）。popover は軽量 ListView（modal 禁止）。実装ではネイティブのファイルダイアログ（`EditorUtility.OpenFilePanel` 相当は使わず、ランタイムは `UnityEngine.Windows.File` / NSOpenPanel ブリッジ）→ `TimelineModel.AddTrack(kind, path)`。対応拡張子: video `.mov/.mp4`, audio `.wav/.aiff`。
 - キー割当は `ControlHub` の抽象マッピング（KB→将来 MIDI パッド同形）。
 
+## 7b. MadMapper 参考の採用機能（2026-07-12）
+
+[MadMapper 6 docs](https://docs.madmapper.com/madmapper/6/discover-the-interface) を精査し、本アプリに合うものだけ採用（DMX / Laser / Materials Library / Code Editor / 3D Surface は対象外）。
+
+- **Mesh Warping（Video Surfaces 準拠）**:
+  - WARP エディタ上部に **グリッド解像度ステッパー `X [−] 4 [+] · Y [−] 3 [+]`**（2–8、変更で全ポイント再生成）＋ **BEZIER トグル** ＋ **Reset**。
+  - Bezier ON でメッシュ線が **Catmull-Rom → cubic Bezier のスムーズ曲線**描画（OFF は直線セグメント）。Unity: `Compositor.SetMeshResolution(x,y)` / `MeshInterp.Bezier|Linear`、線描画は `UIToolkit Painter2D.BezierCurveTo`。
+  - Surface Inspector の Grid モードに **Mesh Warping セクション**（Enabled / Grid X·Y / Bezier / Smoothing / Test Pattern / Reset / + Row/Col）。
+- **Views 切替（Input and Stage Views 準拠）**: EMBED 編集時に `INPUT | SPLIT | OUTPUT` セグメントで表示切替（片側最大化）。Unity: WarpEditorView の 2 ペインを flex-grow 切替。
+- **Surface リストの Show/Hide + Lock（Surfaces List 準拠）**: MAPPING 左ドックの各 Surface 行末に eye / lock アイコン。lock 中は warp 編集を拒否（誤操作防止・warn 色）。Unity: `Surface.visible` / `Surface.locked`、locked は WarpEditor で pin 非表示＋ドラッグ無効。
+- **メディア使用数バッジ（Media Bin 準拠）**: Sources の各行に `×N` チップ（N Surface で使用中）。クリックで該当 Surface 選択は将来対応。Unity: `MediaPool.UsageCount(mediaId)`。
+- **Master Speed / Freeze（Master Settings 準拠）**: Master/Program Inspector に `Speed`（ParamRow・Live 中 armed）と `Freeze` トグル（エンジン停止・出力は維持）。Unity: `ControlHub.MasterSpeed` / `FreezeEngine`。
+- **不採用**: DMX/Laser 系、Materials/ISF ライブラリ、AI/Code Editor、Quartz Composer、3D Surface（.OBJ）、Soft-Edge（単一プロジェクタ運用のため現状不要 — マルチプロジェクタ化する際に再検討）。
+
 ### 発火バインドのキーボードフォールバック（MadMapper 流・2026-07-10）
 
 - **MIDI パッド接続時は `PAD n`、未接続時はキーボードキーにフォールバック**（MadMapper と同じ思想）。UI は `MIDI_PRESENT` フラグで表示を切替（モックは `false`＝キーボード表示）。

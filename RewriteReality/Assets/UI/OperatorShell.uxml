@@ -200,6 +200,17 @@
                         <ui:Button name="rr-warp-grid" text="GRID" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
                         <ui:Button name="rr-warp-test" text="TEST" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
                         <ui:Button name="rr-warp-reset" text="RESET" class="rr-warp-toggle rr-warp-toggle--sub" style="display: none;" />
+                        <ui:VisualElement name="rr-warp-mesh" class="rr-warp-mesh" style="display: none;">
+                            <ui:Label text="X" class="rr-warp-step__lbl" />
+                            <ui:Button name="rr-warp-x-dec" text="−" class="rr-warp-step__btn" />
+                            <ui:Label name="rr-warp-x-val" text="4" class="rr-warp-step__val rr-mono" />
+                            <ui:Button name="rr-warp-x-inc" text="+" class="rr-warp-step__btn" />
+                            <ui:Label text="Y" class="rr-warp-step__lbl" />
+                            <ui:Button name="rr-warp-y-dec" text="−" class="rr-warp-step__btn" />
+                            <ui:Label name="rr-warp-y-val" text="3" class="rr-warp-step__val rr-mono" />
+                            <ui:Button name="rr-warp-y-inc" text="+" class="rr-warp-step__btn" />
+                            <ui:Button name="rr-warp-bezier" text="BEZIER" class="rr-warp-step__bezier rr-mono" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:Label text="1920×1080" class="rr-viewport-meta rr-mono" />
                 </ui:VisualElement>

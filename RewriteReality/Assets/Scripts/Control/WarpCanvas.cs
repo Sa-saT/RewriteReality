@@ -178,7 +178,7 @@ namespace RewriteReality
                 p.BeginPath();
                 for (int s = 0; s <= LatticeSteps; s++)
                 {
-                    var px = ToPixel(WarpMath.SampleGridSmooth(_snap, cols, rows, t, (float)s / LatticeSteps), w, h);
+                    var px = ToPixel(WarpMath.SampleGrid(_snap, cols, rows, t, (float)s / LatticeSteps, _target.BezierInterp), w, h);
                     if (s == 0) p.MoveTo(px); else p.LineTo(px);
                 }
                 p.Stroke();
@@ -187,7 +187,7 @@ namespace RewriteReality
                 p.BeginPath();
                 for (int s = 0; s <= LatticeSteps; s++)
                 {
-                    var px = ToPixel(WarpMath.SampleGridSmooth(_snap, cols, rows, (float)s / LatticeSteps, t), w, h);
+                    var px = ToPixel(WarpMath.SampleGrid(_snap, cols, rows, (float)s / LatticeSteps, t, _target.BezierInterp), w, h);
                     if (s == 0) p.MoveTo(px); else p.LineTo(px);
                 }
                 p.Stroke();

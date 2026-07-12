@@ -61,6 +61,8 @@ function Inspector({ page, mode, trackSel = [], onClearTrackSel, itemSel = null,
       <SectionLabel right={<Badge tone="live">PROGRAM</Badge>}>Master</SectionLabel>
       <ParamRow label="Master" value="1.00" norm={1} armed={live} midiBinding="CC 1" />
       <ParamRow label="Fade to Black" value="0.00" norm={0} />
+      <ParamRow label="Speed" value="1.00" unit="x" norm={0.5} armed={live} />
+      <Row><Field label="Freeze" /><Toggle checked={false} /></Row>
       <Row><Field label="Output" /><Badge mono>1920×1080</Badge></Row>
       <Row><Field label="BPM" /><NumericInput value="128.0" style={{ width: 92 }} /></Row>
       {/* Global FX chain — custom on the Program (final frame) object, so it lives here, not in the library */}
@@ -255,8 +257,10 @@ function SurfaceInspector({ item, live, onClear }) {
             </React.Fragment>
           ) : (
             <React.Fragment>
-              <SectionLabel>Warp</SectionLabel>
-              <Row><Field label="Interp" /><Badge>BEZIER</Badge></Row>
+              <SectionLabel>Mesh Warping</SectionLabel>
+              <Row><Field label="Enabled" /><Toggle checked /></Row>
+              <Row><Field label="Grid" /><div style={{ display: 'flex', gap: 6 }}><NumericInput value="4" style={{ width: 52 }} /><NumericInput value="3" style={{ width: 52 }} /></div></Row>
+              <Row><Field label="Bezier" /><Toggle checked /></Row>
               <ParamRow label="Smoothing" value="0.35" norm={0.35} />
               <Row><Field label="Test Pattern" /><Toggle checked={testPat} onChange={setTestPat} /></Row>
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
