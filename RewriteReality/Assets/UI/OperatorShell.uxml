@@ -140,30 +140,39 @@
                     <ui:VisualElement class="rr-viewport-overlay-tr">
                         <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
                     </ui:VisualElement>
-                    <ui:VisualElement class="rr-viewport-overlay-tl">
-                        <ui:Button name="rr-warp-toggle" text="◇ WARP" class="rr-warp-toggle" />
-                        <ui:Button name="rr-warp-target" text="EMBED" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
-                        <ui:Button name="rr-warp-editmode" text="SHAPE" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
-                        <ui:Button name="rr-warp-grid" text="GRID" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
-                        <ui:Button name="rr-warp-test" text="TEST" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" style="display: none;" />
-                        <ui:Button name="rr-warp-reset" text="RESET" class="rr-warp-toggle rr-warp-toggle--sub" style="display: none;" />
-                        <ui:VisualElement name="rr-warp-mesh" class="rr-warp-mesh" style="display: none;">
-                            <ui:Label text="X" class="rr-warp-step__lbl" />
-                            <ui:Button name="rr-warp-x-dec" text="−" class="rr-warp-step__btn" />
-                            <ui:Label name="rr-warp-x-val" text="4" class="rr-warp-step__val rr-mono" />
-                            <ui:Button name="rr-warp-x-inc" text="+" class="rr-warp-step__btn" />
-                            <ui:Label text="Y" class="rr-warp-step__lbl" />
-                            <ui:Button name="rr-warp-y-dec" text="−" class="rr-warp-step__btn" />
-                            <ui:Label name="rr-warp-y-val" text="3" class="rr-warp-step__val rr-mono" />
-                            <ui:Button name="rr-warp-y-inc" text="+" class="rr-warp-step__btn" />
-                            <ui:Button name="rr-warp-bezier" text="BEZIER" class="rr-warp-step__bezier rr-mono" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
                     <ui:Label text="1920×1080" class="rr-viewport-meta rr-mono" />
                 </ui:VisualElement>
-                <ui:VisualElement name="rr-center-track" class="rr-map-col" style="display: none;">
+                <ui:VisualElement name="rr-map-toolbar" class="rr-map-toolbar" style="display: none;">
+                    <ui:VisualElement name="rr-warp-target-seg" class="rr-seg">
+                        <ui:Button name="rr-warp-target-embed" class="rr-seg__btn rr-seg__btn--active rr-mono" />
+                        <ui:Button name="rr-warp-target-output" class="rr-seg__btn rr-mono" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="rr-warp-views" class="rr-seg">
+                        <ui:Button name="rr-warp-view-input" text="INPUT" class="rr-seg__btn rr-mono" />
+                        <ui:Button name="rr-warp-view-split" text="SPLIT" class="rr-seg__btn rr-seg__btn--active rr-mono" />
+                        <ui:Button name="rr-warp-view-output" text="OUTPUT" class="rr-seg__btn rr-mono" />
+                    </ui:VisualElement>
+                    <ui:Label name="rr-warp-wysiwyg" text="WYSIWYG · preview = warped RT" class="rr-warp-wysiwyg rr-mono" style="display: none;" />
+                    <ui:VisualElement class="rr-spacer" />
+                    <ui:Button name="rr-warp-editmode" text="SHAPE" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" />
+                    <ui:Button name="rr-warp-grid" text="GRID" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" />
+                    <ui:Button name="rr-warp-test" text="TEST" class="rr-warp-toggle rr-warp-toggle--sub rr-mono" />
+                    <ui:Button name="rr-warp-reset" text="RESET" class="rr-warp-toggle rr-warp-toggle--sub" />
+                    <ui:VisualElement name="rr-warp-mesh" class="rr-warp-mesh">
+                        <ui:Label text="X" class="rr-warp-step__lbl" />
+                        <ui:Button name="rr-warp-x-dec" text="−" class="rr-warp-step__btn" />
+                        <ui:Label name="rr-warp-x-val" text="4" class="rr-warp-step__val rr-mono" />
+                        <ui:Button name="rr-warp-x-inc" text="+" class="rr-warp-step__btn" />
+                        <ui:Label text="Y" class="rr-warp-step__lbl" />
+                        <ui:Button name="rr-warp-y-dec" text="−" class="rr-warp-step__btn" />
+                        <ui:Label name="rr-warp-y-val" text="3" class="rr-warp-step__val rr-mono" />
+                        <ui:Button name="rr-warp-y-inc" text="+" class="rr-warp-step__btn" />
+                        <ui:Button name="rr-warp-bezier" text="BEZIER" class="rr-warp-step__bezier rr-mono" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="rr-center-split" class="rr-map-col" style="display: none;">
                     <ui:VisualElement class="rr-map-row">
-                        <ui:VisualElement class="rr-map-pane">
+                        <ui:VisualElement name="rr-map-pane-in" class="rr-map-pane">
                             <ui:VisualElement class="rr-video-fill">
                                 <ui:VisualElement class="rr-video-fill__bars">
                                     <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--source" />
@@ -176,24 +185,13 @@
                                 </ui:VisualElement>
                                 <ui:VisualElement class="rr-video-fill__vignette" />
                             </ui:VisualElement>
+                            <ui:Image name="rr-map-preview-in" class="rr-preview" />
                             <ui:VisualElement class="rr-video-fill__label-row">
                                 <ui:VisualElement class="rr-video-fill__dot rr-list-dot--source" />
                                 <ui:Label text="INPUT · CAMERA UV" class="rr-video-fill__label" />
                             </ui:VisualElement>
-                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin rr-warp-pin--selected" style="left: 37%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 92%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 92%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 92%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 92%;" />
                         </ui:VisualElement>
-                        <ui:VisualElement class="rr-map-pane rr-map-pane--gap-left">
+                        <ui:VisualElement name="rr-map-pane-out" class="rr-map-pane rr-map-pane--gap-left">
                             <ui:VisualElement class="rr-video-fill">
                                 <ui:VisualElement class="rr-video-fill__bars">
                                     <ui:VisualElement class="rr-video-fill__bar rr-video-fill__bar--source" />
@@ -206,31 +204,16 @@
                                 </ui:VisualElement>
                                 <ui:VisualElement class="rr-video-fill__vignette" />
                             </ui:VisualElement>
+                            <ui:Image name="rr-map-preview-out" class="rr-preview" />
                             <ui:VisualElement class="rr-safe-area" />
                             <ui:VisualElement class="rr-video-fill__label-row">
                                 <ui:VisualElement class="rr-video-fill__dot rr-list-dot--tracking" />
                                 <ui:Label text="OUTPUT · COMPOSITE" class="rr-video-fill__label" />
                             </ui:VisualElement>
-                            <ui:VisualElement class="rr-viewport-overlay-tr">
-                                <ui:Label text="PREVIEW" class="rr-badge rr-badge--live" />
-                            </ui:VisualElement>
-                            <ui:Label text="1920×1080" class="rr-viewport-meta rr-mono" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 8%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin rr-warp-pin--selected" style="left: 37%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 50%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 6%; top: 92%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 37%; top: 92%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 68%; top: 92%;" />
-                            <ui:VisualElement class="rr-warp-pin" style="left: 94%; top: 92%;" />
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement class="rr-map-hint">
-                        <ui:Label text="Drag control points to mesh-warp · 4×3 grid · Selection Blue = selected pin" class="rr-map-hint__text" />
+                        <ui:Label name="rr-map-hint-text" text="Click a pane to select the surface · drag control points to mesh-warp" class="rr-map-hint__text" />
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>

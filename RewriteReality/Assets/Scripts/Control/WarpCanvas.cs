@@ -195,6 +195,15 @@ namespace RewriteReality
             }
         }
 
+        /// <summary>localPosition（この要素基準）が制御点ハンドルに当たるか（U6・ペインクリック=Surface選択の
+        /// 判定に使う。pin ヒット時は選択させずドラッグを優先する）。</summary>
+        public bool HitsHandle(Vector2 localPosition)
+        {
+            if (_target == null || _target.Locked) return false;
+            var r = contentRect;
+            return PickHandle(localPosition, r.width, r.height) >= 0;
+        }
+
         int PickHandle(Vector2 m, float w, float h)
         {
             int cols = _target.WarpCols, rows = _target.WarpRows;
@@ -247,12 +256,14 @@ namespace RewriteReality
                 var local = ToLocal(px, r.width, r.height);
                 int cols = _target.WarpCols;
                 _target.SetWarpPoint(_dragIndex % cols, _dragIndex / cols, local);
+                Changed?.Invoke();
             }
             else if (_drag == Drag.MoveAll)
             {
                 Vector2 nrm = ToNorm(px, r.width, r.height);
                 TranslateAll(nrm - _lastNorm);
                 _lastNorm = nrm;
+                Changed?.Invoke();
             }
             else // Content
             {
@@ -263,6 +274,10 @@ namespace RewriteReality
             MarkDirtyRepaint();
             evt.StopPropagation();
         }
+
+        /// <summary>制御点が動いた時に発火（U6・EMBED の Input/Output 2 ペインは同じ IWarpTarget を
+        /// 共有するため、片方をドラッグしたらもう片方も再描画する必要がある）。</summary>
+        public System.Action Changed;
 
         void OnPointerUp(PointerUpEvent evt)
         {

@@ -82,7 +82,7 @@ namespace RewriteReality
 
         // WARP 編集オーバーレイ（#21・メッシュ制御点ドラッグ）
         WarpCanvas _warpCanvas;
-        Button _warpToggle, _warpReset, _warpTargetBtn, _warpEditModeBtn;
+        Button _warpReset, _warpEditModeBtn;
         Button _warpGridBtn, _warpTestBtn;   // GRID=格子オーバーレイ / TEST・CALIB=テストパターン校正（#34/#35）
         VisualElement _warpMeshGroup;        // Grid X/Y 解像度ステッパー（§7b-A Mesh Warping）
         Label _warpXVal, _warpYVal;
@@ -93,6 +93,18 @@ namespace RewriteReality
         bool _warpShowGrid;     // 細分化格子オーバーレイの表示状態
         readonly List<VisualElement> _cornerPins = new List<VisualElement>();  // 装飾ピン（編集中は隠す）
         IWarpTarget _warpTarget;   // 現在の warp 編集対象（選択 surface or Compositor）
+
+        // WARP エディタ 2 ペイン化（U6・MAPPING 中央）: EMBED=Input/Output 分割・OUTPUT=単一ペイン
+        // （既存の rr-viewport＋_warpCanvas をそのまま流用）。
+        enum WarpView { Input, Split, Output }
+        WarpView _warpView = WarpView.Split;
+        VisualElement _mapToolbar, _centerSplit, _mapPaneIn, _mapPaneOut;
+        Image _mapPreviewIn, _mapPreviewOut;
+        Button _warpTargetEmbedBtn, _warpTargetOutputBtn;
+        VisualElement _warpViewsGroup;
+        Button _warpViewInputBtn, _warpViewSplitBtn, _warpViewOutputBtn;
+        Label _warpWysiwygLabel;
+        WarpCanvas _warpCanvasIn, _warpCanvasOut;   // EMBED 分割ペイン用（_warpCanvas は OUTPUT 単一ペイン用）
 
         // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
         VisualElement _tlTablist, _tlSong, _tlShort, _shortClip, _tlAddMenu;
@@ -384,36 +396,75 @@ namespace RewriteReality
         void BuildWarpEditor()
         {
             var viewport = _root.Q<VisualElement>("rr-viewport");
-            _warpToggle = _root.Q<Button>("rr-warp-toggle");
             _warpReset = _root.Q<Button>("rr-warp-reset");
-            _warpTargetBtn = _root.Q<Button>("rr-warp-target");
             _warpEditModeBtn = _root.Q<Button>("rr-warp-editmode");
             _warpGridBtn = _root.Q<Button>("rr-warp-grid");
             _warpTestBtn = _root.Q<Button>("rr-warp-test");
+            _mapToolbar = _root.Q<VisualElement>("rr-map-toolbar");
+            _centerSplit = _root.Q<VisualElement>("rr-center-split");
+            _mapPaneIn = _root.Q<VisualElement>("rr-map-pane-in");
+            _mapPaneOut = _root.Q<VisualElement>("rr-map-pane-out");
+            _mapPreviewIn = _root.Q<Image>("rr-map-preview-in");
+            _mapPreviewOut = _root.Q<Image>("rr-map-preview-out");
+            _warpTargetEmbedBtn = _root.Q<Button>("rr-warp-target-embed");
+            _warpTargetOutputBtn = _root.Q<Button>("rr-warp-target-output");
+            _warpViewsGroup = _root.Q<VisualElement>("rr-warp-views");
+            _warpViewInputBtn = _root.Q<Button>("rr-warp-view-input");
+            _warpViewSplitBtn = _root.Q<Button>("rr-warp-view-split");
+            _warpViewOutputBtn = _root.Q<Button>("rr-warp-view-output");
+            _warpWysiwygLabel = _root.Q<Label>("rr-warp-wysiwyg");
             if (viewport == null) return;
 
             if (_warpCanvas == null)
             {
                 _warpCanvas = new WarpCanvas { name = "rr-warp-canvas" };
-                viewport.Add(_warpCanvas);            // 最前面（ピン等より上）に重ねる
-                // WARP/RESET ボタンはキャンバスより前面に保つ（編集中でも押せるように）
-                _warpToggle?.parent?.BringToFront();
+                viewport.Add(_warpCanvas);            // 最前面（ピン等より上）に重ねる（OUTPUT 単一ペイン用）
             }
+            if (_warpCanvasIn == null && _mapPaneIn != null)
+            {
+                _warpCanvasIn = new WarpCanvas { name = "rr-warp-canvas-in" };
+                _mapPaneIn.Add(_warpCanvasIn);
+            }
+            if (_warpCanvasOut == null && _mapPaneOut != null)
+            {
+                _warpCanvasOut = new WarpCanvas { name = "rr-warp-canvas-out" };
+                _mapPaneOut.Add(_warpCanvasOut);
+            }
+            // EMBED の Input/Output ペインは同じ IWarpTarget を共有する。片方をドラッグしたらもう片方も
+            // 再描画する（WarpCanvas.Changed・U6）。
+            if (_warpCanvas != null) _warpCanvas.Changed = () => { _warpCanvasIn?.MarkDirtyRepaint(); _warpCanvasOut?.MarkDirtyRepaint(); };
+            if (_warpCanvasIn != null) _warpCanvasIn.Changed = () => { _warpCanvas?.MarkDirtyRepaint(); _warpCanvasOut?.MarkDirtyRepaint(); };
+            if (_warpCanvasOut != null) _warpCanvasOut.Changed = () => { _warpCanvas?.MarkDirtyRepaint(); _warpCanvasIn?.MarkDirtyRepaint(); };
+
+            // ペインクリック = 選択 surface の切替（pin ヒット時はドラッグ優先・選択させない）。
+            WirePaneSelect(viewport, _warpCanvas);
+            WirePaneSelect(_mapPaneIn, _warpCanvasIn);
+            WirePaneSelect(_mapPaneOut, _warpCanvasOut);
 
             // 装飾のコーナーピン（静的・非ドラッグ）は編集中に隠す。実ハンドルと紛らわしいため。
             _cornerPins.Clear();
             viewport.Query<VisualElement>(className: "rr-corner-pin").ForEach(e => _cornerPins.Add(e));
-            _warpCanvas.ContentPan = OnContentPan;     // CONTENT モードのドラッグ → 選択 surface の content pan
+            // CONTENT モードのドラッグ → 選択 surface の content pan（3 ペイン共通）。
+            System.Action<Vector2> contentPan = OnContentPan;
+            if (_warpCanvas != null) _warpCanvas.ContentPan = contentPan;
+            if (_warpCanvasIn != null) _warpCanvasIn.ContentPan = contentPan;
+            if (_warpCanvasOut != null) _warpCanvasOut.ContentPan = contentPan;
+
             SetWarpTarget(ResolveWarpTarget());       // 選択 surface or Compositor
             _warpEditing = false;
-            ApplyWarpEditing();
 
-            if (_warpToggle != null) _warpToggle.clicked += ToggleWarpEditing;
-            if (_warpReset != null)  _warpReset.clicked  += () => { _warpTarget?.ResetWarp(); _warpCanvas?.MarkDirtyRepaint(); };
-            if (_warpTargetBtn != null) _warpTargetBtn.clicked += ToggleWarpOutputMode;
+            if (_warpReset != null)  _warpReset.clicked  += () => { _warpTarget?.ResetWarp(); RepaintWarpCanvases(); };
+            BuildWarpTargetSeg();
+            if (_warpTargetEmbedBtn != null) _warpTargetEmbedBtn.clicked += () => SetWarpMode(false);
+            if (_warpTargetOutputBtn != null) _warpTargetOutputBtn.clicked += () => SetWarpMode(true);
+            if (_warpViewInputBtn != null) _warpViewInputBtn.clicked += () => SetWarpView(WarpView.Input);
+            if (_warpViewSplitBtn != null) _warpViewSplitBtn.clicked += () => SetWarpView(WarpView.Split);
+            if (_warpViewOutputBtn != null) _warpViewOutputBtn.clicked += () => SetWarpView(WarpView.Output);
             if (_warpEditModeBtn != null) _warpEditModeBtn.clicked += ToggleWarpEditMode;
             if (_warpGridBtn != null) _warpGridBtn.clicked += ToggleWarpGrid;
             if (_warpTestBtn != null) _warpTestBtn.clicked += ToggleWarpTest;
+
+            ApplyMappingLayout();
 
             // Grid 解像度ステッパー（§7b-A・Mesh Warping）: 2..8 で全 warp ターゲット共通に再生成。
             _warpMeshGroup = _root.Q<VisualElement>("rr-warp-mesh");
@@ -431,15 +482,54 @@ namespace RewriteReality
             {
                 if (_warpTarget == null) return;
                 _warpTarget.BezierInterp = !_warpTarget.BezierInterp;
-                _warpCanvas?.MarkDirtyRepaint();
+                RepaintWarpCanvases();
                 RefreshWarpMesh();
             };
 
-            RefreshWarpTargetBtn();
+            RefreshWarpTargetSeg();
+            RefreshWarpViewSeg();
             RefreshWarpEditModeBtn();
             RefreshWarpGridBtn();
             RefreshWarpTestBtn();
             RefreshWarpMesh();
+        }
+
+        void RepaintWarpCanvases()
+        {
+            _warpCanvas?.MarkDirtyRepaint();
+            _warpCanvasIn?.MarkDirtyRepaint();
+            _warpCanvasOut?.MarkDirtyRepaint();
+        }
+
+        // ペインクリック = Surface 選択（SelectionModel 経由）。pin ヒット時はドラッグを優先し選択させない。
+        void WirePaneSelect(VisualElement pane, WarpCanvas canvas)
+        {
+            if (pane == null) return;
+            pane.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (canvas != null && canvas.HitsHandle(evt.localPosition)) return;
+                if (_warpTarget is Surface s) _selection.Select(SelectionKind.Surface, s.Id.ToString());
+            }, TrickleDown.TrickleDown);
+        }
+
+        // EMBED/OUTPUT セグメントボタンの中身（色ドット＋ラベル）を一度だけ組み立てる（毎フレームではない）。
+        VisualElement _warpTargetEmbedDot, _warpTargetOutputDot;
+        void BuildWarpTargetSeg()
+        {
+            if (_warpTargetEmbedBtn != null)
+            {
+                _warpTargetEmbedBtn.Clear();
+                _warpTargetEmbedDot = new VisualElement(); _warpTargetEmbedDot.AddToClassList("rr-list-dot"); _warpTargetEmbedDot.AddToClassList("rr-seg-dot");
+                var lbl = new Label("EMBED"); lbl.AddToClassList("rr-mono");
+                _warpTargetEmbedBtn.Add(_warpTargetEmbedDot); _warpTargetEmbedBtn.Add(lbl);
+            }
+            if (_warpTargetOutputBtn != null)
+            {
+                _warpTargetOutputBtn.Clear();
+                _warpTargetOutputDot = new VisualElement(); _warpTargetOutputDot.AddToClassList("rr-list-dot"); _warpTargetOutputDot.AddToClassList("rr-seg-dot");
+                var lbl = new Label("OUTPUT"); lbl.AddToClassList("rr-mono");
+                _warpTargetOutputBtn.Add(_warpTargetOutputDot); _warpTargetOutputBtn.Add(lbl);
+            }
         }
 
         void WireStep(string name, int delta, bool isX)
@@ -457,7 +547,7 @@ namespace RewriteReality
             if (isX) cols = Mathf.Clamp(cols + delta, 2, 8);
             else     rows = Mathf.Clamp(rows + delta, 2, 8);
             _warpTarget.SetGridResolution(cols, rows);
-            _warpCanvas?.MarkDirtyRepaint();
+            RepaintWarpCanvases();
             RefreshWarpMesh();
         }
 
@@ -484,7 +574,10 @@ namespace RewriteReality
         void ToggleWarpEditMode()
         {
             _warpContentMode = !_warpContentMode;
-            _warpCanvas?.SetEditMode(_warpContentMode ? WarpCanvas.EditMode.Content : WarpCanvas.EditMode.Shape);
+            var mode = _warpContentMode ? WarpCanvas.EditMode.Content : WarpCanvas.EditMode.Shape;
+            _warpCanvas?.SetEditMode(mode);
+            _warpCanvasIn?.SetEditMode(mode);
+            _warpCanvasOut?.SetEditMode(mode);
             RefreshWarpEditModeBtn();
         }
 
@@ -496,25 +589,39 @@ namespace RewriteReality
         }
 
         /// <summary>EMBED（埋め込み）⇄ OUTPUT（出力変形）を切替。OUTPUT では OutputWarp を有効化する。</summary>
-        void ToggleWarpOutputMode()
+        /// <summary>EMBED（埋め込み）⇄ OUTPUT（出力変形）を切替。OUTPUT では OutputWarp を有効化する。
+        /// U6 で単一トグルから EMBED/OUTPUT 2 ボタンのセグメントへ（呼び出し側で対象を明示）。</summary>
+        void SetWarpMode(bool output)
         {
-            if (_outputWarp == null) return;
-            _warpOutputMode = !_warpOutputMode;
+            if (_warpOutputMode == output) return;
+            if (output && _outputWarp == null) return;
+            _warpOutputMode = output;
             if (_warpOutputMode)
             {
                 _outputWarp.SetEnabled(true);   // 見たまま反映されるよう有効化
                 if (!_warpShowGrid) ToggleWarpGrid();   // OUTPUT 編集は格子オーバーレイ常時表示（#35）
             }
             SetWarpTarget(ResolveWarpTarget());
-            RefreshWarpTargetBtn();
+            RefreshWarpTargetSeg();
             RefreshWarpTestBtn();   // TEST⇄CALIB のラベル/状態はモード依存
+            ApplyMappingLayout();   // rr-viewport（OUTPUT 単一）⇄ rr-center-split（EMBED 分割）の出し分け
         }
 
-        /// <summary>細分化格子オーバーレイの表示を切替（#34/#35）。</summary>
+        // Views（INPUT|SPLIT|OUTPUT・EMBED 編集時のみ）。片側最大化は flex-grow 切替（display は消さない＝
+        // WarpCanvas の状態を保ったまま・§7b Views）。
+        void SetWarpView(WarpView v)
+        {
+            _warpView = v;
+            RefreshWarpViewSeg();
+        }
+
+        /// <summary>細分化格子オーバーレイの表示を切替（#34/#35）。3 ペインとも同じ切替に追従させる。</summary>
         void ToggleWarpGrid()
         {
             _warpShowGrid = !_warpShowGrid;
             _warpCanvas?.SetLattice(_warpShowGrid);
+            _warpCanvasIn?.SetLattice(_warpShowGrid);
+            _warpCanvasOut?.SetLattice(_warpShowGrid);
             RefreshWarpGridBtn();
         }
 
@@ -558,12 +665,50 @@ namespace RewriteReality
             EnableClass(_warpTestBtn, "rr-warp-toggle--test", WarpTestOn);
         }
 
-        void RefreshWarpTargetBtn()
+        // EMBED/OUTPUT セグメント（ドット色＋アクティブ状態）＋ Views セグメントの表示可否・WYSIWYG ラベル。
+        void RefreshWarpTargetSeg()
         {
-            if (_warpTargetBtn == null) return;
-            _warpTargetBtn.SetEnabled(_outputWarp != null);
-            _warpTargetBtn.text = _warpOutputMode ? "OUTPUT" : "EMBED";
-            EnableClass(_warpTargetBtn, "rr-warp-toggle--output", _warpOutputMode);
+            bool available = _outputWarp != null;
+            if (_warpTargetEmbedBtn != null) EnableClass(_warpTargetEmbedBtn, "rr-seg__btn--active", !_warpOutputMode);
+            if (_warpTargetOutputBtn != null)
+            {
+                _warpTargetOutputBtn.SetEnabled(available);
+                EnableClass(_warpTargetOutputBtn, "rr-seg__btn--active", _warpOutputMode);
+            }
+            if (_warpTargetEmbedDot != null)
+            {
+                EnableClass(_warpTargetEmbedDot, "rr-list-dot--tracking", !_warpOutputMode);
+                EnableClass(_warpTargetEmbedDot, "rr-seg-dot--off", _warpOutputMode);
+            }
+            if (_warpTargetOutputDot != null)
+            {
+                EnableClass(_warpTargetOutputDot, "rr-list-dot--output", _warpOutputMode);
+                EnableClass(_warpTargetOutputDot, "rr-seg-dot--off", !_warpOutputMode);
+            }
+            if (_warpViewsGroup != null) _warpViewsGroup.style.display = _warpOutputMode ? DisplayStyle.None : DisplayStyle.Flex;
+            if (_warpWysiwygLabel != null) _warpWysiwygLabel.style.display = _warpOutputMode ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        // Views の active 状態＋各ペインの flex-grow（片側最大化・§7b Views）。
+        void RefreshWarpViewSeg()
+        {
+            if (_warpViewInputBtn != null)  EnableClass(_warpViewInputBtn, "rr-seg__btn--active", _warpView == WarpView.Input);
+            if (_warpViewSplitBtn != null)  EnableClass(_warpViewSplitBtn, "rr-seg__btn--active", _warpView == WarpView.Split);
+            if (_warpViewOutputBtn != null) EnableClass(_warpViewOutputBtn, "rr-seg__btn--active", _warpView == WarpView.Output);
+
+            SetPaneGrow(_mapPaneIn, _warpView != WarpView.Output);
+            SetPaneGrow(_mapPaneOut, _warpView != WarpView.Input);
+        }
+
+        // 片側最大化（Views）。既定の flex-shrink:0 のせいで flex-grow だけでは中身（rr-preview の
+        // width:100%/height:100% な Image）が縮まないため、flex-basis を常に 0 にして
+        // 「grow:1+basis:0＝伸びて埋める／grow:0+basis:0＝確実に畳む」の定番形にする。
+        static void SetPaneGrow(VisualElement pane, bool visible)
+        {
+            if (pane == null) return;
+            pane.style.flexGrow = visible ? 1 : 0;
+            pane.style.flexBasis = 0f;
+            pane.style.overflow = visible ? Overflow.Visible : Overflow.Hidden;
         }
 
         /// <summary>現在の warp 編集対象。OUTPUT モード=OutputWarp、そうでなければ選択 surface or 単一 Compositor。</summary>
@@ -575,40 +720,54 @@ namespace RewriteReality
             return _compositor;
         }
 
+        // EMBED の Input/Output 2 ペインは同じ IWarpTarget を共有する（同じ点をドラッグで動かす・§6）。
         void SetWarpTarget(IWarpTarget t)
         {
             if (ReferenceEquals(_warpTarget, t)) return;
             _warpTarget = t;
             _warpCanvas?.Bind(t);
+            _warpCanvasIn?.Bind(t);
+            _warpCanvasOut?.Bind(t);
             RefreshWarpMesh();   // 新ターゲットの Grid X/Y を表示に反映（§7b-A）
         }
 
-        void ToggleWarpEditing()
+        // MAPPING ページの中央レイアウトを反映（旧 ApplyWarpEditing）。_warpEditing は「MAPPING ページが
+        // アクティブか」＝SelectPage が唯一の書き込み元（手動 WARP トグルボタンは廃止・MAPPING=常時
+        // warp 編集・U6）。OUTPUT モードは既存 rr-viewport＋_warpCanvas の単一ペインをそのまま流用、
+        // EMBED モードは新設の rr-center-split（Input/Output 2 ペイン）に切替える。
+        void ApplyMappingLayout()
         {
-            _warpEditing = !_warpEditing;
-            ApplyWarpEditing();
-        }
+            bool embedSplit = _warpEditing && !_warpOutputMode;
+            bool outputSingle = _warpEditing && _warpOutputMode;
 
-        void ApplyWarpEditing()
-        {
+            var viewport = _root?.Q<VisualElement>("rr-viewport");
+            if (viewport != null) viewport.style.display = (!_warpEditing || outputSingle) ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_centerSplit != null) _centerSplit.style.display = embedSplit ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_mapToolbar != null) _mapToolbar.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+
             if (_warpCanvas != null)
             {
-                _warpCanvas.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
-                _warpCanvas.pickingMode = _warpEditing ? PickingMode.Position : PickingMode.Ignore;
+                _warpCanvas.style.display = outputSingle ? DisplayStyle.Flex : DisplayStyle.None;
+                _warpCanvas.pickingMode = outputSingle ? PickingMode.Position : PickingMode.Ignore;
             }
-            if (_warpToggle != null) EnableClass(_warpToggle, "rr-warp-toggle--active", _warpEditing);
-            if (_warpReset != null)  _warpReset.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_warpTargetBtn != null) _warpTargetBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_warpEditModeBtn != null) _warpEditModeBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_warpGridBtn != null) _warpGridBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_warpTestBtn != null) _warpTestBtn.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_warpMeshGroup != null) _warpMeshGroup.style.display = _warpEditing ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_warpCanvasIn != null)
+            {
+                _warpCanvasIn.style.display = embedSplit ? DisplayStyle.Flex : DisplayStyle.None;
+                _warpCanvasIn.pickingMode = embedSplit ? PickingMode.Position : PickingMode.Ignore;
+            }
+            if (_warpCanvasOut != null)
+            {
+                _warpCanvasOut.style.display = embedSplit ? DisplayStyle.Flex : DisplayStyle.None;
+                _warpCanvasOut.pickingMode = embedSplit ? PickingMode.Position : PickingMode.Ignore;
+            }
             if (_warpEditing) RefreshWarpMesh();
 
             if (!_warpEditing && _warpContentMode)   // 編集終了時は SHAPE に戻す
             {
                 _warpContentMode = false;
                 _warpCanvas?.SetEditMode(WarpCanvas.EditMode.Shape);
+                _warpCanvasIn?.SetEditMode(WarpCanvas.EditMode.Shape);
+                _warpCanvasOut?.SetEditMode(WarpCanvas.EditMode.Shape);
                 RefreshWarpEditModeBtn();
             }
 
@@ -827,9 +986,7 @@ namespace RewriteReality
             _pagePerform?.RegisterCallback<MouseDownEvent>(_ => SelectPage(0));
             _pageMapping?.RegisterCallback<MouseDownEvent>(_ => SelectPage(1));
 
-            // MAPPING がワープ編集を制御するので、ビューポート内の独立 ◇ WARP トグルは隠す（§6・1機能1箇所）。
-            if (_warpToggle != null) _warpToggle.style.display = DisplayStyle.None;
-
+            // MAPPING ページ自体が warp 編集を制御する（独立 ◇ WARP トグルは U6 で廃止・1機能1箇所）。
             SelectPage(0);
         }
 
@@ -854,7 +1011,7 @@ namespace RewriteReality
             if (_warpEditing != mapping)
             {
                 _warpEditing = mapping;
-                ApplyWarpEditing();
+                ApplyMappingLayout();
             }
         }
 
@@ -2332,12 +2489,24 @@ namespace RewriteReality
         // -------------------------------------------------- preview / fps
         void UpdatePreview()
         {
-            if (_preview == null) return;
-            // OUTPUT warp 編集中は、見たまま調整できるよう変形後 RT を表示（無ければ Final RT）。
-            Texture rt = null;
-            if (_warpOutputMode && _outputWarp != null && _outputWarp.Active) rt = _outputWarp.Output;
-            if (rt == null && _chain != null) rt = _chain.FinalTexture;
-            if (rt != null && _preview.image != rt) _preview.image = rt;
+            if (_preview != null)
+            {
+                // OUTPUT warp 編集中は、見たまま調整できるよう変形後 RT を表示（無ければ Final RT）。
+                Texture rt = null;
+                if (_warpOutputMode && _outputWarp != null && _outputWarp.Active) rt = _outputWarp.Output;
+                if (rt == null && _chain != null) rt = _chain.FinalTexture;
+                if (rt != null && _preview.image != rt) _preview.image = rt;
+            }
+
+            // EMBED 分割ビュー（U6）: Input ペイン=camera UV・Output ペイン=composite（rr-preview と同じ Final RT）。
+            if (_mapPreviewIn != null)
+            {
+                if (_sourceCamera == null) _sourceCamera = FindFirstObjectByType<SourceCamera>();
+                if (_sourceCamera != null && _sourceCamera.Texture != null && _mapPreviewIn.image != _sourceCamera.Texture)
+                    _mapPreviewIn.image = _sourceCamera.Texture;
+            }
+            if (_mapPreviewOut != null && _chain != null && _chain.FinalTexture != null && _mapPreviewOut.image != _chain.FinalTexture)
+                _mapPreviewOut.image = _chain.FinalTexture;
         }
 
         void UpdateFps()

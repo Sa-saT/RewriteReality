@@ -309,6 +309,8 @@
 .rr-seg {
     flex-direction: row;
     padding: 2px;
+    margin-right: 8px;
+    margin-bottom: 4px;   /* flex-wrap:wrap 時、UI Toolkit は row-gap 非対応のため折り返し行の間隔を確保 */
     background-color: var(--rr-surface-inset);
     border-width: 1px; border-color: var(--rr-hairline);
     border-radius: 5px;
@@ -317,6 +319,10 @@
     height: 20px;
     padding: 0 10px;
     margin: 0;
+    flex-direction: row;      /* dot+label を子として直接 Add する場合の中央揃え用（U6・既定の column だと
+                                  縦積みになり 20px の高さから溢れて下半分が欠けて見える） */
+    align-items: center;
+    justify-content: center;
     border-width: 0;
     border-radius: 4px;
     background-color: var(--rr-surface-inset);   /* 溝と同色＝非選択は沈む */
@@ -400,13 +406,24 @@
     color: var(--rr-muted);
     font-size: 11px;
 }
-/* WARP 編集トグル（ビューポート左上・#21）。制御点ドラッグ用オーバーレイの ON/OFF。 */
-.rr-viewport-overlay-tl {
-    position: absolute;
-    top: 8px; left: 10px;
+/* MAPPING 中央ツールバー（EMBED⇄OUTPUT・Views・Mesh 制御・U6）。rr-viewport の外＝独立行。 */
+.rr-map-toolbar {
+    flex-shrink: 0;
     flex-direction: row;
     align-items: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
 }
+.rr-warp-wysiwyg {
+    color: var(--rr-stage-output);
+    font-size: 10px;
+    margin-left: 8px;
+    margin-bottom: 4px;
+}
+/* EMBED/OUTPUT セグメントの色ドット（アクティブ=段色・非アクティブ=muted-soft） */
+.rr-seg-dot { margin-right: 6px; }
+.rr-seg-dot--off { background-color: var(--rr-muted-soft); }
+
 .rr-warp-toggle {
     height: 22px;
     padding-left: 8px; padding-right: 8px;
@@ -418,19 +435,10 @@
     border-color: var(--rr-hairline-strong);
     border-radius: 4px;
     margin-right: 6px;
+    margin-bottom: 4px;   /* flex-wrap:wrap 時の折り返し行の間隔（row-gap 非対応の代替） */
 }
 .rr-warp-toggle:hover { color: var(--rr-text); border-color: var(--rr-selection); }
-.rr-warp-toggle--active {
-    color: var(--rr-selection);
-    border-color: var(--rr-selection);
-    background-color: var(--rr-canvas-soft);
-}
 .rr-warp-toggle--sub { color: var(--rr-muted); }
-.rr-warp-toggle--output {
-    color: var(--rr-primary);
-    border-color: var(--rr-primary);
-    background-color: var(--rr-canvas-soft);
-}
 .rr-warp-toggle--content {
     color: var(--rr-selection);
     border-color: var(--rr-selection);
@@ -454,6 +462,7 @@
     align-items: center;
     height: 22px;
     padding-left: 6px; padding-right: 6px;
+    margin-bottom: 4px;
     background-color: var(--rr-surface-panel);
     border-width: 1px;
     border-color: var(--rr-hairline-strong);
