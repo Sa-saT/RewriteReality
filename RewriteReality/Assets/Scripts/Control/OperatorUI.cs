@@ -2274,8 +2274,6 @@ namespace RewriteReality
                 v => { if (_hub != null) _hub.FadeToBlack = v; });
             AddSliderRow("Speed", _hub != null ? _hub.MasterSpeed : 1f, 0f, 4f, "x", live,
                 v => { if (_hub != null) _hub.MasterSpeed = v; });
-            AddToggleRow("Freeze", _hub != null && _hub.FreezeEngine,
-                v => { if (_hub != null) _hub.FreezeEngine = v; });
 
             string res = "1920×1080";
             if (_chain != null && _chain.FinalTexture != null)
@@ -2347,7 +2345,7 @@ namespace RewriteReality
             _inspector.Add(row);
         }
 
-        // トグル行（Freeze 用）。ラベル＋右寄せ Toggle。
+        // トグル行。ラベル＋右寄せ Toggle。
         void AddToggleRow(string label, bool value, System.Action<bool> onChange)
         {
             var row = new VisualElement(); row.AddToClassList("rr-param-row");

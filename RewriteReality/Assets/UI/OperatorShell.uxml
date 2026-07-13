@@ -271,7 +271,7 @@
                     <ui:Label text="2:00" class="rr-ruler-mark rr-mono" />
                     <ui:Label text="2:30" class="rr-ruler-mark rr-mono" />
                 </ui:VisualElement>
-                <ui:VisualElement name="rr-tl-tracklist" class="rr-tl-tracklist" />
+                <ui:ScrollView name="rr-tl-tracklist" class="rr-tl-tracklist" mode="Vertical" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" />
                 <ui:VisualElement name="rr-playhead" class="rr-playhead" style="left: 96px;" />
             </ui:VisualElement>
             <ui:VisualElement name="rr-tl-short" class="rr-tl-short" style="display: none;">
@@ -296,17 +296,19 @@
                         <ui:Label text="0:40" class="rr-ruler-mark rr-mono" />
                         <ui:Label text="0:50" class="rr-ruler-mark rr-mono" />
                     </ui:VisualElement>
-                    <ui:VisualElement name="rr-short-lane" class="rr-track rr-short-lane">
-                        <ui:VisualElement class="rr-track-head">
-                            <ui:Label text="VID 1" class="rr-track-name rr-mono" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-track-lane">
-                            <ui:VisualElement name="rr-short-clip" class="rr-clip rr-clip--fx" style="left: 0; width: 26%;">
-                                <ui:Label text="TRACK A" class="rr-clip__label" />
+                    <ui:ScrollView name="rr-short-tracklist" class="rr-tl-tracklist" mode="Vertical" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden">
+                        <ui:VisualElement name="rr-short-lane" class="rr-track rr-short-lane">
+                            <ui:VisualElement class="rr-track-head">
+                                <ui:Label text="VID 1" class="rr-track-name rr-mono" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-track-lane">
+                                <ui:VisualElement name="rr-short-clip" class="rr-clip rr-clip--fx" style="left: 0; width: 26%;">
+                                    <ui:Label text="TRACK A" class="rr-clip__label" />
+                                </ui:VisualElement>
                             </ui:VisualElement>
                         </ui:VisualElement>
-                    </ui:VisualElement>
-                    <ui:VisualElement name="rr-short-lanes" class="rr-short-lanes" />
+                        <ui:VisualElement name="rr-short-lanes" class="rr-short-lanes" />
+                    </ui:ScrollView>
                     <ui:VisualElement name="rr-short-playhead" class="rr-playhead" style="left: 96px;" />
                 </ui:VisualElement>
             </ui:VisualElement>

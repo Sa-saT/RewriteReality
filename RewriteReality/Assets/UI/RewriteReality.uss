@@ -928,6 +928,10 @@
 .rr-timeline-total { color: var(--rr-muted); font-size: 11px; margin-left: 6px; }
 .rr-timeline-body { flex-grow: 1; }
 
+/* トラック行のみ縦スクロール（ルーラー/再生ヘッドは固定・07-13）。スクロールバーは非表示（UXML 属性）。 */
+.rr-tl-tracklist { flex-grow: 1; }
+.rr-tl-tracklist > .unity-scroll-view__content-viewport { flex-grow: 1; }
+
 .rr-ruler {
     height: 18px;
     margin-left: 96px;

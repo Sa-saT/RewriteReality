@@ -29,7 +29,6 @@ namespace RewriteReality
         float _fadeToBlack = 0f;
         float _masterSpeed = 1f;
         float _bpm = 128f;
-        bool _freezeEngine;
 
         public float Master { get => _master; set => _master = Mathf.Clamp01(value); }
         public float FadeToBlack { get => _fadeToBlack; set => _fadeToBlack = Mathf.Clamp01(value); }
@@ -45,9 +44,6 @@ namespace RewriteReality
                 if (_timeline != null) _timeline.Rate = _masterSpeed;
             }
         }
-
-        /// <summary>ON でエンジン（映像パイプライン）を停止・直前フレームを出力し続ける（Manager が参照・§7b-D）。</summary>
-        public bool FreezeEngine { get => _freezeEngine; set => _freezeEngine = value; }
 
         /// <summary>対象エフェクト列（順序＝適用順）。</summary>
         public IReadOnlyList<EffectBase> Effects => _effectChain != null ? _effectChain.Effects : _empty;
