@@ -146,6 +146,11 @@ RewriteRealityProject/        ← git repo ルート
     （`OperatorUI` が実行時に `FindFirstObjectByType`→無ければ `AddComponent` するフォールバックのため、
     Song/クリップ構成を Inspector で組んでもシーンに保存されない）。残り：実クリップの source/scene バインド、
     short ホールド発火（§3.5.2）、song 再生速度可変、シーンへの正式配置。
+  - **#29/U8＝Freeze撤去＋タイムライン トラック行の縦スクロール化（2026-07-14・commit 77e6dee・実機確認済）**:
+    UNITY-HANDOFF §7b 07-12/07-13 反映。`FreezeEngine`（`Manager`/`ControlHub`/`OperatorUI`）を撤去
+    （Timeline 再生停止・Fade to Black と役割重複のため。Master Speed のみ残置）。Song/Short のトラック行を
+    `ScrollView`（`vertical-scroller-visibility=Hidden`）でラップし、ルーラー・再生ヘッドは ScrollView 外に
+    固定（トラック行が増えても見切れない・WYSIWYG）。`Inspector.jsx` ローカルミラーの Freeze 行も削除。
 
 ## 作業上の注意
 
