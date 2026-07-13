@@ -127,10 +127,14 @@ namespace RewriteReality
         float _trackVolume = 0.82f;
         bool _trackFade = true;
         bool _shortView;            // いま short タブを表示中か
-        Button _shortPadBtn;              // KEY 行の [PAD n] ＝マトリクスのトグル
+        Button _shortPadBtn;              // KEY 行の割当ボタン（⌨ アイコン＋キー文字＋⌄・マトリクスのトグル）
+        Label _shortPadGlyph;             // 割当ボタン内のキー文字ラベル（毎フレーム再構築しない・U7）
         VisualElement _padMatrix;         // 4×4 パッド割当マトリクス（§7・#13）
         readonly Button[] _padCells = new Button[16];
         Toggle _holdLoopToggle;           // per-Short の Hold-Loop
+        // Short 側 +Track（U7・表示レーン追加のみ＝バックエンド無し）＋ ruler/playhead
+        VisualElement _shortAddTrackWrap, _shortAddTrackMenu, _shortLanes, _shortBody, _shortPlayhead;
+        Button _shortAddTrackBtn;
 
         // タイムライン再生（Song トランスポート・playhead・時間表示）
         Button _tlPrev, _tlPlay, _tlLoop;
@@ -1026,6 +1030,12 @@ namespace RewriteReality
             _shortPadBtn = _root.Q<Button>("rr-short-pad");
             _padMatrix   = _root.Q<VisualElement>("rr-pad-matrix");
             _holdLoopToggle = _root.Q<Toggle>("rr-short-holdloop");
+            _shortAddTrackWrap = _root.Q<VisualElement>("rr-short-addtrack-wrap");
+            _shortAddTrackMenu = _root.Q<VisualElement>("rr-short-addtrack-menu");
+            _shortAddTrackBtn  = _root.Q<Button>("rr-short-add-track");
+            _shortLanes = _root.Q<VisualElement>("rr-short-lanes");
+            _shortBody = _root.Q<VisualElement>("rr-short-body");
+            _shortPlayhead = _root.Q<VisualElement>("rr-short-playhead");
 
             // 動的タブバー（Song/Short 追加・削除・切替・07-10 App.jsx）
             _tlAddMenu = _root.Q<VisualElement>("rr-tl-addmenu");
@@ -1058,15 +1068,28 @@ namespace RewriteReality
             _addTrackDivider = _root.Q<VisualElement>("rr-addtrack-divider");
             if (_tlTracklist == null)
                 Debug.LogWarning("[OperatorUI] rr-tl-tracklist が見つかりません。OperatorShell.uxml を Reimport してください。");
-            BuildAddTrackMenu();
-            if (_addTrackBtn != null) _addTrackBtn.clicked += ToggleAddTrackMenu;
+            BuildAddTrackMenuInto(_addTrackMenu, (kind, file) => { _timeline?.AddTrack(kind, file); RebuildSongTracks(); HideMenu(_addTrackMenu); });
+            if (_addTrackBtn != null) _addTrackBtn.clicked += () => ToggleMenuAt(_addTrackMenu, _addTrackBtn);
             RebuildSongTracks();
+
+            // Short 側 +Track（U7）: song と同じファイルライブラリ popover。選択で表示レーンを末尾に追加。
+            BuildAddTrackMenuInto(_shortAddTrackMenu, (kind, file) => { AddShortLane(kind, file); HideMenu(_shortAddTrackMenu); });
+            if (_shortAddTrackBtn != null)
+                _shortAddTrackBtn.clicked += () => ToggleMenuAt(_shortAddTrackMenu, _shortAddTrackBtn);
 
             BuildPadMatrix();
 
-            // KEY 行の [PAD n] ＝マトリクスの開閉トグル。
+            // KEY 行の割当ボタン＝⌨ アイコン＋キー文字＋⌄（マトリクスの開閉トグル・U7）。
             if (_shortPadBtn != null)
+            {
+                _shortPadBtn.Clear();
+                var kbIcon = new RrIcon { Icon = RrIcon.Kind.Keyboard };
+                kbIcon.AddToClassList("rr-icon"); kbIcon.AddToClassList("rr-short-pad__icon");
+                _shortPadGlyph = new Label("—"); _shortPadGlyph.AddToClassList("rr-short-pad__glyph"); _shortPadGlyph.AddToClassList("rr-mono");
+                var caret = new Label("⌄"); caret.AddToClassList("rr-short-pad__caret");
+                _shortPadBtn.Add(kbIcon); _shortPadBtn.Add(_shortPadGlyph); _shortPadBtn.Add(caret);
                 _shortPadBtn.clicked += TogglePadMatrix;
+            }
 
             // Hold-Loop（per-Short・本番でキー押下中ループするか）。
             if (_holdLoopToggle != null)
@@ -1143,7 +1166,9 @@ namespace RewriteReality
             if (_padMatrix == null) return;
             bool show = _padMatrix.style.display == DisplayStyle.None;
             _padMatrix.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
-            if (show) RefreshShortAssignment();
+            // absolute だが子順が rr-short-body より前のため、そのままだと ruler/レーンの裏に潜る。
+            // 開くたび最前面へ（U7・レイヤー修正）。
+            if (show) { _padMatrix.BringToFront(); RefreshShortAssignment(); }
         }
 
         // パッド割当・割当キーラベル・タブチップ・Hold-Loop を表示中 Short に同期。
@@ -1161,12 +1186,11 @@ namespace RewriteReality
                 EnableClass(cell, "rr-pad-cell--used", i != mine && owner >= 0);
             }
 
-            // 割当ボタン＝割当キー（グリフ）＋開閉手がかり ⌄。未割当は UNASSIGNED（減光）。
+            // 割当ボタン＝⌨ アイコン＋割当キー（グリフ）＋開閉手がかり ⌄。未割当は UNASSIGNED（減光・U7）。
+            if (_shortPadGlyph != null)
+                _shortPadGlyph.text = mine >= 0 ? ShowTimeline.PadGlyph(mine) : "UNASSIGNED";
             if (_shortPadBtn != null)
-            {
-                _shortPadBtn.text = mine >= 0 ? ShowTimeline.PadGlyph(mine) + "  ⌄" : "UNASSIGNED  ⌄";
                 EnableClass(_shortPadBtn, "rr-short-pad--unassigned", mine < 0);
-            }
 
             if (_holdLoopToggle != null && sh != null) _holdLoopToggle.SetValueWithoutNotify(sh.holdLoop);
         }
@@ -1268,6 +1292,7 @@ namespace RewriteReality
             if (_timeline == null) return;
             if (kind == ShowTimeline.TabKind.Song) { _timeline.SelectSong(index); _shortView = false; }
             else { _timeline.SelectShort(index); _shortView = true; }
+            if (_shortLanes != null) _shortLanes.Clear();   // Short 切替で追加表示レーンは破棄（揮発・U7）
             RebuildTimelineTabs();
             RefreshShortAssignment();
             RebuildSongTracks();   // Song 切替で track 行を差し替え（U3）
@@ -1403,12 +1428,13 @@ namespace RewriteReality
         }
 
         // song/short の中央ビューを _shortView に合わせる（Time 表示は共通・GATE 表記は廃止＝07-10）。
-        // +Track は Song 専用の概念のため short 表示中は隠す（Timeline.jsx の !isShort ガードに合わせる）。
+        // 共通ヘッダの +Track は Song 用。short は Key 行左端に自前の +Track を持つ（U7）ので、
+        // ヘッダ側は short 表示中に隠す（Timeline.jsx の !isShort ガードに合わせる）。
         void ApplyTimelineView()
         {
             if (_tlSong != null)  _tlSong.style.display  = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
             if (_tlShort != null) _tlShort.style.display = _shortView ? DisplayStyle.Flex : DisplayStyle.None;
-            if (_shortView) HideAddTrackMenu();
+            HideMenu(_shortView ? _addTrackMenu : _shortAddTrackMenu);   // 隠れる側の開きっぱなし popover を閉じる
             if (_addTrackWrap != null) _addTrackWrap.style.display = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
             if (_addTrackDivider != null) _addTrackDivider.style.display = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
         }
@@ -1443,17 +1469,17 @@ namespace RewriteReality
 
         // -------------------------------------------------- + Track popover（U3・Timeline.jsx FILE_LIB 相当）
         // VIDEO/AUDIO のプレースホルダファイル一覧を一度だけ組み立てる（クリックの度に作り直さない）。
-        // 実ファイルダイアログ（NSOpenPanel 等）は対象外＝将来タスク（■ゴール4 の但し書き）。
-        void BuildAddTrackMenu()
+        // U7 で song/short 共用に一般化（onPick で行き先を切替）。実ファイルダイアログは対象外＝将来タスク。
+        void BuildAddTrackMenuInto(VisualElement menu, System.Action<ShowTimeline.TrackKind, string> onPick)
         {
-            if (_addTrackMenu == null) return;
-            _addTrackMenu.Clear();
-
-            AddTrackGroup("VIDEO", "rr-list-dot--source", ShowTimeline.TrackKind.Video);
-            AddTrackGroup("AUDIO", "rr-list-dot--audio", ShowTimeline.TrackKind.Audio);
+            if (menu == null) return;
+            menu.Clear();
+            AddTrackGroupInto(menu, "VIDEO", "rr-list-dot--source", ShowTimeline.TrackKind.Video, onPick);
+            AddTrackGroupInto(menu, "AUDIO", "rr-list-dot--audio", ShowTimeline.TrackKind.Audio, onPick);
         }
 
-        void AddTrackGroup(string label, string dotClass, ShowTimeline.TrackKind kind)
+        void AddTrackGroupInto(VisualElement menu, string label, string dotClass, ShowTimeline.TrackKind kind,
+                               System.Action<ShowTimeline.TrackKind, string> onPick)
         {
             string kindTag = kind == ShowTimeline.TrackKind.Video ? "video" : "audio";
 
@@ -1461,7 +1487,7 @@ namespace RewriteReality
             var dot = new VisualElement(); dot.AddToClassList("rr-list-dot"); dot.AddToClassList(dotClass);
             var glabel = new Label(label); glabel.AddToClassList("rr-addtrack-group__label");
             group.Add(dot); group.Add(glabel);
-            _addTrackMenu.Add(group);
+            menu.Add(group);
 
             for (int i = 0; i < AddTrackFileLib.Length; i++)
             {
@@ -1474,36 +1500,53 @@ namespace RewriteReality
                 row.Add(name); row.Add(dur);
 
                 string file = entry.file;
-                row.clicked += () =>
-                {
-                    _timeline?.AddTrack(kind, file);
-                    RebuildSongTracks();
-                    HideAddTrackMenu();
-                };
-                _addTrackMenu.Add(row);
+                row.clicked += () => onPick(kind, file);
+                menu.Add(row);
             }
         }
 
-        // 追加メニューと同じ罠3/4 対策（_root 直下へ reparent・WorldToLocal で配置・BringToFront）。
-        void ToggleAddTrackMenu()
+        // 追加メニュー共通の罠3/4 対策（_themeRoot 直下へ reparent・WorldToLocal で配置・BringToFront）。
+        void ToggleMenuAt(VisualElement menu, VisualElement anchor)
         {
-            if (_addTrackMenu == null) return;
-            bool show = _addTrackMenu.style.display == DisplayStyle.None;
-            if (!show) { HideAddTrackMenu(); return; }
+            if (menu == null) return;
+            bool show = menu.style.display == DisplayStyle.None;
+            if (!show) { HideMenu(menu); return; }
 
-            if (_themeRoot != null && _addTrackMenu.parent != _themeRoot) _themeRoot.Add(_addTrackMenu);
-            if (_addTrackBtn != null && _themeRoot != null)
+            if (_themeRoot != null && menu.parent != _themeRoot) _themeRoot.Add(menu);
+            if (anchor != null && _themeRoot != null)
             {
-                var b = _addTrackBtn.worldBound;
+                var b = anchor.worldBound;
                 var topLeft = _themeRoot.WorldToLocal(new Vector2(b.xMin, b.yMax + 2f));
-                _addTrackMenu.style.position = Position.Absolute;
-                _addTrackMenu.style.left = topLeft.x;
-                _addTrackMenu.style.top = topLeft.y;
+                menu.style.position = Position.Absolute;
+                menu.style.left = topLeft.x;
+                menu.style.top = topLeft.y;
             }
-            _addTrackMenu.style.display = DisplayStyle.Flex;
-            _addTrackMenu.BringToFront();
+            menu.style.display = DisplayStyle.Flex;
+            menu.BringToFront();
         }
-        void HideAddTrackMenu() { if (_addTrackMenu != null) _addTrackMenu.style.display = DisplayStyle.None; }
+        static void HideMenu(VisualElement menu) { if (menu != null) menu.style.display = DisplayStyle.None; }
+
+        // Short に表示レーンを追加（U7・■ゴール4）。バックエンドの track モデルは持たず見た目のみ。
+        // Short を切り替えると破棄する（Timeline.jsx の per-short `added` state と同じ揮発挙動）。
+        void AddShortLane(ShowTimeline.TrackKind kind, string file)
+        {
+            if (_shortLanes == null) return;
+            bool isAudio = kind == ShowTimeline.TrackKind.Audio;
+            int n = _shortLanes.childCount + 2;   // 基底レーン(VID 1)の次から採番
+
+            var row = new VisualElement(); row.AddToClassList("rr-track"); row.AddToClassList("rr-short-lane");
+            var head = new VisualElement(); head.AddToClassList("rr-track-head");
+            var name = new Label((isAudio ? "AUD " : "VID ") + n); name.AddToClassList("rr-track-name"); name.AddToClassList("rr-mono");
+            head.Add(name);
+            var lane = new VisualElement(); lane.AddToClassList("rr-track-lane");
+            var clip = new VisualElement(); clip.AddToClassList("rr-clip");
+            clip.AddToClassList(isAudio ? "rr-clip--audio" : "rr-clip--source");
+            clip.style.left = Length.Percent(0f); clip.style.width = Length.Percent(isAudio ? 60f : 30f);
+            var clabel = new Label(file.ToUpperInvariant()); clabel.AddToClassList("rr-clip__label");
+            clip.Add(clabel); lane.Add(clip);
+            row.Add(head); row.Add(lane);
+            _shortLanes.Add(row);
+        }
 
         // Short のホールド状態を UI に反映（発火は割当パッド/キー経由。ここは表示だけ）。
         // held 中はレーンのクリップを Live Amber 点灯＋全幅プレビュー（§7 #8・07-09）。
@@ -1572,12 +1615,18 @@ namespace RewriteReality
 
             // 再生ヘッドはクリップ・レーンの座標系で置く（本体全幅 % だとトラックヘッダ分ずれ、
             // t=0 が 0:00 目盛りに揃わない）。left = ヘッダ幅 + 正規化位置 × レーン実幅。
+            // 非表示側は resolvedStyle.width=0 → usable<=0 でスキップされる（Song/Short 両方を更新して可）。
+            float nt = _timeline.NormalizedTime;
             if (_playhead != null && _tlSong != null)
             {
-                float w = _tlSong.resolvedStyle.width;
-                float usable = w - TimelineLaneLeft - TimelineLaneRight;
-                if (usable > 0f)
-                    _playhead.style.left = TimelineLaneLeft + _timeline.NormalizedTime * usable;
+                float usable = _tlSong.resolvedStyle.width - TimelineLaneLeft - TimelineLaneRight;
+                if (usable > 0f) _playhead.style.left = TimelineLaneLeft + nt * usable;
+            }
+            // Short は右端 tail 無し（レーン head 96px のみ）。表示のみ＝同じ song クロックで近似（U7）。
+            if (_shortPlayhead != null && _shortBody != null)
+            {
+                float usable = _shortBody.resolvedStyle.width - TimelineLaneLeft;
+                if (usable > 0f) _shortPlayhead.style.left = TimelineLaneLeft + nt * usable;
             }
             if (_tlCur != null)  _tlCur.text  = ShowTimeline.FormatTime(t);
             if (_remain != null) _remain.text = "-" + ShowTimeline.FormatTime(_timeline.Remaining);

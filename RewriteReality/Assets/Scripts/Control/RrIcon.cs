@@ -14,7 +14,7 @@ namespace RewriteReality
     [UxmlElement]
     public partial class RrIcon : VisualElement
     {
-        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines, Eye, EyeOff, Lock, LockOpen }
+        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines, Eye, EyeOff, Lock, LockOpen, Keyboard }
 
         Kind _icon = Kind.Play;
 
@@ -72,6 +72,7 @@ namespace RewriteReality
                 case Kind.EyeOff:      Eye(p, ox, oy, s, false); break;
                 case Kind.Lock:        LockGlyph(p, ox, oy, s, true); break;
                 case Kind.LockOpen:    LockGlyph(p, ox, oy, s, false); break;
+                case Kind.Keyboard:    KeyboardGlyph(p, ox, oy, s); break;
             }
         }
 
@@ -315,6 +316,47 @@ namespace RewriteReality
             p.LineTo(P(ox, oy, s, 0.16f, 0.50f));
             p.ClosePath();
             p.Stroke();
+        }
+
+        // キーボード（Short 割当ボタン・lucide "keyboard" 相当）。本体の枠線＋キー粒＋スペースバー。
+        void KeyboardGlyph(Painter2D p, float ox, float oy, float s)
+        {
+            // 本体（横長の枠線）
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.12f, 0.30f));
+            p.LineTo(P(ox, oy, s, 0.88f, 0.30f));
+            p.LineTo(P(ox, oy, s, 0.88f, 0.70f));
+            p.LineTo(P(ox, oy, s, 0.12f, 0.70f));
+            p.ClosePath();
+            p.Stroke();
+
+            // 上段キー（小さな四角 3 つ）
+            float ky0 = 0.40f, ky1 = 0.47f;
+            KeyDot(p, ox, oy, s, 0.24f, ky0, ky1);
+            KeyDot(p, ox, oy, s, 0.38f, ky0, ky1);
+            KeyDot(p, ox, oy, s, 0.52f, ky0, ky1);
+            KeyDot(p, ox, oy, s, 0.66f, ky0, ky1);
+
+            // 下段スペースバー（横長）
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.30f, 0.56f));
+            p.LineTo(P(ox, oy, s, 0.70f, 0.56f));
+            p.LineTo(P(ox, oy, s, 0.70f, 0.62f));
+            p.LineTo(P(ox, oy, s, 0.30f, 0.62f));
+            p.ClosePath();
+            p.Fill();
+        }
+
+        // キー粒（幅 0.06 の小さな塗り四角）。
+        void KeyDot(Painter2D p, float ox, float oy, float s, float x, float y0, float y1)
+        {
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, x, y0));
+            p.LineTo(P(ox, oy, s, x + 0.06f, y0));
+            p.LineTo(P(ox, oy, s, x + 0.06f, y1));
+            p.LineTo(P(ox, oy, s, x, y1));
+            p.ClosePath();
+            p.Fill();
         }
     }
 }

@@ -664,7 +664,7 @@
 
 /* タブバー（song/short バンク・ブラウザ風・07b §3.5.2） */
 .rr-tl-tabs {
-    height: 30px;
+    height: 36px;
     flex-shrink: 0;
     flex-direction: row;
     align-items: flex-end;
@@ -675,7 +675,7 @@
     border-bottom-color: var(--rr-hairline-strong);
 }
 .rr-tl-tab {
-    height: 26px;
+    height: 32px;
     flex-direction: row;
     align-items: center;
     padding-left: 10px;
@@ -706,7 +706,7 @@
 .rr-tl-tab--song .rr-tl-tab__dot  { background-color: var(--rr-live); }
 .rr-tl-tab--short .rr-tl-tab__dot { background-color: var(--rr-primary); }
 .rr-tl-tab--active .rr-tl-tab__dot { opacity: 1; }
-.rr-tl-tab__name { color: var(--rr-muted); font-size: 11px; -unity-font-style: bold; }
+.rr-tl-tab__name { color: var(--rr-muted); font-size: 12px; -unity-font-style: bold; }
 .rr-tl-tab--active .rr-tl-tab__name { color: var(--rr-text); }
 .rr-tl-add {
     width: 22px; height: 22px;
@@ -805,6 +805,8 @@
 .rr-tl-keyrow__hint { color: var(--rr-muted-soft); font-size: 10px; margin-left: 10px; }
 .rr-short-pad {
     height: 24px;
+    flex-direction: row;
+    align-items: center;
     padding-left: 8px;
     padding-right: 8px;
     background-color: rgba(0, 0, 0, 0);
@@ -815,11 +817,21 @@
     font-size: 12px;
 }
 .rr-short-pad:disabled { opacity: 0.7; }
+/* 割当ボタンの中身（⌨ アイコン＋キー文字＋⌄）。色は継承 color（primary）で追従・U7。 */
+.rr-short-pad__icon { width: 13px; height: 13px; margin-right: 6px; }
+.rr-short-pad__glyph { font-size: 12px; color: var(--rr-primary); }
+.rr-short-pad__caret { font-size: 12px; color: var(--rr-primary); margin-left: 6px; opacity: 0.7; }
+/* 未割当は減光（グリフ＝muted・アイコン/枠は継承）。 */
+.rr-short-pad--unassigned { border-color: var(--rr-hairline-strong); color: var(--rr-muted); }
+.rr-short-pad--unassigned .rr-short-pad__glyph { color: var(--rr-muted); }
+.rr-short-pad--unassigned .rr-short-pad__caret { color: var(--rr-muted); }
+/* Short の追加表示レーン置き場（U7・揮発） */
+.rr-short-lanes { flex-direction: column; }
 .rr-short-holdloop { margin-left: 12px; font-size: 11px; color: var(--rr-muted); }
 /* 4×4 パッド割当マトリクス（§7・#13）。見た目の詰めは UI Builder で。 */
 .rr-pad-matrix {
     position: absolute;
-    left: 40px;
+    left: 92px;   /* Key 行左端の +Track ＋ divider の分だけ右へ（割当ボタン直下・U7） */
     top: 28px;
     flex-direction: column;
     background-color: var(--rr-surface-raised);
