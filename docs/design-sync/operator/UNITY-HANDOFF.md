@@ -122,6 +122,18 @@ Master(CC 1) / Fade to Black / 解像度 / BPM ＋ **FX CHAIN · PROGRAM**（グ
 - **スクロールバーは非表示**（`.rr-noscroll`: `scrollbar-width: none` + `::-webkit-scrollbar { display: none }`）。ホイール/トラックパッドでスクロール。
 - Unity: TimelineView のトラック領域を `ScrollView`（`verticalScrollerVisibility = Hidden`、`mode = Vertical`）でラップ。ルーラーとプレイヘッドは ScrollView の外（オーバーレイ）に配置し固定。
 
+### Short の Loop 重複を解消（2026-07-13）
+
+- Short のトランスポートにあった **Loop（repeat）ボタンを非表示化**。Short 固有の `Hold-Loop` トグル（本番でキー押下中ループ）と役割が重複していたため。
+- **Song のトランスポートは Loop ボタンを維持**（一般のループ再生）。`TransportGlyph({ showLoop })` で出し分け（Song=true / Short=false）。
+- Unity: Short モードでは transport の Loop トグルを非表示にし、`Hold-Loop`（`ControlHub.HoldLoop`）のみを発火挙動として扱う。
+
+### Banks セクション + タブバー・スクロール（2026-07-14）
+
+- **PERFORM 左ドックに `Banks` セクション**を追加：保存済みの全バンク（Sequence / Short / Song）を一覧表示（kind 色ドット + 名前 + kind ラベル）。**クリックでタイムラインの該当タブを開く**（Inspector 選択にはしない）。タブ＝開いている文書、Banks＝保存済み一覧、というブラウザモデル。
+- Unity: BankRepository（永続化済みバンク一覧）を LibraryView が購読し、クリックで `TimelineView.OpenBank(id)`。モックは localStorage + `rr-open-bank` CustomEvent で連携。
+- **タブバーを横スクロール可能に**（タブ多数時）。スクロールバー非表示（`.rr-noscroll`）。Unity: タブ strip を `ScrollView`（Horizontal, scroller Hidden）。
+
 ### 発火バインドのキーボードフォールバック（MadMapper 流・2026-07-10）
 
 - **MIDI パッド接続時は `PAD n`、未接続時はキーボードキーにフォールバック**（MadMapper と同じ思想）。UI は `MIDI_PRESENT` フラグで表示を切替（モックは `false`＝キーボード表示）。
@@ -143,6 +155,15 @@ Master(CC 1) / Fade to Black / 解像度 / BPM ＋ **FX CHAIN · PROGRAM**（グ
 - **VID トラック右端は Opacity 実値**（mono）。意味のない "OPACITY" 固定ラベルは廃止。
 - **Surfaces 重複解消**: 左ドックの Surfaces は Input surface のみ。Output Surface は別セクション（Projector A の二重掲載を解消）。
 - **タブの種別は SONG/SHORT バッジのみ**（色ドットは削除、Output トグルの「ドット不要」判断と一貫）。
+
+## 7c. MPC 流のバンク再編（2026-07-13）
+
+- **改名: Song → Sequence**（マルチトラックバンク）。タブ種別は `SEQUENCE`（緑・audio-lines アイコン）、命名は `Seq 01`。永続化は v3 キーへ移行（v2 の kind:'song' は 'seq' に自動マイグレート）。
+- **新機能: Song**（MPC の Song モード）= **Sequence の再生順リスト（セットリスト）**。タブ種別 `SONG`（Selection Blue・list-music アイコン）。
+  - UI は **2 ペイン**: 左＝ステップリスト（順番 / Sequence 名 / **×N リピート**（− +）/ ↑↓ 並べ替え / × 削除 / `+ Step` で Sequence を選んで追加）、右＝**選択ステップの Sequence を読み取り専用プレビュー**（ルーラー＋トラック行）＋ `Edit Sequence →`（その Sequence タブへジャンプ）。「Sequence を確認しながら Song を構成」がタブ内で完結する。
+  - Song タブでは `+ Track` は非表示（トラック編集は Sequence 側）。transport は再生/ループあり（Song 全体の通し再生）。
+- **Short の割り込み**: Song 再生中でもパッド/キー押下の Short は**最上位レイヤー**で発火（従来どおり）。
+- Unity: `SongModel { List<SongStep> steps }` / `SongStep { SequenceId seq, int repeat }`。再生は SequencePlayer をステップ順に ×N 回連結。UI は 2 ペイン flex、プレビューは TimelineView の read-only インスタンス（pointer-events 無効）。既存の `ShowTimeline`（#27）を Sequence 相当にリネーム/拡張。
 
 ## 8. モックとの差分許容
 
