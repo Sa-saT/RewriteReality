@@ -106,11 +106,11 @@ namespace RewriteReality
         Label _warpWysiwygLabel;
         WarpCanvas _warpCanvasIn, _warpCanvasOut;   // EMBED 分割ペイン用（_warpCanvas は OUTPUT 単一ペイン用）
 
-        // タイムライン song/short タブ（07b §3.5.2・#27 足場＝タブ切替とホールド表現のみ）
-        VisualElement _tlTablist, _tlSong, _tlShort, _shortClip, _tlAddMenu;
+        // タイムライン sequence/short/song タブ（07b §3.5.2 / §7c・#27 足場＋#29 U11＝Sequence/Song 3種）
+        VisualElement _tlTablist, _tlSeq, _tlShort, _tlSongList, _shortClip, _tlAddMenu;
         Button _tlAddButton;        // タブバーの + （追加メニューのアンカー）
 
-        // Song track 行（U3・動的生成）
+        // Sequence track 行（U3・動的生成・旧称 Song）
         VisualElement _tlTracklist;
         VisualElement _addTrackWrap, _addTrackMenu, _addTrackDivider;
         Button _addTrackBtn;
@@ -126,7 +126,7 @@ namespace RewriteReality
         // TrackInspector の表示専用パラメータ（バックエンド API 無し・当面値保持のみ・source-camera と同じ扱い）
         float _trackVolume = 0.82f;
         bool _trackFade = true;
-        bool _shortView;            // いま short タブを表示中か
+        ShowTimeline.TabKind _viewKind = ShowTimeline.TabKind.Sequence;   // いま中央に表示中のタブ種別（§7c・U11）
         Button _shortPadBtn;              // KEY 行の割当ボタン（⌨ アイコン＋キー文字＋⌄・マトリクスのトグル）
         Label _shortPadGlyph;             // 割当ボタン内のキー文字ラベル（毎フレーム再構築しない・U7）
         VisualElement _padMatrix;         // 4×4 パッド割当マトリクス（§7・#13）
@@ -135,6 +135,15 @@ namespace RewriteReality
         // Short 側 +Track（U7・表示レーン追加のみ＝バックエンド無し）＋ ruler/playhead
         VisualElement _shortAddTrackWrap, _shortAddTrackMenu, _shortLanes, _shortBody, _shortPlayhead;
         Button _shortAddTrackBtn;
+
+        // Song（Sequence セットリスト）ステップ列＋プレビュー（§7c・#29 U11）
+        VisualElement _songSteps, _songAddStepWrap, _songAddStepMenu;
+        Button _songAddStepBtn, _songPreviewJump;
+        Label _songPreviewTitle, _songPreviewBody;
+        int _songSelStep;   // 左ペインで選択中のステップ（右プレビュー対象）
+
+        // PERFORM 左ドック Banks（保存済み Sequence/Short/Song 一覧・U10）
+        VisualElement _banksList;
 
         // タイムライン再生（Song トランスポート・playhead・時間表示）
         Button _tlPrev, _tlPlay, _tlLoop;
@@ -1019,13 +1028,15 @@ namespace RewriteReality
             }
         }
 
-        // -------------------------------------------------- timeline song/short tabs (07b §3.5.2 / §7・#13)
-        // タブ切替（song=リニア通し / short=ホールド発火）＋ Short の 4×4 パッド割当マトリクス／Hold-Loop。
+        // -------------------------------------------------- timeline sequence/short/song tabs (07b §3.5.2 / §7 / §7c・#13・#29 U11)
+        // タブ切替（sequence=リニア通し / short=ホールド発火 / song=Sequence セットリスト）＋
+        // Short の 4×4 パッド割当マトリクス／Hold-Loop。
         void BuildTimelineTabs()
         {
             _tlTablist  = _root.Q<VisualElement>("rr-tl-tablist");
-            _tlSong     = _root.Q<VisualElement>("rr-tl-song");
+            _tlSeq      = _root.Q<VisualElement>("rr-tl-seq");
             _tlShort    = _root.Q<VisualElement>("rr-tl-short");
+            _tlSongList = _root.Q<VisualElement>("rr-tl-songlist");
             _shortClip  = _root.Q<VisualElement>("rr-short-clip");
             _shortPadBtn = _root.Q<Button>("rr-short-pad");
             _padMatrix   = _root.Q<VisualElement>("rr-pad-matrix");
@@ -1037,17 +1048,29 @@ namespace RewriteReality
             _shortBody = _root.Q<VisualElement>("rr-short-body");
             _shortPlayhead = _root.Q<VisualElement>("rr-short-playhead");
 
-            // 動的タブバー（Song/Short 追加・削除・切替・07-10 App.jsx）
+            // Song（セットリスト）ステップ列＋プレビュー（§7c・U11）。
+            _songSteps = _root.Q<VisualElement>("rr-song-steps");
+            _songAddStepWrap = _root.Q<VisualElement>("rr-song-addstep-wrap");
+            _songAddStepMenu = _root.Q<VisualElement>("rr-song-addstep-menu");
+            _songAddStepBtn  = _root.Q<Button>("rr-song-add-step");
+            _songPreviewTitle = _root.Q<Label>("rr-song-preview-title");
+            _songPreviewBody  = _root.Q<Label>("rr-song-preview-body");
+            _songPreviewJump  = _root.Q<Button>("rr-song-preview-jump");
+            if (_songAddStepBtn != null) _songAddStepBtn.clicked += () => ToggleMenuAt(_songAddStepMenu, _songAddStepBtn);
+            if (_songPreviewJump != null) _songPreviewJump.clicked += JumpToSongStepSequence;
+
+            // 動的タブバー（Sequence/Short/Song 追加・削除・切替・07-10 App.jsx／§7c で3種へ）
             _tlAddMenu = _root.Q<VisualElement>("rr-tl-addmenu");
             _tlAddButton = _root.Q<Button>("rr-tl-add");
             if (_tlAddButton != null) _tlAddButton.clicked += ToggleAddMenu;
-            var addSong = _root.Q<Button>("rr-tl-add-song");
+            var addSeq = _root.Q<Button>("rr-tl-add-seq");
             var addShort = _root.Q<Button>("rr-tl-add-short");
-            if (addSong != null) addSong.clicked += () =>
+            var addSong = _root.Q<Button>("rr-tl-add-song");
+            if (addSeq != null) addSeq.clicked += () =>
             {
                 HideAddMenu();
                 if (_timeline == null) return;
-                SelectTab(ShowTimeline.TabKind.Song, _timeline.AddSong());
+                SelectTab(ShowTimeline.TabKind.Sequence, _timeline.AddSequence());
             };
             if (addShort != null) addShort.clicked += () =>
             {
@@ -1055,12 +1078,18 @@ namespace RewriteReality
                 if (_timeline == null) return;
                 SelectTab(ShowTimeline.TabKind.Short, _timeline.AddShort());
             };
+            if (addSong != null) addSong.clicked += () =>
+            {
+                HideAddMenu();
+                if (_timeline == null) return;
+                SelectTab(ShowTimeline.TabKind.Song, _timeline.AddSong());
+            };
             if (_tlTablist == null || _tlAddMenu == null)
                 Debug.LogWarning($"[OperatorUI] タイムラインのタブ要素が見つかりません（tablist={_tlTablist != null} addmenu={_tlAddMenu != null}）。" +
                                  "OperatorShell.uxml が最新にリインポートされているか確認してください。");
             RebuildTimelineTabs();
 
-            // Song track 行（U3）。+Track ボタンで video/audio のプレースホルダファイルから追加。
+            // Sequence track 行（U3・旧称 Song）。+Track ボタンで video/audio のプレースホルダファイルから追加。
             _tlTracklist   = _root.Q<VisualElement>("rr-tl-tracklist");
             _addTrackWrap  = _root.Q<VisualElement>("rr-addtrack-wrap");
             _addTrackMenu  = _root.Q<VisualElement>("rr-addtrack-menu");
@@ -1068,11 +1097,12 @@ namespace RewriteReality
             _addTrackDivider = _root.Q<VisualElement>("rr-addtrack-divider");
             if (_tlTracklist == null)
                 Debug.LogWarning("[OperatorUI] rr-tl-tracklist が見つかりません。OperatorShell.uxml を Reimport してください。");
-            BuildAddTrackMenuInto(_addTrackMenu, (kind, file) => { _timeline?.AddTrack(kind, file); RebuildSongTracks(); HideMenu(_addTrackMenu); });
+            BuildAddTrackMenuInto(_addTrackMenu, (kind, file) => { _timeline?.AddTrack(kind, file); RebuildSequenceTracks(); HideMenu(_addTrackMenu); });
             if (_addTrackBtn != null) _addTrackBtn.clicked += () => ToggleMenuAt(_addTrackMenu, _addTrackBtn);
-            RebuildSongTracks();
+            RebuildSequenceTracks();
+            RebuildSongSteps();
 
-            // Short 側 +Track（U7）: song と同じファイルライブラリ popover。選択で表示レーンを末尾に追加。
+            // Short 側 +Track（U7）: sequence と同じファイルライブラリ popover。選択で表示レーンを末尾に追加。
             BuildAddTrackMenuInto(_shortAddTrackMenu, (kind, file) => { AddShortLane(kind, file); HideMenu(_shortAddTrackMenu); });
             if (_shortAddTrackBtn != null)
                 _shortAddTrackBtn.clicked += () => ToggleMenuAt(_shortAddTrackMenu, _shortAddTrackBtn);
@@ -1108,6 +1138,10 @@ namespace RewriteReality
             }
             RefreshShortHeld();
             RefreshShortAssignment();
+
+            // PERFORM 左ドック Banks（保存済み Sequence/Short/Song 一覧・U10）。
+            _banksList = _root.Q<VisualElement>("rr-banks-list");
+            RebuildBanksList();
         }
 
         int ShownShortIndex()
@@ -1195,8 +1229,8 @@ namespace RewriteReality
             if (_holdLoopToggle != null && sh != null) _holdLoopToggle.SetValueWithoutNotify(sh.holdLoop);
         }
 
-        // ---- 動的タブバー（Song/Short・07-10 App.jsx）----
-        // ShowTimeline の songs+shorts からタブを生成。クリックで切替、× で閉じる、+ で New Song/Short。
+        // ---- 動的タブバー（Sequence/Short/Song・07-10 App.jsx／§7c で3種へ改名・U11）----
+        // ShowTimeline の sequences+shorts+songs からタブを生成。クリックで切替、× で閉じる、+ で New。
         void RebuildTimelineTabs()
         {
             if (_tlTablist == null) return;
@@ -1204,36 +1238,61 @@ namespace RewriteReality
             if (_timeline == null) return;
             _timeline.EnsureSeeded();   // Awake 未実行でもタブが出るよう明示シード
 
-            for (int i = 0; i < _timeline.SongCount; i++)
-                _tlTablist.Add(BuildTab(ShowTimeline.TabKind.Song, i));
+            for (int i = 0; i < _timeline.SequenceCount; i++)
+                _tlTablist.Add(BuildTab(ShowTimeline.TabKind.Sequence, i));
             for (int i = 0; i < _timeline.ShortCount; i++)
                 _tlTablist.Add(BuildTab(ShowTimeline.TabKind.Short, i));
+            for (int i = 0; i < _timeline.SongCount; i++)
+                _tlTablist.Add(BuildTab(ShowTimeline.TabKind.Song, i));
 
             ApplyTimelineView();
+            RebuildBanksList();
         }
+
+        static string TabCssKind(ShowTimeline.TabKind kind) => kind switch
+        {
+            ShowTimeline.TabKind.Sequence => "rr-tl-tab--seq",
+            ShowTimeline.TabKind.Song     => "rr-tl-tab--songlist",
+            _                             => "rr-tl-tab--short",
+        };
 
         VisualElement BuildTab(ShowTimeline.TabKind kind, int index)
         {
-            bool isSong = kind == ShowTimeline.TabKind.Song;
-            bool active = isSong ? (!_shortView && _timeline.ActiveSongIndex == index)
-                                 : (_shortView && _timeline.ActiveShortIndex == index);
+            bool active = kind switch
+            {
+                ShowTimeline.TabKind.Sequence => _viewKind == ShowTimeline.TabKind.Sequence && _timeline.ActiveSequenceIndex == index,
+                ShowTimeline.TabKind.Song     => _viewKind == ShowTimeline.TabKind.Song && _timeline.ActiveSongIndex == index,
+                _                             => _viewKind == ShowTimeline.TabKind.Short && _timeline.ActiveShortIndex == index,
+            };
+            string tabName = kind switch
+            {
+                ShowTimeline.TabKind.Sequence => _timeline.GetSequence(index).name,
+                ShowTimeline.TabKind.Song     => _timeline.GetSong(index).name,
+                _                             => _timeline.GetShort(index).name,
+            };
 
             var tab = new VisualElement();
             tab.AddToClassList("rr-tl-tab");
-            tab.AddToClassList(isSong ? "rr-tl-tab--song" : "rr-tl-tab--short");
+            tab.AddToClassList(TabCssKind(kind));
             EnableClass(tab, "rr-tl-tab--active", active);
 
-            var icon = new RrIcon { Icon = isSong ? RrIcon.Kind.AudioLines : RrIcon.Kind.Zap };
+            var iconKind = kind switch
+            {
+                ShowTimeline.TabKind.Sequence => RrIcon.Kind.AudioLines,
+                ShowTimeline.TabKind.Song     => RrIcon.Kind.ListMusic,
+                _                             => RrIcon.Kind.Zap,
+            };
+            var icon = new RrIcon { Icon = iconKind };
             icon.AddToClassList("rr-tl-tab__icon");
             tab.Add(icon);
 
-            var name = new Label(isSong ? _timeline.GetSong(index).name : _timeline.GetShort(index).name);
+            var name = new Label(tabName);
             name.AddToClassList("rr-tl-tab__name");
             tab.Add(name);
 
             // SONG/SHORT バッジは廃止（2026-07-12・kind アイコンで種別は分かるため、
             // タブ幅を Key 割当（keycap）に譲る＝視認性優先）。
-            if (!isSong)
+            if (kind == ShowTimeline.TabKind.Short)
             {
                 // keycap 型チップ（07-10）: 割当キー（主）＋pad 番号（小）。未割当は「·」薄色。
                 int pad = _timeline.GetShort(index).pad;
@@ -1273,9 +1332,13 @@ namespace RewriteReality
                 {
                     if (_timeline.RemoveTab(kind, index))
                     {
-                        // 表示中の種別が空になったら、残っている種別へ切り替える。
-                        if (_shortView && _timeline.ShortCount == 0) _shortView = false;
-                        else if (!_shortView && _timeline.SongCount == 0) _shortView = true;
+                        // 表示中の種別が空になったら、残っている種別へ切り替える（優先順位＝Sequence→Short→Song）。
+                        if (_viewKind == kind)
+                        {
+                            if (_timeline.SequenceCount > 0) _viewKind = ShowTimeline.TabKind.Sequence;
+                            else if (_timeline.ShortCount > 0) _viewKind = ShowTimeline.TabKind.Short;
+                            else _viewKind = ShowTimeline.TabKind.Song;
+                        }
                         RebuildTimelineTabs();
                         RefreshShortAssignment();
                     }
@@ -1290,28 +1353,34 @@ namespace RewriteReality
         void SelectTab(ShowTimeline.TabKind kind, int index)
         {
             if (_timeline == null) return;
-            if (kind == ShowTimeline.TabKind.Song) { _timeline.SelectSong(index); _shortView = false; }
-            else { _timeline.SelectShort(index); _shortView = true; }
+            switch (kind)
+            {
+                case ShowTimeline.TabKind.Sequence: _timeline.SelectSequence(index); break;
+                case ShowTimeline.TabKind.Song:     _timeline.SelectSong(index); _songSelStep = 0; break;
+                default:                            _timeline.SelectShort(index); break;
+            }
+            _viewKind = kind;
             if (_shortLanes != null) _shortLanes.Clear();   // Short 切替で追加表示レーンは破棄（揮発・U7）
             RebuildTimelineTabs();
             RefreshShortAssignment();
-            RebuildSongTracks();   // Song 切替で track 行を差し替え（U3）
+            RebuildSequenceTracks();   // Sequence 切替で track 行を差し替え（U3）
+            RebuildSongSteps();        // Song 切替でステップ列/プレビューを差し替え（U11）
             if (_tlTotal != null) _tlTotal.text = "/ " + ShowTimeline.FormatTime(_timeline.Length);
         }
 
-        // -------------------------------------------------- Song track 行（U3・動的生成）
-        // ShowTimeline.ActiveSong.tracks から行を生成する。行の増減は Song 切替／+Track の時だけ
+        // -------------------------------------------------- Sequence track 行（U3・動的生成・旧称 Song）
+        // ShowTimeline.ActiveSequence.tracks から行を生成する。行の増減は Sequence 切替／+Track の時だけ
         // （enabled/muted のトグルや選択ハイライトは行を作り直さず個別に更新・GC 回避）。
-        void RebuildSongTracks()
+        void RebuildSequenceTracks()
         {
             if (_tlTracklist == null) return;
             _tlTracklist.Clear();
             _trackHeads.Clear();
-            var song = _timeline?.ActiveSong;
-            if (song == null) return;
+            var seq = _timeline?.ActiveSequence;
+            if (seq == null) return;
 
-            for (int i = 0; i < song.tracks.Count; i++)
-                _tlTracklist.Add(BuildTrackRow(i, song.tracks[i]));
+            for (int i = 0; i < seq.tracks.Count; i++)
+                _tlTracklist.Add(BuildTrackRow(i, seq.tracks[i]));
         }
 
         VisualElement BuildTrackRow(int index, ShowTimeline.Track track)
@@ -1427,16 +1496,188 @@ namespace RewriteReality
             }
         }
 
-        // song/short の中央ビューを _shortView に合わせる（Time 表示は共通・GATE 表記は廃止＝07-10）。
-        // 共通ヘッダの +Track は Song 用。short は Key 行左端に自前の +Track を持つ（U7）ので、
-        // ヘッダ側は short 表示中に隠す（Timeline.jsx の !isShort ガードに合わせる）。
+        // sequence/short/song の中央ビューを _viewKind に合わせる（Time 表示は共通・GATE 表記は廃止＝07-10・
+        // §7c で3種へ拡張＝U11）。共通ヘッダの +Track は Sequence 用。short は Key 行左端に自前の +Track を
+        // 持つ（U7）ので、ヘッダ側は short/song 表示中に隠す（Timeline.jsx の !isShort && !isSong ガードに合わせる）。
         void ApplyTimelineView()
         {
-            if (_tlSong != null)  _tlSong.style.display  = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
-            if (_tlShort != null) _tlShort.style.display = _shortView ? DisplayStyle.Flex : DisplayStyle.None;
-            HideMenu(_shortView ? _addTrackMenu : _shortAddTrackMenu);   // 隠れる側の開きっぱなし popover を閉じる
-            if (_addTrackWrap != null) _addTrackWrap.style.display = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
-            if (_addTrackDivider != null) _addTrackDivider.style.display = _shortView ? DisplayStyle.None : DisplayStyle.Flex;
+            bool isSeq = _viewKind == ShowTimeline.TabKind.Sequence;
+            bool isShort = _viewKind == ShowTimeline.TabKind.Short;
+            bool isSong = _viewKind == ShowTimeline.TabKind.Song;
+
+            if (_tlSeq != null)      _tlSeq.style.display      = isSeq ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_tlShort != null)    _tlShort.style.display    = isShort ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_tlSongList != null) _tlSongList.style.display = isSong ? DisplayStyle.Flex : DisplayStyle.None;
+            if (!isSeq) HideMenu(_addTrackMenu);
+            if (!isShort) HideMenu(_shortAddTrackMenu);
+            if (_addTrackWrap != null) _addTrackWrap.style.display = isSeq ? DisplayStyle.Flex : DisplayStyle.None;
+            if (_addTrackDivider != null) _addTrackDivider.style.display = isSeq ? DisplayStyle.Flex : DisplayStyle.None;
+            // Short は per-Short の Hold-Loop トグルが発火挙動を担うため、共通トランスポートの Loop は隠す
+            // （役割重複の解消・U9）。Sequence/Song は通常のループ再生として Loop を維持。
+            if (_tlLoop != null) _tlLoop.style.display = isShort ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        // -------------------------------------------------- Song（Sequence セットリスト）ステップ列＋プレビュー（§7c・U11）
+        // 左＝ステップ列（順序・Sequence 名・×N repeat・並べ替え/削除）。右＝選択ステップの読み取り専用プレビュー
+        // （現状はサマリ文字列のみ・フル多トラック再現は将来・見た目の作り込みはユーザーの UI Builder 側）。
+        void RebuildSongSteps()
+        {
+            if (_songSteps == null) return;
+            _songSteps.Clear();
+            var song = _timeline?.ActiveSong;
+            if (song == null) { RefreshSongPreview(null); return; }
+
+            for (int i = 0; i < song.steps.Count; i++)
+                _songSteps.Add(BuildSongStepRow(i, song.steps[i]));
+
+            if (_songSelStep >= song.steps.Count) _songSelStep = Mathf.Max(0, song.steps.Count - 1);
+            RefreshSongPreview(song.steps.Count > 0 ? song.steps[_songSelStep] : null);
+            RebuildSongAddStepMenu();
+        }
+
+        VisualElement BuildSongStepRow(int index, ShowTimeline.SongStep step)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("rr-song-step");
+            EnableClass(row, "rr-song-step--active", index == _songSelStep);
+            row.RegisterCallback<MouseDownEvent>(_ =>
+            {
+                _songSelStep = index;
+                RefreshSongPreview(step);
+                RebuildSongSteps();
+            });
+
+            var idx = new Label((index + 1).ToString()); idx.AddToClassList("rr-song-step__idx"); idx.AddToClassList("rr-mono");
+            row.Add(idx);
+
+            var name = new Label(step.sequenceName); name.AddToClassList("rr-song-step__name");
+            row.Add(name);
+
+            Button StepBtn(string text, System.Action onClick, bool danger = false)
+            {
+                var b = new Button { text = text };
+                b.AddToClassList("rr-song-step__btn");
+                if (danger) b.AddToClassList("rr-song-step__btn--danger");
+                b.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                b.clicked += onClick;
+                return b;
+            }
+
+            row.Add(StepBtn("−", () => { _timeline.SetSongStepRepeat(index, step.repeat - 1); RebuildSongSteps(); }));
+            var repeat = new Label("×" + step.repeat); repeat.AddToClassList("rr-song-step__repeat"); repeat.AddToClassList("rr-mono");
+            row.Add(repeat);
+            row.Add(StepBtn("+", () => { _timeline.SetSongStepRepeat(index, step.repeat + 1); RebuildSongSteps(); }));
+            row.Add(StepBtn("↑", () => { _timeline.MoveSongStep(index, -1); if (_songSelStep == index) _songSelStep--; else if (_songSelStep == index - 1) _songSelStep++; RebuildSongSteps(); }));
+            row.Add(StepBtn("↓", () => { _timeline.MoveSongStep(index, 1); if (_songSelStep == index) _songSelStep++; else if (_songSelStep == index + 1) _songSelStep--; RebuildSongSteps(); }));
+            row.Add(StepBtn("×", () => { _timeline.RemoveSongStep(index); RebuildSongSteps(); }, danger: true));
+
+            return row;
+        }
+
+        // + STEP メニュー：現在の Sequence 一覧から選んでアクティブ Song の末尾に追加。
+        void RebuildSongAddStepMenu()
+        {
+            if (_songAddStepMenu == null) return;
+            _songAddStepMenu.Clear();
+            if (_timeline == null) return;
+
+            int n = _timeline.SequenceCount;
+            if (n == 0)
+            {
+                var empty = new Label("No sequences yet");
+                empty.AddToClassList("rr-addtrack-file__name");
+                _songAddStepMenu.Add(empty);
+                return;
+            }
+            for (int i = 0; i < n; i++)
+            {
+                var seq = _timeline.GetSequence(i);
+                var item = new Button { text = seq.name };
+                item.AddToClassList("rr-addtrack-file");
+                item.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+                item.clicked += () =>
+                {
+                    _timeline.AddSongStep(seq.name);
+                    _songSelStep = _timeline.ActiveSong.steps.Count - 1;
+                    HideMenu(_songAddStepMenu);
+                    RebuildSongSteps();
+                };
+                _songAddStepMenu.Add(item);
+            }
+        }
+
+        // 選択ステップの参照 Sequence を右ペインへ（読み取り専用サマリ）。
+        void RefreshSongPreview(ShowTimeline.SongStep step)
+        {
+            var seq = step != null ? FindSequenceByName(step.sequenceName) : null;
+            if (_songPreviewTitle != null) _songPreviewTitle.text = seq != null ? seq.name : "—";
+            if (_songPreviewBody != null)
+            {
+                _songPreviewBody.text = seq != null
+                    ? $"{seq.tracks.Count} tracks · {ShowTimeline.FormatTime(seq.length)}"
+                    : "+ Step で Sequence を並べて Song を構成";
+            }
+            if (_songPreviewJump != null) _songPreviewJump.SetEnabled(seq != null);
+        }
+
+        ShowTimeline.Sequence FindSequenceByName(string name)
+        {
+            if (_timeline == null || string.IsNullOrEmpty(name)) return null;
+            for (int i = 0; i < _timeline.SequenceCount; i++)
+            {
+                var seq = _timeline.GetSequence(i);
+                if (seq != null && seq.name == name) return seq;
+            }
+            return null;
+        }
+
+        // 右プレビューの「Edit Sequence →」＝選択ステップの参照 Sequence タブへジャンプ（§7c）。
+        void JumpToSongStepSequence()
+        {
+            var song = _timeline?.ActiveSong;
+            if (song == null || _songSelStep < 0 || _songSelStep >= song.steps.Count) return;
+            var name = song.steps[_songSelStep].sequenceName;
+            for (int i = 0; i < _timeline.SequenceCount; i++)
+                if (_timeline.GetSequence(i).name == name) { SelectTab(ShowTimeline.TabKind.Sequence, i); return; }
+        }
+
+        // -------------------------------------------------- PERFORM 左ドック Banks（U10・§7b 07-14）
+        // 保存済み Sequence/Short/Song を一覧表示。クリックでタイムラインの該当タブを開く
+        // （Inspector 選択にはしない＝タブ＝開いている文書／Banks＝保存済み一覧、というブラウザモデル）。
+        void RebuildBanksList()
+        {
+            if (_banksList == null) return;
+            _banksList.Clear();
+            if (_timeline == null) return;
+
+            void Row(string label, string meta, string dotClass, System.Action onClick)
+            {
+                var item = new VisualElement(); item.AddToClassList("rr-list-item");
+                var dot = new VisualElement(); dot.AddToClassList("rr-list-dot"); dot.AddToClassList(dotClass);
+                item.Add(dot);
+                var name = new Label(label); name.AddToClassList("rr-list-label");
+                item.Add(name);
+                var metaLabel = new Label(meta); metaLabel.AddToClassList("rr-list-meta"); metaLabel.AddToClassList("rr-mono");
+                item.Add(metaLabel);
+                item.RegisterCallback<MouseDownEvent>(_ => onClick());
+                _banksList.Add(item);
+            }
+
+            for (int i = 0; i < _timeline.SequenceCount; i++)
+            {
+                int idx = i;
+                Row(_timeline.GetSequence(i).name, "SEQ", "rr-list-dot--seq", () => SelectTab(ShowTimeline.TabKind.Sequence, idx));
+            }
+            for (int i = 0; i < _timeline.ShortCount; i++)
+            {
+                int idx = i;
+                Row(_timeline.GetShort(i).name, "SHORT", "rr-list-dot--short", () => SelectTab(ShowTimeline.TabKind.Short, idx));
+            }
+            for (int i = 0; i < _timeline.SongCount; i++)
+            {
+                int idx = i;
+                Row(_timeline.GetSong(i).name, "SONG", "rr-list-dot--songlist", () => SelectTab(ShowTimeline.TabKind.Song, idx));
+            }
         }
 
         // 追加メニューは _themeRoot 直下のオーバーレイに出す（タイムライン本体の裏に隠れる/クリップされる
@@ -1615,14 +1856,14 @@ namespace RewriteReality
 
             // 再生ヘッドはクリップ・レーンの座標系で置く（本体全幅 % だとトラックヘッダ分ずれ、
             // t=0 が 0:00 目盛りに揃わない）。left = ヘッダ幅 + 正規化位置 × レーン実幅。
-            // 非表示側は resolvedStyle.width=0 → usable<=0 でスキップされる（Song/Short 両方を更新して可）。
+            // 非表示側は resolvedStyle.width=0 → usable<=0 でスキップされる（Sequence/Short 両方を更新して可）。
             float nt = _timeline.NormalizedTime;
-            if (_playhead != null && _tlSong != null)
+            if (_playhead != null && _tlSeq != null)
             {
-                float usable = _tlSong.resolvedStyle.width - TimelineLaneLeft - TimelineLaneRight;
+                float usable = _tlSeq.resolvedStyle.width - TimelineLaneLeft - TimelineLaneRight;
                 if (usable > 0f) _playhead.style.left = TimelineLaneLeft + nt * usable;
             }
-            // Short は右端 tail 無し（レーン head 96px のみ）。表示のみ＝同じ song クロックで近似（U7）。
+            // Short は右端 tail 無し（レーン head 96px のみ）。表示のみ＝同じ sequence クロックで近似（U7）。
             if (_shortPlayhead != null && _shortBody != null)
             {
                 float usable = _shortBody.resolvedStyle.width - TimelineLaneLeft;
@@ -2141,7 +2382,7 @@ namespace RewriteReality
             _inspector.Add(row);
         }
 
-        // -------------------------------------------------- track（U3・Song track 選択）
+        // -------------------------------------------------- track（U3・Sequence track 選択）
         // 単一選択=video(Role/Opacity 実値/Blend/Track FX 一覧)・audio(Role/Volume/Fade/メーター)。
         // 複数選択=一覧＋Group（Opacity は mixed 表示・Mute All は実際に全選択トラックへ適用）。
         void BuildTrackInspector(SelectionRef sel)
@@ -2150,14 +2391,14 @@ namespace RewriteReality
             _inspector.Clear();
             _paramRows.Clear();
 
-            var song = _timeline?.ActiveSong;
-            if (song == null || sel.Tracks.Count == 0) { BuildMasterInspector(); return; }
+            var seq = _timeline?.ActiveSequence;
+            if (seq == null || sel.Tracks.Count == 0) { BuildMasterInspector(); return; }
 
-            if (sel.Tracks.Count > 1) { BuildMultiTrackInspector(song, sel.Tracks); return; }
+            if (sel.Tracks.Count > 1) { BuildMultiTrackInspector(seq, sel.Tracks); return; }
 
             int idx = sel.Tracks[0].Index;
-            if (idx < 0 || idx >= song.tracks.Count) { BuildMasterInspector(); return; }
-            var track = song.tracks[idx];
+            if (idx < 0 || idx >= seq.tracks.Count) { BuildMasterInspector(); return; }
+            var track = seq.tracks[idx];
             bool isAudio = track.kind == ShowTimeline.TrackKind.Audio;
 
             if (_inspectorTitle != null) _inspectorTitle.text = track.name;
@@ -2207,7 +2448,7 @@ namespace RewriteReality
             }
         }
 
-        void BuildMultiTrackInspector(ShowTimeline.Song song, IReadOnlyList<TrackId> tracks)
+        void BuildMultiTrackInspector(ShowTimeline.Sequence seq, IReadOnlyList<TrackId> tracks)
         {
             if (_inspectorTitle != null) _inspectorTitle.text = tracks.Count + " Tracks";
             AddSectionLabel("Selection", Badge(tracks.Count + " TRACKS", "rr-badge--selection"));
@@ -2215,8 +2456,8 @@ namespace RewriteReality
             for (int i = 0; i < tracks.Count; i++)
             {
                 int idx = tracks[i].Index;
-                if (idx < 0 || idx >= song.tracks.Count) continue;
-                var t = song.tracks[idx];
+                if (idx < 0 || idx >= seq.tracks.Count) continue;
+                var t = seq.tracks[idx];
                 bool isAudio = t.kind == ShowTimeline.TrackKind.Audio;
 
                 var row = new VisualElement(); row.AddToClassList("rr-list-item");
@@ -2229,26 +2470,26 @@ namespace RewriteReality
 
             AddSectionLabel("Group");
             AddInfoRow("Opacity", "mixed");
-            AddToggleRow("Mute All", AllSelectedMuted(song, tracks), v =>
+            AddToggleRow("Mute All", AllSelectedMuted(seq, tracks), v =>
             {
                 for (int i = 0; i < tracks.Count; i++)
                 {
                     int idx = tracks[i].Index;
-                    if (idx >= 0 && idx < song.tracks.Count) song.tracks[idx].muted = v;
+                    if (idx >= 0 && idx < seq.tracks.Count) seq.tracks[idx].muted = v;
                 }
-                RebuildSongTracks();
+                RebuildSequenceTracks();
             });
 
             AddDeselectRow();
         }
 
-        static bool AllSelectedMuted(ShowTimeline.Song song, IReadOnlyList<TrackId> tracks)
+        static bool AllSelectedMuted(ShowTimeline.Sequence seq, IReadOnlyList<TrackId> tracks)
         {
             for (int i = 0; i < tracks.Count; i++)
             {
                 int idx = tracks[i].Index;
-                if (idx < 0 || idx >= song.tracks.Count) continue;
-                if (!song.tracks[idx].muted) return false;
+                if (idx < 0 || idx >= seq.tracks.Count) continue;
+                if (!seq.tracks[idx].muted) return false;
             }
             return true;
         }
@@ -2683,11 +2924,11 @@ namespace RewriteReality
         {
             var sel = _selection.Current;
             if (sel.Tracks.Count != 1) return;
-            var song = _timeline?.ActiveSong;
-            if (song == null) return;
+            var seq = _timeline?.ActiveSequence;
+            if (seq == null) return;
             int idx = sel.Tracks[0].Index;
-            if (idx < 0 || idx >= song.tracks.Count) return;
-            if (song.tracks[idx].kind != ShowTimeline.TrackKind.Audio) return;
+            if (idx < 0 || idx >= seq.tracks.Count) return;
+            if (seq.tracks[idx].kind != ShowTimeline.TrackKind.Audio) return;
             SyncAudioMeters();
         }
 

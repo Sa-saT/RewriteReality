@@ -88,8 +88,19 @@ function LeftDock({ page, surfaces, sel, onSelect }) {
     );
   }
   // perform — unified library
+  // Banks: saved Sequence/Short/Song banks (from the timeline's persisted tabs); click opens the tab
+  let banks = [];
+  try { const p = JSON.parse(localStorage.getItem('rr.timeline.tabs.v3') || 'null'); if (p && p.tabs) banks = p.tabs; } catch (e) { /* ignore */ }
+  const bankDot = { seq: 'var(--rr-semantic-live)', short: 'var(--rr-primary)', song: 'var(--rr-selection)' };
+  const bankMeta = { seq: 'SEQ', short: 'SHORT', song: 'SONG' };
   return (
     <React.Fragment>
+      <DockSection title="Banks">
+        {banks.map((b) => (
+          <ListItem key={b.id} label={b.name} meta={bankMeta[b.kind] || ''} dot={bankDot[b.kind]}
+            onClick={() => window.dispatchEvent(new CustomEvent('rr-open-bank', { detail: b.id }))} />
+        ))}
+      </DockSection>
       <DockSection title="Sources">
         {it('source-video', 'src-base', 'reality_base.mov', '03:20', 'var(--rr-stage-source)', { usage: 2 })}
         {it('source-video', 'src-loop', 'loop_grid.mp4', '00:40', 'var(--rr-stage-source)', { usage: 1 })}

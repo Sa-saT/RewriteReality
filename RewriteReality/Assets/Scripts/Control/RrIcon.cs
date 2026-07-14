@@ -14,7 +14,7 @@ namespace RewriteReality
     [UxmlElement]
     public partial class RrIcon : VisualElement
     {
-        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines, Eye, EyeOff, Lock, LockOpen, Keyboard }
+        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines, Eye, EyeOff, Lock, LockOpen, Keyboard, ListMusic }
 
         Kind _icon = Kind.Play;
 
@@ -73,6 +73,7 @@ namespace RewriteReality
                 case Kind.Lock:        LockGlyph(p, ox, oy, s, true); break;
                 case Kind.LockOpen:    LockGlyph(p, ox, oy, s, false); break;
                 case Kind.Keyboard:    KeyboardGlyph(p, ox, oy, s); break;
+                case Kind.ListMusic:   ListMusic(p, ox, oy, s); break;
             }
         }
 
@@ -236,6 +237,26 @@ namespace RewriteReality
                 p.LineTo(P(ox, oy, s, xs[i], 0.5f + hh[i]));
                 p.Stroke();
             }
+        }
+
+        // リスト＋音符（song[セットリスト] タブ・lucide "list-music" 相当）。横線 3 本（長さを漸減）＋
+        // 右下に音符（塗り玉＋符幹）。
+        void ListMusic(Painter2D p, float ox, float oy, float s)
+        {
+            float[] x1s = { 0.62f, 0.62f, 0.48f };
+            float[] ys  = { 0.26f, 0.50f, 0.74f };
+            for (int i = 0; i < ys.Length; i++)
+            {
+                p.BeginPath();
+                p.MoveTo(P(ox, oy, s, 0.16f, ys[i]));
+                p.LineTo(P(ox, oy, s, x1s[i], ys[i]));
+                p.Stroke();
+            }
+            FilledCircle(p, P(ox, oy, s, 0.74f, 0.78f), s * 0.09f);
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.82f, 0.78f));
+            p.LineTo(P(ox, oy, s, 0.82f, 0.28f));
+            p.Stroke();
         }
 
         // 目（lens 形＝上下 2 本の二次曲線）＋瞳（開）／斜線（閉＝Hide）。lucide "eye"/"eye-off" 相当。

@@ -7,11 +7,12 @@ using UnityEngine.Video;
 namespace RewriteReality
 {
     /// <summary>
-    /// AV ショーのタイムライン再生バックエンド（docs/07b §3.5・M12・#27）。
-    /// Song=リニア通し（トランスポートで進行・可変速）。Short=キー割当のホールド発火（§3.5.2・
-    /// 押下中だけ最上位レイヤー・離すと song に戻る＝Resolume「Piano」／複数同時押しは後押しが上）。
-    /// データ（Song/Track/Clip・Short バンク/パッド）＋トランスポート・クロック（Play/Pause/Loop/Rate・
-    /// playhead 時刻）を保持し、UI（<see cref="OperatorUI"/>）は読み取りと発火通知だけ行う
+    /// AV ショーのタイムライン再生バックエンド（docs/07b §3.5・M12・#27／MPC 流バンク再編＝§7c・#29 U11）。
+    /// Sequence=リニア通し（トランスポートで進行・可変速・旧称 Song）。Short=キー割当のホールド発火（§3.5.2・
+    /// 押下中だけ最上位レイヤー・離すと sequence に戻る＝Resolume「Piano」／複数同時押しは後押しが上）。
+    /// Song=Sequence の並び（セットリスト・×N repeat・MPC 流）。
+    /// データ（Sequence/Track/Clip・Short バンク/パッド・Song/SongStep）＋トランスポート・クロック
+    /// （Play/Pause/Loop/Rate・playhead 時刻）を保持し、UI（<see cref="OperatorUI"/>）は読み取りと発火通知だけ行う
     /// （見た目=UXML/USS・挙動=薄い C# の原則）。
     /// 実クリップのバインドは opt-in（<see cref="_videoSink"/> ＋ライブラリ登録時のみ）で、
     /// 未設定なら純粋なトランスポート（従来動作）＝非破壊。
@@ -47,12 +48,12 @@ namespace RewriteReality
             public List<Clip> clips = new List<Clip>();
         }
 
-        /// <summary>1 曲（尺・トラック列）。</summary>
+        /// <summary>1 Sequence（マルチトラックバンク・尺・トラック列・旧称 Song／§7c で改名）。</summary>
         [Serializable]
-        public sealed class Song
+        public sealed class Sequence
         {
-            public string name = "Song 01";
-            [Tooltip("曲全体の尺（秒）")]
+            public string name = "Seq 01";
+            [Tooltip("Sequence 全体の尺（秒）")]
             public double length = 200.0;   // 3:20
             public List<Track> tracks = new List<Track>();
         }
@@ -74,6 +75,25 @@ namespace RewriteReality
             public Clip clip = new Clip();
         }
 
+        /// <summary>Song の 1 ステップ＝参照する Sequence（名前ベース・タブ名で解決）＋繰り返し回数。</summary>
+        [Serializable]
+        public sealed class SongStep
+        {
+            [Tooltip("参照する Sequence の名前（Sequence タブ名と一致・#29 U11）")]
+            public string sequenceName = "";
+            [Tooltip("繰り返し回数（×N・最小 1）")]
+            public int repeat = 1;
+        }
+
+        /// <summary>1 Song（タブ 1 枚）＝Sequence を並べたセットリスト（MPC 流・§7c・#29 U11）。
+        /// 本体は持たず SongStep 列で Sequence を参照・反復するだけ（非破壊・Sequence 側は変更しない）。</summary>
+        [Serializable]
+        public sealed class Song
+        {
+            public string name = "Song 01";
+            public List<SongStep> steps = new List<SongStep>();
+        }
+
         /// <summary>4×4 パッドマトリクスのパッド総数（§7）。</summary>
         public const int PadCount = 16;
 
@@ -86,10 +106,10 @@ namespace RewriteReality
             public VideoClip video;
         }
 
-        [Header("Song（リニア通し）")]
-        [Tooltip("Song バンク。空なら実行時に既定の 1 曲を生成する。")]
-        [SerializeField] List<Song> _songs = new List<Song>();
-        [SerializeField] int _activeSong = 0;
+        [Header("Sequence（マルチトラックバンク・リニア通し・旧称 Song）")]
+        [Tooltip("Sequence バンク。空なら実行時に既定の 1 本を生成する。")]
+        [SerializeField] List<Sequence> _sequences = new List<Sequence>();
+        [SerializeField] int _activeSequence = 0;
         [Tooltip("末尾で先頭へループする")]
         [SerializeField] bool _loop = true;
         [Tooltip("開始時に自動再生する")]
@@ -103,6 +123,12 @@ namespace RewriteReality
         [SerializeField] List<Short> _shorts = new List<Short>();
         [Tooltip("いま編集/表示中の Short（タブ選択）")]
         [SerializeField] int _activeShort = 0;
+
+        [Header("Song（Sequence セットリスト・§7c・#29 U11）")]
+        [Tooltip("Song 一覧（各 1 セットリスト・タブ 1 枚）。空でもよい（未使用なら生成しない）。")]
+        [SerializeField] List<Song> _songs = new List<Song>();
+        [Tooltip("いま編集/表示中の Song（タブ選択）")]
+        [SerializeField] int _activeSongIndex = 0;
 
         [Header("バインド（opt-in・未設定なら純トランスポート）")]
         [Tooltip("アクティブな映像クリップを流し込む先。null なら映像を差し替えない。")]
@@ -125,43 +151,43 @@ namespace RewriteReality
         public event Action PlayStateChanged;
         /// <summary>Short のホールド状態（何か押下中か）が変わったとき発火。UI のプレビュー用。</summary>
         public event Action ShortStateChanged;
-        /// <summary>実効の映像クリップ（song or 最上位 short）が変わったとき発火。</summary>
+        /// <summary>実効の映像クリップ（sequence or 最上位 short）が変わったとき発火。</summary>
         public event Action<Clip> ActiveVideoClipChanged;
 
-        public Song ActiveSong =>
-            (_songs != null && _activeSong >= 0 && _activeSong < _songs.Count) ? _songs[_activeSong] : null;
+        public Sequence ActiveSequence =>
+            (_sequences != null && _activeSequence >= 0 && _activeSequence < _sequences.Count) ? _sequences[_activeSequence] : null;
 
-        /// <summary>いま編集/表示中の Song の index（範囲外は -1）。</summary>
-        public int ActiveSongIndex =>
-            (_songs != null && _activeSong >= 0 && _activeSong < _songs.Count) ? _activeSong : -1;
+        /// <summary>いま編集/表示中の Sequence の index（範囲外は -1）。</summary>
+        public int ActiveSequenceIndex =>
+            (_sequences != null && _activeSequence >= 0 && _activeSequence < _sequences.Count) ? _activeSequence : -1;
 
-        /// <summary>Song の総数（タブ数）。</summary>
-        public int SongCount => _songs != null ? _songs.Count : 0;
+        /// <summary>Sequence の総数（タブ数）。</summary>
+        public int SequenceCount => _sequences != null ? _sequences.Count : 0;
 
-        /// <summary>index の Song（範囲外は null）。</summary>
-        public Song GetSong(int index) =>
-            (_songs != null && index >= 0 && index < _songs.Count) ? _songs[index] : null;
+        /// <summary>index の Sequence（範囲外は null）。</summary>
+        public Sequence GetSequence(int index) =>
+            (_sequences != null && index >= 0 && index < _sequences.Count) ? _sequences[index] : null;
 
-        /// <summary>index の Song を選択（頭出しはしない）。</summary>
-        public void SelectSong(int index)
+        /// <summary>index の Sequence を選択（頭出しはしない）。</summary>
+        public void SelectSequence(int index)
         {
-            if (_songs == null || index < 0 || index >= _songs.Count) return;
-            _activeSong = index;
+            if (_sequences == null || index < 0 || index >= _sequences.Count) return;
+            _activeSequence = index;
         }
 
-        // ---- タブ操作（動的タブバー・07-10 App.jsx）----
-        public enum TabKind { Song, Short }
+        // ---- タブ操作（動的タブバー・07-10 App.jsx／§7c で Sequence/Short/Song の3種へ）----
+        public enum TabKind { Sequence, Short, Song }
 
-        /// <summary>Song / Short の合計タブ数。</summary>
-        public int TabCount => SongCount + ShortCount;
+        /// <summary>Sequence / Short / Song の合計タブ数。</summary>
+        public int TabCount => SequenceCount + ShortCount + SongCount;
 
-        /// <summary>新しい Song を追加して index を返す。</summary>
-        public int AddSong()
+        /// <summary>新しい Sequence を追加して index を返す。</summary>
+        public int AddSequence()
         {
-            if (_songs == null) _songs = new List<Song>();
-            int n = _songs.Count + 1;
-            _songs.Add(new Song { name = "Song " + n.ToString("00"), length = 200.0 });
-            return _songs.Count - 1;
+            if (_sequences == null) _sequences = new List<Sequence>();
+            int n = _sequences.Count + 1;
+            _sequences.Add(new Sequence { name = "Seq " + n.ToString("00"), length = 200.0 });
+            return _sequences.Count - 1;
         }
 
         /// <summary>新しい Short を追加して index を返す（空きパッド/キーを自動割当）。</summary>
@@ -183,20 +209,29 @@ namespace RewriteReality
             return _shorts.Count - 1;
         }
 
-        /// <summary>アクティブ Song に新規トラックを追加（+ Track・U3）。VID n/AUD n を自動採番し、
-        /// クリップ 1 本（ファイル名ラベル・曲全尺）を仮配置する。Song が無ければ null。</summary>
+        /// <summary>新しい Song（セットリスト）を追加して index を返す。</summary>
+        public int AddSong()
+        {
+            if (_songs == null) _songs = new List<Song>();
+            int n = _songs.Count + 1;
+            _songs.Add(new Song { name = "Song " + n.ToString("00") });
+            return _songs.Count - 1;
+        }
+
+        /// <summary>アクティブ Sequence に新規トラックを追加（+ Track・U3）。VID n/AUD n を自動採番し、
+        /// クリップ 1 本（ファイル名ラベル・全尺）を仮配置する。Sequence が無ければ null。</summary>
         public Track AddTrack(TrackKind kind, string fileLabel)
         {
-            var song = ActiveSong;
-            if (song == null) return null;
+            var seq = ActiveSequence;
+            if (seq == null) return null;
 
             int n = 1;
-            for (int i = 0; i < song.tracks.Count; i++)
-                if (song.tracks[i] != null && song.tracks[i].kind == kind) n++;
+            for (int i = 0; i < seq.tracks.Count; i++)
+                if (seq.tracks[i] != null && seq.tracks[i].kind == kind) n++;
 
             var track = new Track { name = (kind == TrackKind.Video ? "VID " : "AUD ") + n, kind = kind };
-            track.clips.Add(new Clip { name = fileLabel, start = 0, duration = song.length });
-            song.tracks.Add(track);
+            track.clips.Add(new Clip { name = fileLabel, start = 0, duration = seq.length });
+            seq.tracks.Add(track);
             return track;
         }
 
@@ -204,20 +239,25 @@ namespace RewriteReality
         public bool RemoveTab(TabKind kind, int index)
         {
             if (TabCount <= 1) return false;
-            if (kind == TabKind.Song)
+            switch (kind)
             {
-                if (_songs == null || index < 0 || index >= _songs.Count) return false;
-                _songs.RemoveAt(index);
-                if (_activeSong >= _songs.Count) _activeSong = Math.Max(0, _songs.Count - 1);
+                case TabKind.Sequence:
+                    if (_sequences == null || index < 0 || index >= _sequences.Count) return false;
+                    _sequences.RemoveAt(index);
+                    if (_activeSequence >= _sequences.Count) _activeSequence = Math.Max(0, _sequences.Count - 1);
+                    return true;
+                case TabKind.Song:
+                    if (_songs == null || index < 0 || index >= _songs.Count) return false;
+                    _songs.RemoveAt(index);
+                    if (_activeSongIndex >= _songs.Count) _activeSongIndex = Math.Max(0, _songs.Count - 1);
+                    return true;
+                default:
+                    if (_shorts == null || index < 0 || index >= _shorts.Count) return false;
+                    HoldReleaseAll();
+                    _shorts.RemoveAt(index);
+                    if (_activeShort >= _shorts.Count) _activeShort = Math.Max(0, _shorts.Count - 1);
+                    return true;
             }
-            else
-            {
-                if (_shorts == null || index < 0 || index >= _shorts.Count) return false;
-                HoldReleaseAll();
-                _shorts.RemoveAt(index);
-                if (_activeShort >= _shorts.Count) _activeShort = Math.Max(0, _shorts.Count - 1);
-            }
-            return true;
         }
 
         /// <summary>いま編集/表示中の Short（タブ選択）。</summary>
@@ -235,14 +275,70 @@ namespace RewriteReality
         public Short GetShort(int index) =>
             (_shorts != null && index >= 0 && index < _shorts.Count) ? _shorts[index] : null;
 
-        /// <summary>現在曲の尺（秒・最小 1）。</summary>
-        public double Length => ActiveSong != null ? Math.Max(1.0, ActiveSong.length) : 1.0;
+        /// <summary>いま編集/表示中の Song（タブ選択）。</summary>
+        public Song ActiveSong =>
+            (_songs != null && _activeSongIndex >= 0 && _activeSongIndex < _songs.Count) ? _songs[_activeSongIndex] : null;
+
+        /// <summary>いま編集/表示中の Song の index（範囲外は -1）。</summary>
+        public int ActiveSongIndex =>
+            (_songs != null && _activeSongIndex >= 0 && _activeSongIndex < _songs.Count) ? _activeSongIndex : -1;
+
+        /// <summary>Song の総数（タブ数）。</summary>
+        public int SongCount => _songs != null ? _songs.Count : 0;
+
+        /// <summary>index の Song（範囲外は null）。</summary>
+        public Song GetSong(int index) =>
+            (_songs != null && index >= 0 && index < _songs.Count) ? _songs[index] : null;
+
+        /// <summary>index の Song を選択。</summary>
+        public void SelectSong(int index)
+        {
+            if (_songs == null || index < 0 || index >= _songs.Count) return;
+            _activeSongIndex = index;
+        }
+
+        /// <summary>アクティブ Song の末尾に、指定 Sequence を参照するステップを追加（既定 ×1）。</summary>
+        public void AddSongStep(string sequenceName)
+        {
+            var song = ActiveSong;
+            if (song == null || string.IsNullOrEmpty(sequenceName)) return;
+            song.steps.Add(new SongStep { sequenceName = sequenceName, repeat = 1 });
+        }
+
+        /// <summary>アクティブ Song のステップを削除。</summary>
+        public void RemoveSongStep(int index)
+        {
+            var song = ActiveSong;
+            if (song == null || index < 0 || index >= song.steps.Count) return;
+            song.steps.RemoveAt(index);
+        }
+
+        /// <summary>アクティブ Song のステップを並べ替え（dir=-1 で前へ・+1 で後ろへ）。</summary>
+        public void MoveSongStep(int index, int dir)
+        {
+            var song = ActiveSong;
+            if (song == null) return;
+            int j = index + dir;
+            if (index < 0 || index >= song.steps.Count || j < 0 || j >= song.steps.Count) return;
+            (song.steps[index], song.steps[j]) = (song.steps[j], song.steps[index]);
+        }
+
+        /// <summary>アクティブ Song のステップの繰り返し回数を設定（最小 1）。</summary>
+        public void SetSongStepRepeat(int index, int repeat)
+        {
+            var song = ActiveSong;
+            if (song == null || index < 0 || index >= song.steps.Count) return;
+            song.steps[index].repeat = Math.Max(1, repeat);
+        }
+
+        /// <summary>現在 Sequence の尺（秒・最小 1）。</summary>
+        public double Length => ActiveSequence != null ? Math.Max(1.0, ActiveSequence.length) : 1.0;
         public double Time => _time;
         public double Remaining => Math.Max(0.0, Length - _time);
         public bool Playing => _playing;
         public bool Loop { get => _loop; set => _loop = value; }
 
-        /// <summary>再生速度（0..4・song 進行と将来の映像速度に効かせる・#27）。</summary>
+        /// <summary>再生速度（0..4・sequence 進行と将来の映像速度に効かせる・#27）。</summary>
         public float Rate
         {
             get => _rate;
@@ -252,7 +348,7 @@ namespace RewriteReality
         /// <summary>playhead の 0..1 正規化位置（UI の左%・ルーラ位置に使う）。</summary>
         public float NormalizedTime => (float)(_time / Length);
 
-        /// <summary>何か Short を発火中か（最上位 short が song に優先している）。</summary>
+        /// <summary>何か Short を発火中か（最上位 short が sequence に優先している）。</summary>
         public bool AnyShortHeld => _held.Count > 0;
 
         /// <summary>最上位（最後に押した）Short。無ければ null。</summary>
@@ -266,31 +362,33 @@ namespace RewriteReality
             }
         }
 
-        /// <summary>いま画面に出すべき映像クリップ（最上位 short → 無ければ song の映像クリップ）。</summary>
+        /// <summary>いま画面に出すべき映像クリップ（最上位 short → 無ければ sequence の映像クリップ）。</summary>
         public Clip ActiveVideoClip
         {
             get
             {
                 var top = TopShort;
                 if (top != null) return top.clip;
-                return SongClipAt(_time, TrackKind.Video);
+                return SequenceClipAt(_time, TrackKind.Video);
             }
         }
 
-        /// <summary>いま鳴らすべき音声クリップ（song の音声トラック・将来の内部再生 M13 用に公開）。</summary>
-        public Clip ActiveAudioClip => SongClipAt(_time, TrackKind.Audio);
+        /// <summary>いま鳴らすべき音声クリップ（sequence の音声トラック・将来の内部再生 M13 用に公開）。</summary>
+        public Clip ActiveAudioClip => SequenceClipAt(_time, TrackKind.Audio);
 
         void Awake()
         {
             EnsureSeeded();
         }
 
-        /// <summary>既定の Song/Short を用意（空なら 1 枚ずつ）。Awake タイミングに依存させないため
-        /// UI 側からも呼べる（GameObject 非アクティブ等で Awake 未実行でもタブが出るように）。</summary>
+        /// <summary>既定の Sequence/Short を用意（空なら 1 枚ずつ。Song は未使用なら生成しない）。
+        /// Awake タイミングに依存させないため UI 側からも呼べる
+        /// （GameObject 非アクティブ等で Awake 未実行でもタブが出るように）。</summary>
         public void EnsureSeeded()
         {
-            if (_songs == null || _songs.Count == 0) _songs = new List<Song> { DefaultSong() };
+            if (_sequences == null || _sequences.Count == 0) _sequences = new List<Sequence> { DefaultSequence() };
             if (_shorts == null || _shorts.Count == 0) _shorts = new List<Short> { DefaultShort() };
+            if (_songs == null) _songs = new List<Song>();
         }
 
         void Start()
@@ -461,14 +559,14 @@ namespace RewriteReality
             return null;
         }
 
-        Clip SongClipAt(double t, TrackKind kind)
+        Clip SequenceClipAt(double t, TrackKind kind)
         {
-            var song = ActiveSong;
-            if (song == null) return null;
+            var seq = ActiveSequence;
+            if (seq == null) return null;
             Clip found = null;   // 同時刻に複数あれば上のトラック（後勝ち）を採用
-            for (int ti = 0; ti < song.tracks.Count; ti++)
+            for (int ti = 0; ti < seq.tracks.Count; ti++)
             {
-                var track = song.tracks[ti];
+                var track = seq.tracks[ti];
                 if (track == null || !track.enabled || track.kind != kind) continue;
                 for (int ci = 0; ci < track.clips.Count; ci++)
                 {
@@ -479,10 +577,10 @@ namespace RewriteReality
             return found;
         }
 
-        // ---- 既定曲（スタンドアロンで即動くよう・U3 で VID2/AUD2 も追加し動的化のデモを充実）----
-        static Song DefaultSong()
+        // ---- 既定 Sequence（スタンドアロンで即動くよう・U3 で VID2/AUD2 も追加し動的化のデモを充実）----
+        static Sequence DefaultSequence()
         {
-            var s = new Song { name = "Song 01", length = 200.0 };
+            var s = new Sequence { name = "Seq 01", length = 200.0 };
             var v1 = new Track { name = "VID 1", kind = TrackKind.Video, opacity = 1f };
             v1.clips.Add(new Clip { name = "CLIP A", start = 0,   duration = 52 });
             v1.clips.Add(new Clip { name = "CLIP B", start = 54,  duration = 68 });

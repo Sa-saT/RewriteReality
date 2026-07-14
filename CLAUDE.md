@@ -151,6 +151,20 @@ RewriteRealityProject/        ← git repo ルート
     （Timeline 再生停止・Fade to Black と役割重複のため。Master Speed のみ残置）。Song/Short のトラック行を
     `ScrollView`（`vertical-scroller-visibility=Hidden`）でラップし、ルーラー・再生ヘッドは ScrollView 外に
     固定（トラック行が増えても見切れない・WYSIWYG）。`Inspector.jsx` ローカルミラーの Freeze 行も削除。
+  - **#29/U9〜U11＝Short Loop 重複解消＋Banks＋MPC 流バンク再編（2026-07-14・コンパイル確認済）**:
+    UNITY-HANDOFF §7b/§7c 07-13/07-14 反映。**U9**＝Short タブ表示中は共通トランスポートの Loop ボタンを
+    非表示（`Hold-Loop` と役割重複のため）。Song/Sequence は維持（`TransportGlyph({ showLoop })` 相当）。
+    **U10**＝PERFORM 左ドックに `Banks` セクション（保存済み Sequence/Short/Song を種別ドット付きで一覧・
+    クリックで該当タブを開く）。タブバーを `ScrollView(Horizontal, scroller Hidden)` 化しタブ多数時も横スクロール。
+    **U11（最大）**＝`ShowTimeline.cs` を全面改名：旧 `Song`（マルチトラックバンク）→ `Sequence` に改名
+    （`ActiveSequence`/`SequenceCount`/`GetSequence`/`SelectSequence`/`AddSequence`）。新たに `Song`＝Sequence
+    を並べる MPC 流セットリスト（`SongStep{ sequenceName, repeat }`・`AddSongStep`/`RemoveSongStep`/
+    `MoveSongStep`/`SetSongStepRepeat`）を追加。タブは Sequence/Short/Song の3種（`TabKind` 拡張・アイコン=
+    `RrIcon.Kind.ListMusic` 新設・色=live/primary/selection で判別）。Song タブ本文は2ペイン
+    （左=ステップ列＋並べ替え/×N repeat/削除/+ Step・右=選択ステップの読み取り専用プレビュー＋
+    「Edit Sequence →」ジャンプ）。`OperatorUI` の `_shortView`(bool) は `_viewKind`(TabKind) に統合。
+    `LeftDock.jsx`/`Timeline.jsx` ローカルミラーもリモート最新へ追随。**Unity batchmode コンパイル 0 エラー
+    確認済み・実機/UI Builder での見た目確認は未（見た目の作り込みはユーザー側・DESIGN.md ワークフロー）**。
 
 ## 作業上の注意
 

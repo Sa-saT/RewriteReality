@@ -695,16 +695,18 @@
     background-color: var(--rr-surface-panel);
     border-bottom-color: var(--rr-surface-panel);
 }
-.rr-tl-tab--song.rr-tl-tab--active  { border-top-color: var(--rr-live); }
+.rr-tl-tab--seq.rr-tl-tab--active   { border-top-color: var(--rr-live); }
 .rr-tl-tab--short.rr-tl-tab--active { border-top-color: var(--rr-primary); }
+.rr-tl-tab--songlist.rr-tl-tab--active { border-top-color: var(--rr-selection); }
 .rr-tl-tab__dot {
     width: 6px; height: 6px;
     border-radius: 9999px;
     margin-right: 7px;
     opacity: 0.55;
 }
-.rr-tl-tab--song .rr-tl-tab__dot  { background-color: var(--rr-live); }
-.rr-tl-tab--short .rr-tl-tab__dot { background-color: var(--rr-primary); }
+.rr-tl-tab--seq .rr-tl-tab__dot      { background-color: var(--rr-live); }
+.rr-tl-tab--short .rr-tl-tab__dot    { background-color: var(--rr-primary); }
+.rr-tl-tab--songlist .rr-tl-tab__dot { background-color: var(--rr-selection); }
 .rr-tl-tab--active .rr-tl-tab__dot { opacity: 1; }
 .rr-tl-tab__name { color: var(--rr-muted); font-size: 12px; -unity-font-style: bold; }
 .rr-tl-tab--active .rr-tl-tab__name { color: var(--rr-text); }
@@ -723,8 +725,10 @@
 }
 .rr-tl-add:hover { background-color: var(--rr-surface-raised); }
 .rr-tl-add:disabled { opacity: 0.4; }
-/* 動的タブバー（07-10 App.jsx）：タブ生成コンテナ・kind アイコン・閉じる・追加メニュー。 */
-.rr-tl-tablist { flex-direction: row; align-items: flex-end; }
+/* 動的タブバー（07-10 App.jsx）：タブ生成コンテナ・kind アイコン・閉じる・追加メニュー。
+   タブ多数時は横スクロール（U10・07-14）：ScrollView(mode=Horizontal)・スクロールバー非表示は UXML 属性。 */
+.rr-tl-tablist { flex-direction: row; align-items: flex-end; flex-shrink: 1; }
+.rr-tl-tablist > .unity-scroll-view__content-viewport { flex-direction: row; align-items: flex-end; }
 /* keycap 型チップ（07-10）: 物理キー風＝inset 背景＋下辺 2px。glyph 大＋pad 番号小。 */
 .rr-keycap {
     flex-direction: row;
@@ -747,8 +751,9 @@
 }
 .rr-keycap--empty .rr-keycap__glyph { color: var(--rr-muted-soft); }
 .rr-tl-tab__icon { width: 13px; height: 13px; margin-right: 7px; color: var(--rr-muted); }
-.rr-tl-tab--active.rr-tl-tab--song .rr-tl-tab__icon  { color: var(--rr-live); }
-.rr-tl-tab--active.rr-tl-tab--short .rr-tl-tab__icon { color: var(--rr-primary); }
+.rr-tl-tab--active.rr-tl-tab--seq .rr-tl-tab__icon      { color: var(--rr-live); }
+.rr-tl-tab--active.rr-tl-tab--short .rr-tl-tab__icon    { color: var(--rr-primary); }
+.rr-tl-tab--active.rr-tl-tab--songlist .rr-tl-tab__icon { color: var(--rr-selection); }
 .rr-tl-tab__close {
     width: 15px; height: 15px;
     margin-left: 4px;
@@ -1304,9 +1309,10 @@
 }
 .rr-menu-item:hover { background-color: var(--rr-surface-raised); }
 .rr-menu-item:disabled { color: var(--rr-muted-soft); }
-/* タイムラインの New Song/Short（07-12）: 種別を左境界色で即判別できるように。 */
-.rr-menu-item--song  { border-left-color: var(--rr-live); }
-.rr-menu-item--short { border-left-color: var(--rr-primary); }
+/* タイムラインの New Sequence/Short/Song（07-12・§7c で3種へ改名＝U11）: 種別を左境界色で即判別。 */
+.rr-menu-item--seq      { border-left-color: var(--rr-live); }
+.rr-menu-item--short    { border-left-color: var(--rr-primary); }
+.rr-menu-item--songlist { border-left-color: var(--rr-selection); }
 
 .rr-modal-overlay {
     position: absolute;
@@ -1458,3 +1464,71 @@
     text-overflow: ellipsis;
 }
 .rr-addtrack-file__dur { font-size: 10px; color: var(--rr-muted); }
+
+/* PERFORM 左ドック Banks（保存済み Sequence/Short/Song 一覧・U10・07-14）。
+   クリックでタイムラインの該当タブを開く（Inspector 選択にはしない・rr-list-item を流用）。 */
+.rr-list-dot--seq      { background-color: var(--rr-live); }
+.rr-list-dot--short    { background-color: var(--rr-primary); }
+.rr-list-dot--songlist { background-color: var(--rr-selection); }
+
+/* Song（Sequence セットリスト）本文＝2ペイン：左=ステップ列・右=読み取り専用プレビュー（§7c・U11）。 */
+.rr-tl-songlist { flex-direction: row; flex-grow: 1; min-height: 0; }
+.rr-song-steps-wrap {
+    width: 264px;
+    flex-shrink: 0;
+    flex-direction: column;
+    border-right-width: 1px;
+    border-right-color: var(--rr-hairline);
+    padding: 6px;
+}
+.rr-song-steps { flex-grow: 1; }
+.rr-song-step {
+    height: 28px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-radius: 2px;
+    border-left-width: 2px;
+    border-left-color: rgba(0, 0, 0, 0);
+}
+.rr-song-step:hover { background-color: var(--rr-surface-raised); }
+.rr-song-step--active {
+    background-color: var(--rr-surface-raised);
+    border-left-color: var(--rr-selection);
+}
+.rr-song-step__idx { width: 14px; font-size: 10px; color: var(--rr-muted); }
+.rr-song-step__name {
+    flex-grow: 1;
+    font-size: 12px;
+    color: var(--rr-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rr-song-step__repeat { font-size: 11px; color: var(--rr-text); min-width: 22px; -unity-text-align: middle-center; }
+.rr-song-step__btn {
+    width: 16px; height: 16px;
+    margin-left: 2px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 3px;
+    color: var(--rr-body);
+    font-size: 10px;
+    padding: 0;
+    -unity-text-align: middle-center;
+}
+.rr-song-step__btn:hover { background-color: var(--rr-surface-raised); }
+.rr-song-step__btn--danger { color: var(--rr-semantic-record); }
+.rr-song-preview { flex-grow: 1; min-width: 0; flex-direction: column; }
+.rr-song-preview__head {
+    height: 28px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 10px;
+    padding-right: 10px;
+    border-bottom-width: 1px;
+    border-bottom-color: var(--rr-hairline);
+}
+.rr-song-preview__title { font-size: 12px; -unity-font-style: bold; color: var(--rr-text); }
+.rr-song-preview__body { padding: 10px; font-size: 11px; color: var(--rr-muted); white-space: normal; }

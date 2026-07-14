@@ -12,7 +12,7 @@ namespace RewriteReality
     public sealed class ControlHub : MonoBehaviour
     {
         [SerializeField] EffectChain _effectChain;
-        [Tooltip("Master Speed を song トランスポートへ反映する先（未設定なら自動取得）")]
+        [Tooltip("Master Speed を sequence トランスポートへ反映する先（未設定なら自動取得）")]
         [SerializeField] ShowTimeline _timeline;
 
         static readonly IReadOnlyList<EffectBase> _empty = new EffectBase[0];

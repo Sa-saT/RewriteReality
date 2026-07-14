@@ -27,6 +27,9 @@
         <ui:VisualElement name="rr-mid" class="rr-mid">
             <ui:VisualElement name="rr-dock-left" class="rr-dock rr-dock-left">
                 <ui:VisualElement name="rr-dock-perform" class="rr-dock-page">
+                    <ui:Foldout text="Banks" value="true" class="rr-lib-fold">
+                        <ui:VisualElement name="rr-banks-list" />
+                    </ui:Foldout>
                     <ui:Foldout text="Sources" value="true" class="rr-lib-fold">
                         <ui:VisualElement class="rr-list-item rr-item-source-video">
                             <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
@@ -230,12 +233,13 @@
         </ui:VisualElement>
         <ui:VisualElement name="rr-timeline" class="rr-timeline">
             <ui:VisualElement name="rr-tl-tabs" class="rr-tl-tabs">
-                <ui:VisualElement name="rr-tl-tablist" class="rr-tl-tablist" />
+                <ui:ScrollView name="rr-tl-tablist" class="rr-tl-tablist" mode="Horizontal" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" />
                 <ui:VisualElement class="rr-tl-addwrap">
                     <ui:Button name="rr-tl-add" text="+" class="rr-tl-add" />
                     <ui:VisualElement name="rr-tl-addmenu" class="rr-tl-addmenu" style="display: none;">
-                        <ui:Button name="rr-tl-add-song" text="New Song" class="rr-menu-item rr-menu-item--song" />
+                        <ui:Button name="rr-tl-add-seq" text="New Sequence" class="rr-menu-item rr-menu-item--seq" />
                         <ui:Button name="rr-tl-add-short" text="New Short" class="rr-menu-item rr-menu-item--short" />
+                        <ui:Button name="rr-tl-add-song" text="New Song" class="rr-menu-item rr-menu-item--songlist" />
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement class="rr-spacer" />
@@ -262,7 +266,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement class="rr-spacer" />
             </ui:VisualElement>
-            <ui:VisualElement name="rr-tl-song" class="rr-timeline-body">
+            <ui:VisualElement name="rr-tl-seq" class="rr-timeline-body">
                 <ui:VisualElement class="rr-ruler">
                     <ui:Label text="0:00" class="rr-ruler-mark rr-mono" />
                     <ui:Label text="0:30" class="rr-ruler-mark rr-mono" />
@@ -310,6 +314,23 @@
                         <ui:VisualElement name="rr-short-lanes" class="rr-short-lanes" />
                     </ui:ScrollView>
                     <ui:VisualElement name="rr-short-playhead" class="rr-playhead" style="left: 96px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="rr-tl-songlist" class="rr-tl-songlist" style="display: none;">
+                <ui:VisualElement name="rr-song-steps-wrap" class="rr-song-steps-wrap">
+                    <ui:ScrollView name="rr-song-steps" class="rr-song-steps" mode="Vertical" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" />
+                    <ui:VisualElement name="rr-song-addstep-wrap" class="rr-addtrack-wrap">
+                        <ui:Button name="rr-song-add-step" text="+ STEP" class="rr-add-track" />
+                        <ui:VisualElement name="rr-song-addstep-menu" class="rr-tl-addmenu" style="display: none;" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="rr-song-preview" class="rr-song-preview">
+                    <ui:VisualElement class="rr-song-preview__head">
+                        <ui:Label name="rr-song-preview-title" text="—" class="rr-song-preview__title" />
+                        <ui:VisualElement class="rr-spacer" />
+                        <ui:Button name="rr-song-preview-jump" text="Edit Sequence →" class="rr-add-track" />
+                    </ui:VisualElement>
+                    <ui:Label name="rr-song-preview-body" text="" class="rr-song-preview__body rr-mono" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

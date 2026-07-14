@@ -75,9 +75,12 @@ function TrackRow({ id, kind, name, on, onToggle, clips, muted, onMute, fade, ri
 }
 
 // ---------- Tab bar (browser-like) -------------------------------------------
+// MPC-style naming (2026-07-13): Sequence = multitrack bank (旧 Song), Short = pad-fired
+// gate bank, Song = ordered playlist of Sequences (setlist with ×N repeats).
 const TAB_KIND = {
-  song: { label: 'SONG', color: 'var(--rr-semantic-live)', icon: 'audio-lines' },
+  seq: { label: 'SEQUENCE', color: 'var(--rr-semantic-live)', icon: 'audio-lines' },
   short: { label: 'SHORT', color: 'var(--rr-primary)', icon: 'zap' },
+  song: { label: 'SONG', color: 'var(--rr-selection)', icon: 'list-music' },
 };
 
 // Trigger binding (MadMapper-style): with a MIDI pad controller each short maps to PAD n;
@@ -159,7 +162,7 @@ function TimelineTabBar({ tabs, activeId, onSelect, onClose, onAdd }) {
   window.useLucide();
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', height: 36, flexShrink: 0, padding: '0 8px', background: 'var(--rr-canvas)', borderBottom: '1px solid var(--rr-hairline-strong)' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-end', minWidth: 0, overflowX: 'auto', overflowY: 'visible' }}>
+      <div className="rr-noscroll" style={{ display: 'flex', alignItems: 'flex-end', minWidth: 0, overflowX: 'auto', overflowY: 'visible' }}>
         {tabs.map((t) => (
           <TimelineTab key={t.id} tab={t} active={t.id === activeId} closable={tabs.length > 1}
             onSelect={() => onSelect(t.id)} onClose={() => onClose(t.id)} />
@@ -186,7 +189,7 @@ function TimelineTabBar({ tabs, activeId, onSelect, onClose, onAdd }) {
                 background: 'var(--rr-surface-panel)', border: '1px solid var(--rr-hairline-strong)',
                 borderRadius: 6, padding: 4, display: 'flex', flexDirection: 'column', gap: 2,
               }}>
-                {['song', 'short'].map((kind) => {
+                {['seq', 'short', 'song'].map((kind) => {
                   const k = TAB_KIND[kind];
                   return (
                     <button key={kind}
@@ -201,7 +204,7 @@ function TimelineTabBar({ tabs, activeId, onSelect, onClose, onAdd }) {
                     >
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: k.color }} />
                       <span data-lucide={k.icon} data-stroke="1.6" style={{ width: 14, height: 14, display: 'inline-flex', color: 'var(--rr-muted)' }} />
-                      New {kind === 'song' ? 'Song' : 'Short'}
+                      New {kind === 'seq' ? 'Sequence' : kind === 'short' ? 'Short' : 'Song'}
                     </button>
                   );
                 })}
@@ -213,7 +216,7 @@ function TimelineTabBar({ tabs, activeId, onSelect, onClose, onAdd }) {
   );
 }
 
-// ---------- Content: Song vs Short -------------------------------------------
+// ---------- Content: Sequence vs Short vs Song --------------------------------
 // Track metadata shared with the Inspector (per-track effects etc.)
 const TRACK_META = {
   v1: { name: 'VID 1', kind: 'video', role: 'base', blend: 'NORMAL', opacity: 1.0, fx: [{ name: 'RGB Shift', on: true, amt: '0.024' }, { name: 'Color Grade', on: true, amt: 'on' }] },
@@ -291,11 +294,12 @@ function AddTrackButton({ onAdd }) {
   );
 }
 
-function SongBody({ playhead, tracks, setTracks, mute, setMute, selection, onSelect, extraTracks }) {
+function SequenceBody({ playhead, tracks, setTracks, mute, setMute, selection, onSelect, extraTracks }) {
   const S = { source: 'var(--rr-stage-source)', fx: 'var(--rr-stage-effects)', audio: 'var(--rr-stage-audio)' };
   return (
     <div style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       <TimeRuler marks={['0:00', '0:30', '1:00', '1:30', '2:00', '2:30']} />
+      <div className="rr-noscroll" style={{ overflowY: 'auto', height: 'calc(100% - 18px)' }}>
       <TrackRow id="v1" kind="video" name="VID 1" rightLabel="1.00" selected={selection.includes('v1')} onSelect={onSelect} on={tracks.v1} onToggle={() => setTracks(t => ({ ...t, v1: !t.v1 }))}
         clips={[{ left: 0, width: 26, label: 'clipA', color: S.source }, { left: 27, width: 34, label: 'clipB', color: S.source }, { left: 62, width: 20, label: 'clipC', color: S.source }]} />
       <TrackRow id="v2" kind="video" name="VID 2" rightLabel="0.72" selected={selection.includes('v2')} onSelect={onSelect} on={tracks.v2} onToggle={() => setTracks(t => ({ ...t, v2: !t.v2 }))}
@@ -309,6 +313,7 @@ function SongBody({ playhead, tracks, setTracks, mute, setMute, selection, onSel
           on={t.on} onToggle={() => t.setOn(!t.on)} muted={t.muted} onMute={() => t.setMuted(!t.muted)}
           clips={[{ left: 0, width: t.kind === 'audio' ? 60 : 30, label: t.file, color: t.kind === 'audio' ? S.audio : S.source, waveform: t.kind === 'audio' }]} />
       ))}
+      </div>
       <div style={{ position: 'absolute', top: 0, bottom: 0, left: 'calc(96px + ' + playhead + '% * (100% - 170px) / 100)', width: 1, background: 'var(--rr-selection)', pointerEvents: 'none' }}>
         <div style={{ position: 'absolute', top: 0, left: -4, width: 9, height: 7, background: 'var(--rr-selection)', clipPath: 'polygon(0 0,100% 0,50% 100%)' }} />
       </div>
@@ -412,7 +417,7 @@ function ShortBody({ short, shorts, onAssign }) {
   const owners = {};
   shorts.forEach((s) => { if (short && s.id !== short.id && s.pad) owners[s.pad] = s.name; });
   return (
-    <div style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'auto' }}>
+    <div className="rr-noscroll" style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'auto' }}>
       {/* per-short key assignment + bank fire */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, height: 30, padding: '0 8px', borderBottom: '1px solid var(--rr-hairline)' }}>
         <AddTrackButton onAdd={addTrack} />
@@ -456,15 +461,154 @@ function ShortBody({ short, shorts, onAssign }) {
   );
 }
 
+// ---------- Song (MPC-style): ordered playlist of Sequences -------------------
+// Left = step list (order · seq name · ×N repeats · reorder/remove · + Step).
+// Right = read-only preview of the selected step's Sequence, with jump-to-edit.
+const songStepBtn = {
+  width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  background: 'transparent', border: '1px solid var(--rr-hairline)', borderRadius: 3,
+  color: 'var(--rr-body)', fontFamily: 'var(--rr-font-mono)', fontSize: 10, cursor: 'pointer', padding: 0,
+};
+
+function SongPreviewRows() {
+  const S = { source: 'var(--rr-stage-source)', fx: 'var(--rr-stage-effects)', audio: 'var(--rr-stage-audio)' };
+  const row = (name, clips) => (
+    <div key={name} style={{ display: 'flex', height: 30, borderBottom: '1px solid var(--rr-hairline-soft)' }}>
+      <div style={{ width: 96, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', borderRight: '1px solid var(--rr-hairline)' }}>
+        <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 11, color: 'var(--rr-muted)' }}>{name}</span>
+      </div>
+      <div style={{ position: 'relative', flex: 1 }}>{clips.map((c, i) => <Clip key={i} {...c} />)}</div>
+    </div>
+  );
+  return (
+    <div style={{ pointerEvents: 'none' }}>
+      {row('VID 1', [{ left: 0, width: 26, label: 'clipA', color: S.source }, { left: 27, width: 34, label: 'clipB', color: S.source }])}
+      {row('VID 2', [{ left: 12, width: 22, label: 'overlay', color: S.fx }])}
+      {row('AUD 1', [{ left: 0, width: 82, label: 'master', color: S.audio, waveform: true }])}
+    </div>
+  );
+}
+
+function SongListBody({ song, sequences, onPatchSteps, onJump }) {
+  const { Button } = window.RR;
+  const steps = song.steps || [];
+  const [selStep, setSelStep] = React.useState(0);
+  const [menu, setMenu] = React.useState(false);
+  window.useLucide();
+  const patch = (i, p) => onPatchSteps(steps.map((s, j) => (j === i ? { ...s, ...p } : s)));
+  const move = (i, dir) => {
+    const j = i + dir; if (j < 0 || j >= steps.length) return;
+    const next = steps.slice(); const [x] = next.splice(i, 1); next.splice(j, 0, x);
+    onPatchSteps(next); setSelStep(j);
+  };
+  const remove = (i) => { onPatchSteps(steps.filter((_, j) => j !== i)); setSelStep(0); };
+  const sel = steps[Math.min(selStep, steps.length - 1)];
+  return (
+    <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      {/* step list */}
+      <div className="rr-noscroll" style={{ width: 264, flexShrink: 0, overflowY: 'auto', borderRight: '1px solid var(--rr-hairline)', padding: 6 }}>
+        {steps.map((s, i) => (
+          <div key={i} onClick={() => setSelStep(i)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, height: 28, padding: '0 6px', cursor: 'pointer', borderRadius: 2,
+              background: i === selStep ? 'var(--rr-surface-raised)' : 'transparent',
+              borderLeft: '2px solid ' + (i === selStep ? 'var(--rr-selection)' : 'transparent') }}>
+            <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: 'var(--rr-muted)', width: 14 }}>{i + 1}</span>
+            <span style={{ flex: 1, fontFamily: 'var(--rr-font-ui)', fontSize: 12, color: 'var(--rr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.seqName}</span>
+            <button onClick={(e) => { e.stopPropagation(); if (s.n > 1) patch(i, { n: s.n - 1 }); }} style={songStepBtn}>−</button>
+            <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 11, color: 'var(--rr-text)', minWidth: 22, textAlign: 'center' }}>×{s.n}</span>
+            <button onClick={(e) => { e.stopPropagation(); patch(i, { n: s.n + 1 }); }} style={songStepBtn}>+</button>
+            <button title="Up" onClick={(e) => { e.stopPropagation(); move(i, -1); }} style={songStepBtn}>↑</button>
+            <button title="Down" onClick={(e) => { e.stopPropagation(); move(i, 1); }} style={songStepBtn}>↓</button>
+            <button title="Remove" onClick={(e) => { e.stopPropagation(); remove(i); }} style={{ ...songStepBtn, color: 'var(--rr-semantic-record)' }}>×</button>
+          </div>
+        ))}
+        <div style={{ position: 'relative', marginTop: 6 }}>
+          <button
+            onMouseDown={(e) => { e.stopPropagation(); setMenu((m) => !m); }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5, height: 24, padding: '0 9px', cursor: 'pointer',
+              background: menu ? 'var(--rr-surface-raised)' : 'transparent',
+              border: '1px solid var(--rr-hairline-strong)', borderRadius: 4,
+              fontFamily: 'var(--rr-font-ui)', fontSize: 10, fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase',
+              color: 'var(--rr-body)',
+            }}
+          >
+            <span data-lucide="plus" data-stroke="1.8" style={{ width: 12, height: 12, display: 'inline-flex' }} />
+            Step
+          </button>
+          {menu && (
+            <React.Fragment>
+              <div onMouseDown={() => setMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+              <div style={{ position: 'absolute', bottom: 28, left: 0, zIndex: 41, minWidth: 150, background: 'var(--rr-surface-panel)', border: '1px solid var(--rr-hairline-strong)', borderRadius: 6, padding: 4 }}>
+                {sequences.length === 0 && (
+                  <div style={{ padding: '6px 8px', fontFamily: 'var(--rr-font-ui)', fontSize: 11, color: 'var(--rr-muted)' }}>No sequences yet</div>
+                )}
+                {sequences.map((q) => (
+                  <button key={q.id}
+                    onMouseDown={(e) => { e.stopPropagation(); setMenu(false); onPatchSteps([...steps, { seqName: q.name, n: 1 }]); setSelStep(steps.length); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 7, height: 26, padding: '0 8px', width: '100%', background: 'transparent', border: 'none', borderRadius: 4, cursor: 'pointer', textAlign: 'left', color: 'var(--rr-body)', fontFamily: 'var(--rr-font-ui)', fontSize: 12 }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--rr-surface-raised)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--rr-semantic-live)' }} />
+                    {q.name}
+                  </button>
+                ))}
+              </div>
+            </React.Fragment>
+          )}
+        </div>
+      </div>
+      {/* sequence preview (read-only) */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        {sel ? (
+          <React.Fragment>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 28, padding: '0 10px', borderBottom: '1px solid var(--rr-hairline)', flexShrink: 0 }}>
+              <span style={{ fontFamily: 'var(--rr-font-ui)', fontSize: 12, fontWeight: 600, color: 'var(--rr-text)' }}>{sel.seqName}</span>
+              <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: 'var(--rr-muted)' }}>preview · read-only</span>
+              <div style={{ flex: 1 }} />
+              <Button variant="ghost" size="sm" onClick={() => onJump(sel.seqName)}>Edit Sequence →</Button>
+            </div>
+            <div className="rr-noscroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', opacity: 0.85 }}>
+              <TimeRuler marks={['0:00', '0:30', '1:00', '1:30', '2:00', '2:30']} />
+              <SongPreviewRows />
+            </div>
+          </React.Fragment>
+        ) : (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--rr-font-ui)', fontSize: 12, color: 'var(--rr-muted)' }}>
+            + Step で Sequence を並べて Song を構成
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---------- Timeline root ----------------------------------------------------
-const LS_KEY = 'rr.timeline.tabs.v2';
+const LS_KEY = 'rr.timeline.tabs.v3';
 
 function loadTabs() {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) { const p = JSON.parse(raw); if (p && p.tabs && p.tabs.length) return p; }
+    // migrate v2: old kind 'song' was the multitrack bank → now 'seq'
+    const old = localStorage.getItem('rr.timeline.tabs.v2');
+    if (old) {
+      const p = JSON.parse(old);
+      if (p && p.tabs && p.tabs.length) {
+        p.tabs = p.tabs.map((t) => (t.kind === 'song' ? { ...t, kind: 'seq', name: t.name.replace(/^Song/i, 'Seq') } : t));
+        return p;
+      }
+    }
   } catch (e) { /* ignore */ }
-  return { tabs: [{ id: 's1', kind: 'song', name: 'Song 01' }, { id: 'h1', kind: 'short', name: 'Short A', pad: 1 }], activeId: 's1' };
+  return {
+    tabs: [
+      { id: 'q1', kind: 'seq', name: 'Seq 01' },
+      { id: 'h1', kind: 'short', name: 'Short A', pad: 1 },
+      { id: 'g1', kind: 'song', name: 'Song 01', steps: [{ seqName: 'Seq 01', n: 2 }] },
+    ],
+    activeId: 'q1',
+  };
 }
 
 function Timeline({ playhead, playing, onPlayToggle, trackSel = [], onSelectTrack }) {
@@ -482,7 +626,7 @@ function Timeline({ playhead, playing, onPlayToggle, trackSel = [], onSelectTrac
   const init = React.useRef(loadTabs());
   const [tabs, setTabs] = React.useState(init.current.tabs);
   const [activeId, setActiveId] = React.useState(init.current.activeId);
-  const seq = React.useRef({ song: 1, short: 1 });
+  const seq = React.useRef({ seq: 1, short: 1, song: 1 });
   window.useLucide();
 
   React.useEffect(() => {
@@ -491,9 +635,18 @@ function Timeline({ playhead, playing, onPlayToggle, trackSel = [], onSelectTrac
 
   const active = tabs.find((t) => t.id === activeId) || tabs[0];
 
+  // Banks section in the PERFORM dock opens a bank via this event
+  React.useEffect(() => {
+    const h = (e) => { if (e.detail && tabs.some((t) => t.id === e.detail)) setActiveId(e.detail); };
+    window.addEventListener('rr-open-bank', h);
+    return () => window.removeEventListener('rr-open-bank', h);
+  }, [tabs]);
+
   const addTab = (kind) => {
     const n = ++seq.current[kind];
-    const name = kind === 'song' ? 'Song ' + String(n).padStart(2, '0') : 'Short ' + String.fromCharCode(64 + n);
+    const name = kind === 'seq' ? 'Seq ' + String(n).padStart(2, '0')
+      : kind === 'short' ? 'Short ' + String.fromCharCode(64 + n)
+      : 'Song ' + String(n).padStart(2, '0');
     const id = kind[0] + Date.now().toString(36);
     let extra = {};
     if (kind === 'short') {
@@ -501,6 +654,7 @@ function Timeline({ playhead, playing, onPlayToggle, trackSel = [], onSelectTrac
       let pad = 1; while (used.includes(pad) && pad < 16) pad++;
       extra = { pad };
     }
+    if (kind === 'song') extra = { steps: [] };
     setTabs((ts) => [...ts, { id, kind, name, ...extra }]);
     setActiveId(id);
   };
@@ -523,34 +677,40 @@ function Timeline({ playhead, playing, onPlayToggle, trackSel = [], onSelectTrac
   };
 
   const isShort = active && active.kind === 'short';
+  const isSong = active && active.kind === 'song';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <TimelineTabBar tabs={tabs} activeId={active && active.id} onSelect={setActiveId} onClose={closeTab} onAdd={addTab} />
       {/* transport head + ruler */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px', height: 30, borderBottom: '1px solid var(--rr-hairline)' }}>
-        {!isShort && <AddTrackButton onAdd={addTrack} />}
-        {!isShort && <div style={{ width: 1, height: 16, background: 'var(--rr-hairline)', margin: '0 4px' }} />}
-        <TransportGlyph playing={playing} onPlayToggle={onPlayToggle} />
+        {!isShort && !isSong && <AddTrackButton onAdd={addTrack} />}
+        {!isShort && !isSong && <div style={{ width: 1, height: 16, background: 'var(--rr-hairline)', margin: '0 4px' }} />}
+        <TransportGlyph playing={playing} onPlayToggle={onPlayToggle} showLoop={!isShort} />
         <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 'var(--rr-value-lg-size)', color: 'var(--rr-text)', marginLeft: 4 }}>01:12.40</span>
         <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 11, color: 'var(--rr-muted)' }}>/ 03:20.00</span>
         <div style={{ flex: 1 }} />
       </div>
       {isShort
         ? <ShortBody short={active} shorts={tabs.filter((t) => t.kind === 'short')} onAssign={setPad} />
-        : <SongBody playhead={playhead} tracks={tracks} setTracks={setTracks} mute={mute} setMute={setMute} selection={trackSel} onSelect={onSelectTrack}
+        : isSong
+        ? <SongListBody song={active}
+            sequences={tabs.filter((t) => t.kind === 'seq')}
+            onPatchSteps={(steps) => setTabs((ts) => ts.map((t) => (t.id === activeId ? { ...t, steps } : t)))}
+            onJump={(name) => { const t = tabs.find((x) => x.kind === 'seq' && x.name === name); if (t) setActiveId(t.id); }} />
+        : <SequenceBody playhead={playhead} tracks={tracks} setTracks={setTracks} mute={mute} setMute={setMute} selection={trackSel} onSelect={onSelectTrack}
             extraTracks={added.map((t) => ({ ...t, setOn: (v) => patchAdded(t.id, { on: v }), setMuted: (v) => patchAdded(t.id, { muted: v }) }))} />}
     </div>
   );
 }
 
-function TransportGlyph({ playing, onPlayToggle }) {
+function TransportGlyph({ playing, onPlayToggle, showLoop = true }) {
   const T = window.RR.TransportButton;
   return (
     <div style={{ display: 'flex', gap: 2 }}>
       <T title="Prev"><span data-lucide="skip-back" data-stroke="1.6" style={{ width: 15, height: 15, display: 'inline-flex' }} /></T>
       <T title="Play" active={playing} onClick={onPlayToggle}><span data-lucide={playing ? 'pause' : 'play'} data-stroke="1.6" style={{ width: 15, height: 15, display: 'inline-flex' }} /></T>
-      <T title="Loop"><span data-lucide="repeat" data-stroke="1.6" style={{ width: 15, height: 15, display: 'inline-flex' }} /></T>
+      {showLoop && <T title="Loop"><span data-lucide="repeat" data-stroke="1.6" style={{ width: 15, height: 15, display: 'inline-flex' }} /></T>}
     </div>
   );
 }
