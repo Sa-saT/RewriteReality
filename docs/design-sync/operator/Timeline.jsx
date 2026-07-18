@@ -462,29 +462,71 @@ function ShortBody({ short, shorts, onAssign }) {
 }
 
 // ---------- Song (MPC-style): ordered playlist of Sequences -------------------
-// Left = step list (order · seq name · ×N repeats · reorder/remove · + Step).
-// Right = read-only preview of the selected step's Sequence, with jump-to-edit.
-const songStepBtn = {
-  width: 16, height: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  background: 'transparent', border: '1px solid var(--rr-hairline)', borderRadius: 3,
-  color: 'var(--rr-body)', fontFamily: 'var(--rr-font-mono)', fontSize: 10, cursor: 'pointer', padding: 0,
+// Horizontal program strip: step cards flow left→right in play order (matches the
+// wide/short dock). Each card = seq name · ×N stepper · ‹ › reorder · × remove.
+// A ghost [+ Step] card at the end opens an upward Sequence picker.
+const songCardBtn = {
+  width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  background: 'var(--rr-surface-inset)', border: '1px solid var(--rr-hairline)', borderRadius: 4,
+  color: 'var(--rr-body)', fontFamily: 'var(--rr-font-mono)', fontSize: 12, cursor: 'pointer', padding: 0,
 };
 
-function SongPreviewRows() {
-  const S = { source: 'var(--rr-stage-source)', fx: 'var(--rr-stage-effects)', audio: 'var(--rr-stage-audio)' };
-  const row = (name, clips) => (
-    <div key={name} style={{ display: 'flex', height: 30, borderBottom: '1px solid var(--rr-hairline-soft)' }}>
-      <div style={{ width: 96, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', borderRight: '1px solid var(--rr-hairline)' }}>
-        <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 11, color: 'var(--rr-muted)' }}>{name}</span>
+function SongStepCard({ step, index, selected, isFirst, isLast, onSelect, onPatch, onMove, onRemove, onJump }) {
+  const [h, setH] = React.useState(false);
+  window.useLucide();
+  return (
+    <div onClick={onSelect} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      style={{ position: 'relative', width: 158, flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 6,
+        padding: '8px 10px', cursor: 'pointer', borderRadius: 6,
+        background: selected || h ? 'var(--rr-surface-raised)' : 'var(--rr-surface-inset)',
+        border: '1px solid ' + (selected ? 'var(--rr-selection)' : 'var(--rr-hairline-strong)') }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: selected ? 'var(--rr-selection)' : 'var(--rr-muted)' }}>{String(index + 1).padStart(2, '0')}</span>
+        <span style={{ flex: 1, fontFamily: 'var(--rr-font-ui)', fontSize: 12.5, fontWeight: 600, color: 'var(--rr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{step.seqName}</span>
+        <button title={'Edit ' + step.seqName} onClick={(e) => { e.stopPropagation(); onJump(step.seqName); }}
+          style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0, color: h || selected ? 'var(--rr-selection)' : 'var(--rr-muted-soft)' }}>
+          <span data-lucide="square-pen" data-stroke="1.8" style={{ width: 12, height: 12, display: 'inline-flex' }}></span>
+        </button>
+        <button title="Remove" onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          style={{ width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', borderRadius: 3, cursor: 'pointer', padding: 0, fontFamily: 'var(--rr-font-mono)', fontSize: 12, color: h || selected ? 'var(--rr-semantic-record)' : 'var(--rr-muted-soft)' }}>×</button>
       </div>
-      <div style={{ position: 'relative', flex: 1 }}>{clips.map((c, i) => <Clip key={i} {...c} />)}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <button title="Repeat −" onClick={(e) => { e.stopPropagation(); if (step.n > 1) onPatch({ n: step.n - 1 }); }} style={songCardBtn}>−</button>
+        <span style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--rr-font-mono)', fontSize: 13, color: 'var(--rr-text)' }}>×{step.n}</span>
+        <button title="Repeat +" onClick={(e) => { e.stopPropagation(); onPatch({ n: step.n + 1 }); }} style={songCardBtn}>+</button>
+        <span style={{ width: 1, height: 14, background: 'var(--rr-hairline)', margin: '0 2px' }}></span>
+        <button title="Move left" onClick={(e) => { e.stopPropagation(); onMove(-1); }}
+          style={{ ...songCardBtn, opacity: isFirst ? 0.3 : 1, cursor: isFirst ? 'default' : 'pointer' }}>‹</button>
+        <button title="Move right" onClick={(e) => { e.stopPropagation(); onMove(1); }}
+          style={{ ...songCardBtn, opacity: isLast ? 0.3 : 1, cursor: isLast ? 'default' : 'pointer' }}>›</button>
+      </div>
     </div>
   );
+}
+
+// Always-visible add rail: dashed card at the strip's end listing every Sequence —
+// one click appends a step (no popover; the list is永続表示 per 2026-07-18 request).
+function AddStepRail({ sequences, onAdd }) {
+  window.useLucide();
   return (
-    <div style={{ pointerEvents: 'none' }}>
-      {row('VID 1', [{ left: 0, width: 26, label: 'clipA', color: S.source }, { left: 27, width: 34, label: 'clipB', color: S.source }])}
-      {row('VID 2', [{ left: 12, width: 22, label: 'overlay', color: S.fx }])}
-      {row('AUD 1', [{ left: 0, width: 82, label: 'master', color: S.audio, waveform: true }])}
+    <div style={{ flexShrink: 0, alignSelf: 'stretch', width: 158, display: 'flex', flexDirection: 'column', border: '1px dashed var(--rr-hairline-strong)', borderRadius: 6, overflow: 'hidden' }}>
+      <div style={{ padding: '7px 10px 4px', fontFamily: 'var(--rr-font-ui)', fontSize: 10, fontWeight: 600, letterSpacing: '0.7px', textTransform: 'uppercase', color: 'var(--rr-muted)', flexShrink: 0 }}>+ Add Sequence</div>
+      <div className="rr-noscroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 5px 5px' }}>
+        {sequences.length === 0 && (
+          <div style={{ padding: '2px 5px', fontFamily: 'var(--rr-font-ui)', fontSize: 11, color: 'var(--rr-muted)', lineHeight: 1.5 }}>Sequence タブがありません。まず Sequence を作成してください。</div>
+        )}
+        {sequences.map((q) => (
+          <button key={q.id} onClick={() => onAdd(q)} title={'Add ' + q.name}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, height: 26, padding: '0 7px', width: '100%', background: 'transparent', border: 'none', borderRadius: 4, cursor: 'pointer', textAlign: 'left', color: 'var(--rr-text)', fontFamily: 'var(--rr-font-ui)', fontSize: 12 }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--rr-surface-raised)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--rr-semantic-live)', flexShrink: 0 }}></span>
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.name}</span>
+            <span data-lucide="plus" data-stroke="1.8" style={{ width: 12, height: 12, display: 'inline-flex', color: 'var(--rr-muted)' }}></span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -493,7 +535,6 @@ function SongListBody({ song, sequences, onPatchSteps, onJump }) {
   const { Button } = window.RR;
   const steps = song.steps || [];
   const [selStep, setSelStep] = React.useState(0);
-  const [menu, setMenu] = React.useState(false);
   window.useLucide();
   const patch = (i, p) => onPatchSteps(steps.map((s, j) => (j === i ? { ...s, ...p } : s)));
   const move = (i, dir) => {
@@ -502,83 +543,34 @@ function SongListBody({ song, sequences, onPatchSteps, onJump }) {
     onPatchSteps(next); setSelStep(j);
   };
   const remove = (i) => { onPatchSteps(steps.filter((_, j) => j !== i)); setSelStep(0); };
+  const addStep = (q) => { onPatchSteps([...steps, { seqName: q.name, n: 1 }]); setSelStep(steps.length); };
   const sel = steps[Math.min(selStep, steps.length - 1)];
   return (
-    <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-      {/* step list */}
-      <div className="rr-noscroll" style={{ width: 264, flexShrink: 0, overflowY: 'auto', borderRight: '1px solid var(--rr-hairline)', padding: 6 }}>
-        {steps.map((s, i) => (
-          <div key={i} onClick={() => setSelStep(i)}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, height: 28, padding: '0 6px', cursor: 'pointer', borderRadius: 2,
-              background: i === selStep ? 'var(--rr-surface-raised)' : 'transparent',
-              borderLeft: '2px solid ' + (i === selStep ? 'var(--rr-selection)' : 'transparent') }}>
-            <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: 'var(--rr-muted)', width: 14 }}>{i + 1}</span>
-            <span style={{ flex: 1, fontFamily: 'var(--rr-font-ui)', fontSize: 12, color: 'var(--rr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.seqName}</span>
-            <button onClick={(e) => { e.stopPropagation(); if (s.n > 1) patch(i, { n: s.n - 1 }); }} style={songStepBtn}>−</button>
-            <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 11, color: 'var(--rr-text)', minWidth: 22, textAlign: 'center' }}>×{s.n}</span>
-            <button onClick={(e) => { e.stopPropagation(); patch(i, { n: s.n + 1 }); }} style={songStepBtn}>+</button>
-            <button title="Up" onClick={(e) => { e.stopPropagation(); move(i, -1); }} style={songStepBtn}>↑</button>
-            <button title="Down" onClick={(e) => { e.stopPropagation(); move(i, 1); }} style={songStepBtn}>↓</button>
-            <button title="Remove" onClick={(e) => { e.stopPropagation(); remove(i); }} style={{ ...songStepBtn, color: 'var(--rr-semantic-record)' }}>×</button>
-          </div>
-        ))}
-        <div style={{ position: 'relative', marginTop: 6 }}>
-          <button
-            onMouseDown={(e) => { e.stopPropagation(); setMenu((m) => !m); }}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5, height: 24, padding: '0 9px', cursor: 'pointer',
-              background: menu ? 'var(--rr-surface-raised)' : 'transparent',
-              border: '1px solid var(--rr-hairline-strong)', borderRadius: 4,
-              fontFamily: 'var(--rr-font-ui)', fontSize: 10, fontWeight: 600, letterSpacing: '0.6px', textTransform: 'uppercase',
-              color: 'var(--rr-body)',
-            }}
-          >
-            <span data-lucide="plus" data-stroke="1.8" style={{ width: 12, height: 12, display: 'inline-flex' }} />
-            Step
-          </button>
-          {menu && (
-            <React.Fragment>
-              <div onMouseDown={() => setMenu(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', bottom: 28, left: 0, zIndex: 41, minWidth: 150, background: 'var(--rr-surface-panel)', border: '1px solid var(--rr-hairline-strong)', borderRadius: 6, padding: 4 }}>
-                {sequences.length === 0 && (
-                  <div style={{ padding: '6px 8px', fontFamily: 'var(--rr-font-ui)', fontSize: 11, color: 'var(--rr-muted)' }}>No sequences yet</div>
-                )}
-                {sequences.map((q) => (
-                  <button key={q.id}
-                    onMouseDown={(e) => { e.stopPropagation(); setMenu(false); onPatchSteps([...steps, { seqName: q.name, n: 1 }]); setSelStep(steps.length); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 7, height: 26, padding: '0 8px', width: '100%', background: 'transparent', border: 'none', borderRadius: 4, cursor: 'pointer', textAlign: 'left', color: 'var(--rr-body)', fontFamily: 'var(--rr-font-ui)', fontSize: 12 }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--rr-surface-raised)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--rr-semantic-live)' }} />
-                    {q.name}
-                  </button>
-                ))}
-              </div>
-            </React.Fragment>
-          )}
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {/* header: play order summary + jump to selected sequence */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 26, padding: '0 10px', borderBottom: '1px solid var(--rr-hairline)', flexShrink: 0 }}>
+        <span style={{ fontFamily: 'var(--rr-font-ui)', fontSize: 10, fontWeight: 600, letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--rr-muted)' }}>Play Order</span>
+        <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: 'var(--rr-muted)' }}>{steps.length} steps · {steps.reduce((a, s) => a + s.n, 0)} plays</span>
+        <div style={{ flex: 1 }}></div>
+        {sel && <Button variant="ghost" size="sm" onClick={() => onJump(sel.seqName)}>Edit {sel.seqName} →</Button>}
       </div>
-      {/* sequence preview (read-only) */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        {sel ? (
-          <React.Fragment>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 28, padding: '0 10px', borderBottom: '1px solid var(--rr-hairline)', flexShrink: 0 }}>
-              <span style={{ fontFamily: 'var(--rr-font-ui)', fontSize: 12, fontWeight: 600, color: 'var(--rr-text)' }}>{sel.seqName}</span>
-              <span style={{ fontFamily: 'var(--rr-font-mono)', fontSize: 10, color: 'var(--rr-muted)' }}>preview · read-only</span>
-              <div style={{ flex: 1 }} />
-              <Button variant="ghost" size="sm" onClick={() => onJump(sel.seqName)}>Edit Sequence →</Button>
-            </div>
-            <div className="rr-noscroll" style={{ flex: 1, minHeight: 0, overflowY: 'auto', opacity: 0.85 }}>
-              <TimeRuler marks={['0:00', '0:30', '1:00', '1:30', '2:00', '2:30']} />
-              <SongPreviewRows />
-            </div>
-          </React.Fragment>
-        ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--rr-font-ui)', fontSize: 12, color: 'var(--rr-muted)' }}>
-            + Step で Sequence を並べて Song を構成
+      {/* pinned add rail (always visible, left) + horizontal program strip (scrolls) */}
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, flex: 1, minHeight: 0, padding: 10 }}>
+      <AddStepRail sequences={sequences} onAdd={addStep} />
+      <div className="rr-noscroll" style={{ display: 'flex', alignItems: 'stretch', gap: 8, flex: 1, minWidth: 0, overflowX: 'auto' }}>
+        {steps.length === 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', fontFamily: 'var(--rr-font-ui)', fontSize: 12, color: 'var(--rr-muted)', paddingRight: 4 }}>
+            左から順に再生されます — [+ Step] で Sequence を追加
           </div>
         )}
+        {steps.map((s, i) => (
+          <React.Fragment key={i}>
+            <SongStepCard step={s} index={i} selected={i === selStep} isFirst={i === 0} isLast={i === steps.length - 1}
+              onSelect={() => setSelStep(i)} onPatch={(p) => patch(i, p)} onMove={(d) => move(i, d)} onRemove={() => remove(i)} onJump={onJump} />
+            <span style={{ alignSelf: 'center', fontFamily: 'var(--rr-font-mono)', fontSize: 12, color: 'var(--rr-muted-soft)', flexShrink: 0 }}>→</span>
+          </React.Fragment>
+        ))}
+      </div>
       </div>
     </div>
   );
