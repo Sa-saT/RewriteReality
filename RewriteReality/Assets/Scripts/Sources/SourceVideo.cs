@@ -29,20 +29,28 @@ namespace RewriteReality
         /// <summary>クリップ尺（秒）。Inspector の Duration 表示用。</summary>
         public double Duration => _player != null && _player.clip != null ? _player.clip.length : 0d;
 
-        /// <summary>ループ再生。</summary>
+        /// <summary>ループ再生。差分時のみ VideoPlayer へ実代入（毎フレーム呼ばれても無駄がない・#27c）。</summary>
         public bool Loop
         {
             get => _loop;
-            set { _loop = value; if (_player != null) _player.isLooping = value; }
+            set
+            {
+                if (_loop == value) return;
+                _loop = value;
+                if (_player != null) _player.isLooping = value;
+            }
         }
 
-        /// <summary>再生速度（0.1..4・VideoPlayer.playbackSpeed に反映）。Speed(JOG) のバインド先。</summary>
+        /// <summary>再生速度（0.1..4・VideoPlayer.playbackSpeed に反映）。Speed(JOG) のバインド先。
+        /// 差分時のみ実代入（Master Speed から毎フレーム呼ばれても無駄がない・#27c）。</summary>
         public float Speed
         {
             get => _speed;
             set
             {
-                _speed = Mathf.Clamp(value, 0.1f, 4f);
+                float v = Mathf.Clamp(value, 0.1f, 4f);
+                if (Mathf.Approximately(_speed, v)) return;
+                _speed = v;
                 if (_player != null) _player.playbackSpeed = _speed;
             }
         }
@@ -82,6 +90,17 @@ namespace RewriteReality
             _clip = clip;
             _player.clip = clip;
             if (isActiveAndEnabled && clip != null) _player.Play();
+        }
+
+        /// <summary>
+        /// 再生位置を先頭へ戻して即再生する（Short の再発火・#27c）。SetClip は同一クリップ参照なら
+        /// 無視するため、同じ Short を連続で発火したときに頭出ししたい場合はこちらを明示的に呼ぶ。
+        /// </summary>
+        public void Restart()
+        {
+            if (_player == null) return;
+            _player.time = 0d;
+            if (isActiveAndEnabled) _player.Play();
         }
 
         /// <summary>毎フレームの更新フック（現状 VideoPlayer が自走するため処理なし）。</summary>

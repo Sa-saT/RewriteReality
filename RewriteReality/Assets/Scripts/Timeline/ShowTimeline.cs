@@ -157,6 +157,11 @@ namespace RewriteReality
         // バインドの適用済み参照（差分時のみ差し替え＝ヒッチ/GC 回避）。
         Clip _appliedClip;
 
+        // Short Hold-Loop 実挙動（#27c）。
+        bool _shortRestartPending;   // 次の ApplyBinding で「同一クリップでも頭出し」を強制するフラグ（HoldStart が立てる）
+        Short _prevTopShort;         // 直前フレームの TopShort（Short⇄Sequence 遷移検知・Loop 退避復元用）
+        bool _savedSinkLoop;         // Short 表示に入る直前の _videoSink.Loop（退避・離脱時に復元）
+
         /// <summary>再生状態が変わったとき発火（UI のボタン表示更新用）。</summary>
         public event Action PlayStateChanged;
         /// <summary>Short のホールド状態（何か押下中か）が変わったとき発火。UI のプレビュー用。</summary>
@@ -470,12 +475,15 @@ namespace RewriteReality
         // 押下順の Short index リストで「後押しが上」を表現。UI/キー入力/パッドの三経路から叩ける。
         // 発火はバンド（Short）単位＝1 Short = 1 クリップを押下中だけ最上位で流す。
 
-        /// <summary>shortIndex の Short を発火（既に発火中なら最上位へ繰り上げ）。</summary>
+        /// <summary>shortIndex の Short を発火（既に発火中なら最上位へ繰り上げ）。既に最上位でなかった場合は
+        /// 「新規発火」とみなし、同一クリップの再発火でも頭出しされるよう ApplyBinding に伝える（#27c）。</summary>
         public void HoldStart(int shortIndex)
         {
             if (_shorts == null || shortIndex < 0 || shortIndex >= _shorts.Count) return;
+            bool wasTop = _held.Count > 0 && _held[_held.Count - 1] == shortIndex;
             _held.Remove(shortIndex);     // 重複除去（最上位へ繰り上げ）
             _held.Add(shortIndex);
+            if (!wasTop) _shortRestartPending = true;
             ShortStateChanged?.Invoke();
         }
 
@@ -570,17 +578,37 @@ namespace RewriteReality
 
         // ---- クリップ・バインド（#27・opt-in）----
         // 実効の映像クリップが変わったら、その sourceId をライブラリ経由で VideoClip に解決し sink へ流す。
+        // Short 表示中は holdLoop を sink の Loop へ反映（離脱時は Sequence 側の設定へ復元・#27c）。
+        // Master Speed（Rate）は sink の再生速度へ常時反映。
         void ApplyBinding(bool force)
         {
+            // 「同一クリップでも頭出し」フラグは毎フレーム消費（他フレームへ持ち越さない・#27c）。
+            bool restartPending = _shortRestartPending;
+            _shortRestartPending = false;
+
             var clip = ActiveVideoClip;
-            if (!force && ReferenceEquals(clip, _appliedClip)) return;
+            bool changed = force || !ReferenceEquals(clip, _appliedClip);
+
+            var top = TopShort;
+            if (_videoSink != null)
+            {
+                if (top != null && _prevTopShort == null) _savedSinkLoop = _videoSink.Loop;      // 退避
+                else if (top == null && _prevTopShort != null) _videoSink.Loop = _savedSinkLoop; // 復元
+                if (top != null) _videoSink.Loop = top.holdLoop;
+                _videoSink.Speed = _rate;   // Master Speed → 映像再生速度（差分時のみ実代入は Speed 内部で保証）
+            }
+            _prevTopShort = top;
+
+            if (!changed) return;
             _appliedClip = clip;
 
             ActiveVideoClipChanged?.Invoke(clip);
 
             if (_videoSink == null) return;               // opt-out：純トランスポート
             var vc = ResolveVideo(clip);
-            if (vc != null) _videoSink.SetClip(vc);       // 未解決時は現状維持（差し替えない）
+            if (vc == null) return;                        // 未解決時は現状維持（差し替えない）
+            _videoSink.SetClip(vc);
+            if (top != null && restartPending) _videoSink.Restart();   // 同一クリップの再発火でも頭出し
         }
 
         VideoClip ResolveVideo(Clip clip)
