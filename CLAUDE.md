@@ -165,6 +165,23 @@ RewriteRealityProject/        ← git repo ルート
     「Edit Sequence →」ジャンプ）。`OperatorUI` の `_shortView`(bool) は `_viewKind`(TabKind) に統合。
     `LeftDock.jsx`/`Timeline.jsx` ローカルミラーもリモート最新へ追随。**Unity batchmode コンパイル 0 エラー
     確認済み・実機/UI Builder での見た目確認は未（見た目の作り込みはユーザー側・DESIGN.md ワークフロー）**。
+  - **#29/U12＝Song タブを MPC 流 横ストリップ UI へ全面刷新（2026-07-18・コンパイル確認済）**:
+    UNITY-HANDOFF §7c「Song の横ストリップ UI（2026-07-18）」反映。U11 の**2ペイン**（左=縦ステップリスト＋
+    上方向ポップオーバー・右=読み取り専用プレビュー）を**廃止**し、横並びステップカード列に刷新（縦リストが
+    高さ0に潰れて追加ステップが見切れるバグも構造ごと解消）。構成＝集計ヘッダー（`PLAY ORDER · N steps · M plays`＝
+    Σ×N＋選択 Sequence への `Edit <Seq> →` ジャンプ）／**左固定 Add Sequence レール**（全 Sequence 常時一覧・
+    1クリックで末尾追加・破線枠は UI Toolkit 非対応のため実線ヘアラインで代替）／**横スクロールのステップカード列**
+    （各カード幅158px＝番号／Sequence 名／Edit ペン→該当 Sequence タブ／×削除／`− ×N +` ステッパー／`‹ ›` 並べ替え・
+    カード間に `→`）。`OperatorUI.cs`＝`RebuildSongSteps` を横ストリップ生成へ書き換え（`BuildSongCard`/
+    `RebuildSongRail`/`UpdateSongSummary`/`JumpToSequenceByName`）、旧 `RefreshSongPreview`/`RebuildSongAddStepMenu`/
+    `BuildSongStepRow`/`FindSequenceByName` と関連フィールドを撤去。`OperatorShell.uxml`＝`rr-tl-songlist` を
+    head＋rail＋strip 構造へ差し替え。`RewriteReality.uss`＝`.rr-song-step*/.rr-song-preview*` を
+    `.rr-song-head/rail/card` 群へ置換（横 ScrollView は content-viewport にも `flex-direction:row` を明示＝
+    `.rr-tl-tablist` と同じ罠）。`RrIcon.cs`＝`Plus`/`SquarePen` を追加。`ShowTimeline.cs` は API 変更なし
+    （既存の `AddSongStep`/`RemoveSongStep`/`MoveSongStep`/`SetSongStepRepeat`/`GetSequence` を流用）。
+    **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機/UI Builder での
+    見た目確認は未（見た目の作り込みはユーザー側・DESIGN.md ワークフロー）**。ローカルミラー
+    `UNITY-HANDOFF.md`/`Timeline.jsx` もリモート 07-18 へ追随。
 
 ## 作業上の注意
 
