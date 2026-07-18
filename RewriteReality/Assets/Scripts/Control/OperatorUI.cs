@@ -142,6 +142,8 @@ namespace RewriteReality
         Label _songHeadSummary;
         Button _songHeadJump;
         int _songSelStep;   // 選択中のステップ（ヘッダーのジャンプ対象・カード選択枠）
+        readonly List<VisualElement> _songCards = new List<VisualElement>();   // index=step・再生中ハイライト用（#27b）
+        int _lastPlayingSongStep = -2;   // 直前フレームの CurrentSongStep（-2=未初期化・変化検知用）
 
         // PERFORM 左ドック Banks（保存済み Sequence/Short/Song 一覧・U10）
         VisualElement _banksList;
@@ -1525,6 +1527,7 @@ namespace RewriteReality
 
             if (_songStrip == null) return;
             _songStrip.Clear();
+            _songCards.Clear();
 
             if (song == null) { UpdateSongSummary(null); return; }
 
@@ -1539,12 +1542,26 @@ namespace RewriteReality
             }
             for (int i = 0; i < count; i++)
             {
-                _songStrip.Add(BuildSongCard(i, song.steps[i]));
+                var card = BuildSongCard(i, song.steps[i]);
+                _songCards.Add(card);
+                _songStrip.Add(card);
                 var arrow = new Label("→"); arrow.AddToClassList("rr-song-arrow"); arrow.AddToClassList("rr-mono");
                 _songStrip.Add(arrow);   // 最後のカードの後にも付く＝再生フローが続く表現（モック準拠）
             }
 
             UpdateSongSummary(song);
+
+            // 構造を作り直したので再生中ハイライトも入れ直す（変化検知キャッシュは無視して強制反映）。
+            _lastPlayingSongStep = -2;
+            RefreshSongPlayingHighlight(_timeline != null ? _timeline.CurrentSongStep : -1);
+        }
+
+        // Song 再生中のカードを強調（rr-song-card--playing）。カードは構造変更時のみ作り直すので、
+        // ここでは既存 _songCards の class トグルのみ（毎フレーム呼ばれても GC なし）。
+        void RefreshSongPlayingHighlight(int stepIndex)
+        {
+            for (int i = 0; i < _songCards.Count; i++)
+                EnableClass(_songCards[i], "rr-song-card--playing", i == stepIndex);
         }
 
         // 集計ヘッダー：N steps · M plays（M=Σ×N）＋選択ステップの Sequence へジャンプ。
@@ -1876,6 +1893,18 @@ namespace RewriteReality
         void UpdateTimeline()
         {
             if (_timeline == null) return;
+
+            // Song 再生中カードの強調（time 不変の early-return より前＝一時停止中のタブ切替でも反映される）。
+            if (_viewKind == ShowTimeline.TabKind.Song)
+            {
+                int cur = _timeline.CurrentSongStep;
+                if (cur != _lastPlayingSongStep)
+                {
+                    _lastPlayingSongStep = cur;
+                    RefreshSongPlayingHighlight(cur);
+                }
+            }
+
             double t = _timeline.Time;
             if (t == _lastTimeValue) return;
             _lastTimeValue = t;

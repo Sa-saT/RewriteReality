@@ -1584,6 +1584,9 @@
     background-color: var(--rr-surface-raised);
     border-color: var(--rr-selection);
 }
+/* 再生中カード（#27b・CurrentSongStep 追随）。選択枠(selection)とは独立の状態＝live 色で区別。 */
+.rr-song-card--playing { border-color: var(--rr-semantic-live); }
+.rr-song-card--playing .rr-song-card__idx { color: var(--rr-semantic-live); }
 .rr-song-card__top { flex-direction: row; align-items: center; margin-bottom: 6px; }
 .rr-song-card__idx { font-size: 10px; color: var(--rr-muted); margin-right: 6px; flex-shrink: 0; }
 .rr-song-card--active .rr-song-card__idx { color: var(--rr-selection); }

@@ -139,6 +139,16 @@ namespace RewriteReality
         bool _playing;
         double _time;   // playhead 時刻（秒）
 
+        // 再生コンテキスト（#27b）＝クロックが Sequence 単体を指すか Song セットリストを指すか。
+        // SelectSequence/SelectSong で切替。SelectShort は変更しない（Short はゲートで再生コンテキストではない）。
+        TabKind _playbackContext = TabKind.Sequence;
+
+        // 解決済み再生ヘッド（Update() で毎フレーム更新・ResolvedClipAt / 各種 getter が参照する）。
+        Sequence _phSeq;                    // Sequence コンテキストなら ActiveSequence と同一
+        double _phLocalTime;                // _phSeq 内でのローカル時刻（秒）
+        int _currentSongStepIndex = -1;     // Song 再生中の step index（非 Song/未解決は -1）
+        bool _loggedEmptySongWarning;        // 空/未解決 Song の警告は 1 回だけ（SelectSong でリセット）
+
         // Short ホールド状態：発火中の Short index を押下順に保持（末尾＝最上位）。
         readonly List<int> _held = new List<int>();
         // key 文字列 → Key の解決キャッシュ（毎フレームの Enum.Parse を避ける）。
@@ -168,11 +178,12 @@ namespace RewriteReality
         public Sequence GetSequence(int index) =>
             (_sequences != null && index >= 0 && index < _sequences.Count) ? _sequences[index] : null;
 
-        /// <summary>index の Sequence を選択（頭出しはしない）。</summary>
+        /// <summary>index の Sequence を選択（頭出しはしない）。再生コンテキストも Sequence へ切替（#27b）。</summary>
         public void SelectSequence(int index)
         {
             if (_sequences == null || index < 0 || index >= _sequences.Count) return;
             _activeSequence = index;
+            _playbackContext = TabKind.Sequence;
         }
 
         // ---- タブ操作（動的タブバー・07-10 App.jsx／§7c で Sequence/Short/Song の3種へ）----
@@ -290,11 +301,13 @@ namespace RewriteReality
         public Song GetSong(int index) =>
             (_songs != null && index >= 0 && index < _songs.Count) ? _songs[index] : null;
 
-        /// <summary>index の Song を選択。</summary>
+        /// <summary>index の Song を選択。再生コンテキストも Song へ切替（#27b）。</summary>
         public void SelectSong(int index)
         {
             if (_songs == null || index < 0 || index >= _songs.Count) return;
             _activeSongIndex = index;
+            _playbackContext = TabKind.Song;
+            _loggedEmptySongWarning = false;   // 新しい Song を見始めたら警告は再度出せるようにする
         }
 
         /// <summary>アクティブ Song の末尾に、指定 Sequence を参照するステップを追加（既定 ×1）。</summary>
@@ -331,8 +344,24 @@ namespace RewriteReality
             song.steps[index].repeat = Math.Max(1, repeat);
         }
 
-        /// <summary>現在 Sequence の尺（秒・最小 1）。</summary>
-        public double Length => ActiveSequence != null ? Math.Max(1.0, ActiveSequence.length) : 1.0;
+        /// <summary>いま再生ヘッドが指すコンテキスト（Sequence 単体 or Song セットリスト・#27b）。</summary>
+        public TabKind PlaybackContext => _playbackContext;
+
+        /// <summary>現在の再生尺（秒・最小 1）。Sequence コンテキストは ActiveSequence.length、
+        /// Song コンテキストは解決可能な step の Σ(seq.length × repeat)（#27b）。</summary>
+        public double Length
+        {
+            get
+            {
+                if (_playbackContext == TabKind.Song)
+                {
+                    double total = SongTotalLength();
+                    return total > 0.0 ? total : 1.0;
+                }
+                return ActiveSequence != null ? Math.Max(1.0, ActiveSequence.length) : 1.0;
+            }
+        }
+
         public double Time => _time;
         public double Remaining => Math.Max(0.0, Length - _time);
         public bool Playing => _playing;
@@ -348,6 +377,10 @@ namespace RewriteReality
         /// <summary>playhead の 0..1 正規化位置（UI の左%・ルーラ位置に使う）。</summary>
         public float NormalizedTime => (float)(_time / Length);
 
+        /// <summary>Song 再生中の step index（非 Song コンテキスト or 未解決/範囲外は -1・#27b）。
+        /// UI（Song タブの横ストリップ）が「いま鳴っているカード」の強調に使う。</summary>
+        public int CurrentSongStep => _currentSongStepIndex;
+
         /// <summary>何か Short を発火中か（最上位 short が sequence に優先している）。</summary>
         public bool AnyShortHeld => _held.Count > 0;
 
@@ -362,19 +395,19 @@ namespace RewriteReality
             }
         }
 
-        /// <summary>いま画面に出すべき映像クリップ（最上位 short → 無ければ sequence の映像クリップ）。</summary>
+        /// <summary>いま画面に出すべき映像クリップ（最上位 short → 無ければ解決済み再生ヘッドの映像クリップ）。</summary>
         public Clip ActiveVideoClip
         {
             get
             {
                 var top = TopShort;
                 if (top != null) return top.clip;
-                return SequenceClipAt(_time, TrackKind.Video);
+                return ResolvedClipAt(TrackKind.Video);
             }
         }
 
-        /// <summary>いま鳴らすべき音声クリップ（sequence の音声トラック・将来の内部再生 M13 用に公開）。</summary>
-        public Clip ActiveAudioClip => SequenceClipAt(_time, TrackKind.Audio);
+        /// <summary>いま鳴らすべき音声クリップ（解決済み再生ヘッドの音声トラック・将来の内部再生 M13 用に公開）。</summary>
+        public Clip ActiveAudioClip => ResolvedClipAt(TrackKind.Audio);
 
         void Awake()
         {
@@ -394,6 +427,7 @@ namespace RewriteReality
         void Start()
         {
             if (_playOnStart) Play();
+            ResolvePlayhead();
             ApplyBinding(force: true);
         }
 
@@ -409,6 +443,7 @@ namespace RewriteReality
                 }
             }
 
+            ResolvePlayhead();   // Short 保持中でも毎フレーム更新（CurrentSongStep を鮮度保証）
             PollShortInput();
             ApplyBinding(force: false);
         }
@@ -559,10 +594,13 @@ namespace RewriteReality
             return null;
         }
 
-        Clip SequenceClipAt(double t, TrackKind kind)
+        /// <summary>解決済み再生ヘッド（<see cref="_phSeq"/>/<see cref="_phLocalTime"/>・
+        /// Update() で毎フレーム <see cref="ResolvePlayhead"/> が更新）でのクリップ検索。#27b。</summary>
+        Clip ResolvedClipAt(TrackKind kind)
         {
-            var seq = ActiveSequence;
+            var seq = _phSeq;
             if (seq == null) return null;
+            double t = _phLocalTime;
             Clip found = null;   // 同時刻に複数あれば上のトラック（後勝ち）を採用
             for (int ti = 0; ti < seq.tracks.Count; ti++)
             {
@@ -575,6 +613,78 @@ namespace RewriteReality
                 }
             }
             return found;
+        }
+
+        /// <summary>再生コンテキストに応じて再生ヘッドを解決（Sequence コンテキストは ActiveSequence をそのまま、
+        /// Song コンテキストは steps を先頭から歩いて ×repeat 連結後の該当 Sequence とローカル時刻を求める）。
+        /// 未解決 step（参照 Sequence が見つからない）は時間軸に寄与せずスキップする（#27b）。
+        /// 結果は <see cref="_phSeq"/>/<see cref="_phLocalTime"/>/<see cref="_currentSongStepIndex"/> に格納。</summary>
+        void ResolvePlayhead()
+        {
+            if (_playbackContext != TabKind.Song)
+            {
+                _phSeq = ActiveSequence;
+                _phLocalTime = _time;
+                _currentSongStepIndex = -1;
+                return;
+            }
+
+            var song = ActiveSong;
+            if (song != null)
+            {
+                double running = 0.0;
+                for (int i = 0; i < song.steps.Count; i++)
+                {
+                    var step = song.steps[i];
+                    var seq = FindSequenceByName(step.sequenceName);
+                    if (seq == null) continue;   // 未解決 step はスキップ（時間軸に寄与しない）
+                    double seqLen = Math.Max(1.0, seq.length);
+                    double stepLen = seqLen * Math.Max(1, step.repeat);
+                    if (_time < running + stepLen)
+                    {
+                        _phSeq = seq;
+                        _phLocalTime = (_time - running) % seqLen;
+                        _currentSongStepIndex = i;
+                        return;
+                    }
+                    running += stepLen;
+                }
+            }
+
+            // 解決可能な step が無い（空 Song／全 step 未解決）・末尾超過（浮動小数誤差含む）。
+            _phSeq = null;
+            _phLocalTime = 0.0;
+            _currentSongStepIndex = -1;
+            if (_playing && !_loggedEmptySongWarning)
+            {
+                Debug.LogWarning("[ShowTimeline] Song に有効な Step がありません（未追加 or 参照 Sequence 不明）。Add Sequence で追加してください。");
+                _loggedEmptySongWarning = true;
+            }
+        }
+
+        /// <summary>アクティブ Song の総尺（解決可能な step の Σ(seq.length × repeat)・秒）。未解決/空は 0。</summary>
+        double SongTotalLength()
+        {
+            var song = ActiveSong;
+            if (song == null) return 0.0;
+            double total = 0.0;
+            for (int i = 0; i < song.steps.Count; i++)
+            {
+                var step = song.steps[i];
+                var seq = FindSequenceByName(step.sequenceName);
+                if (seq == null) continue;
+                total += Math.Max(1.0, seq.length) * Math.Max(1, step.repeat);
+            }
+            return total;
+        }
+
+        /// <summary>名前で Sequence を検索（Song step の参照解決用）。見つからなければ null。</summary>
+        Sequence FindSequenceByName(string name)
+        {
+            if (_sequences == null || string.IsNullOrEmpty(name)) return null;
+            for (int i = 0; i < _sequences.Count; i++)
+                if (_sequences[i] != null && _sequences[i].name == name) return _sequences[i];
+            return null;
         }
 
         // ---- 既定 Sequence（スタンドアロンで即動くよう・U3 で VID2/AUD2 も追加し動的化のデモを充実）----
