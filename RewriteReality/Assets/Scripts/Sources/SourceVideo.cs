@@ -19,6 +19,7 @@ namespace RewriteReality
         [SerializeField] float _speed = 1f;
 
         VideoPlayer _player;
+        bool _wantPlaying = true;   // 再生意図（OnEnable の Play と一致・SetPlaying の差分判定用・#27c）
 
         /// <summary>出力先 RenderTexture（合成の背景フレーム）。</summary>
         public RenderTexture TargetTexture => _targetTexture;
@@ -69,7 +70,8 @@ namespace RewriteReality
 
         void OnEnable()
         {
-            if (_player != null) _player.Play();
+            // 再生意図を尊重（既定 true＝従来どおり自動再生・トランスポート一時停止中の再有効化では回さない・#27c）。
+            if (_player != null && _wantPlaying) _player.Play();
         }
 
         void OnDisable()
@@ -100,7 +102,18 @@ namespace RewriteReality
         {
             if (_player == null) return;
             _player.time = 0d;
+            _wantPlaying = true;
             if (isActiveAndEnabled) _player.Play();
+        }
+
+        /// <summary>タイムライン・トランスポートの再生/一時停止を映像へ反映する（#27c）。差分時のみ実操作
+        /// （毎フレーム呼ばれても無駄がない）。一時停止時はフリーズ（VideoPlayer 無効時の Pause は回避）。</summary>
+        public void SetPlaying(bool on)
+        {
+            if (_player == null || _wantPlaying == on) return;
+            _wantPlaying = on;
+            if (on) { if (isActiveAndEnabled) _player.Play(); }
+            else    { if (_player.isActiveAndEnabled) _player.Pause(); }
         }
 
         /// <summary>毎フレームの更新フック（現状 VideoPlayer が自走するため処理なし）。</summary>

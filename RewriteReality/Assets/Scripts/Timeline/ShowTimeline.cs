@@ -596,6 +596,10 @@ namespace RewriteReality
                 else if (top == null && _prevTopShort != null) _videoSink.Loop = _savedSinkLoop; // 復元
                 if (top != null) _videoSink.Loop = top.holdLoop;
                 _videoSink.Speed = _rate;   // Master Speed → 映像再生速度（差分時のみ実代入は Speed 内部で保証）
+                // トランスポート再生/一時停止（＋Master Speed≒0 のフリーズ）を映像へ反映。
+                // Short 発火中は最上位レイヤーとして常に再生（タイムライン停止中でも鳴らす）。
+                bool shouldPlay = (_playing && _rate > 0.0001f) || top != null;
+                _videoSink.SetPlaying(shouldPlay);
             }
             _prevTopShort = top;
 
