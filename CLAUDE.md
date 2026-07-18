@@ -140,12 +140,13 @@ RewriteRealityProject/        ← git repo ルート
     タイムライン側に一本化（1機能1箇所）、OUTPUT はラベルのみトグル（Full/Syphon/NDI・ON=緑/OFF=灰）に簡素化。
     **出力ルートは既定 OFF**に変更（コード既定＋Main.unity 直列化値、起動時誤配信防止）。左ドックのライブラリ
     （Sources/Audio/Scenes）は静的プレースホルダで実データ未連動（汎用セレクションモデル=#3 待ち）。
-  - **#27 タイムライン再生バックエンド＝着手（2026-07-06・commit 57d3ccf）**: `ShowTimeline`
-    （Song/Track/Clip データ＋Play/Pause/Loop/Rewind/Seek のトランスポート・クロック）を追加し `OperatorUI` の
-    上部トランスポート＋タイムライン表示と接続（song リニア再生・playhead 反映）。**シーンには未配置**
-    （`OperatorUI` が実行時に `FindFirstObjectByType`→無ければ `AddComponent` するフォールバックのため、
-    Song/クリップ構成を Inspector で組んでもシーンに保存されない）。残り：実クリップの source/scene バインド、
-    short ホールド発火（§3.5.2）、song 再生速度可変、シーンへの正式配置。
+  - **#27 タイムライン再生バックエンド（2026-07-06 着手・commit 57d3ccf・2026-07-19 時点で大半完了）**: `ShowTimeline`
+    （Sequence/Track/Clip データ＋Play/Pause/Loop/Rewind/Seek のトランスポート・クロック）を `OperatorUI` の
+    上部トランスポート＋タイムライン表示と接続（Sequence リニア再生・playhead 反映）。実クリップの
+    source バインド（`_videoSink`＋`ClipAsset` ライブラリ・opt-in）・Short ホールド発火（§3.5.2・
+    `PollShortInput`→`HoldStart/HoldEnd`・TopShort 優先の `ActiveVideoClip`）・Master Speed（`Rate`）配線・
+    シーン配置（`Main.unity` の `Timeline` GameObject）は実装済み（#27b/#27c で仕上げ・下記）。
+    残り：audio 内部再生（M13・タイムラインの音声トラックをアプリ内で実際に鳴らす経路）。
   - **#29/U8＝Freeze撤去＋タイムライン トラック行の縦スクロール化（2026-07-14・commit 77e6dee・実機確認済）**:
     UNITY-HANDOFF §7b 07-12/07-13 反映。`FreezeEngine`（`Manager`/`ControlHub`/`OperatorUI`）を撤去
     （Timeline 再生停止・Fade to Black と役割重複のため。Master Speed のみ残置）。Song/Short のトラック行を
@@ -182,6 +183,22 @@ RewriteRealityProject/        ← git repo ルート
     **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機/UI Builder での
     見た目確認は未（見た目の作り込みはユーザー側・DESIGN.md ワークフロー）**。ローカルミラー
     `UNITY-HANDOFF.md`/`Timeline.jsx` もリモート 07-18 へ追随。
+  - **#27b/#27c＝Song 通し再生＋Short Hold-Loop 実挙動（2026-07-19・コンパイル確認済）**:
+    `ShowTimeline` の再生クロックが Sequence 単体前提だった残課題を解消。**#27b**＝`PlaybackContext`
+    （Sequence|Song・`SelectSequence`/`SelectSong` で切替・`SelectShort` は不変）を追加し、`ResolvePlayhead()`
+    で再生ヘッド解決を一本化：Song コンテキストは `Song.steps` を先頭から歩き、解決可能な step（参照 Sequence が
+    見つかる）の Σ(length×repeat) を積算して該当 Sequence とローカル時刻（repeat 内で mod）を求める（未解決
+    step は時間軸に寄与せずスキップ）。`Length` は Song コンテキストで `SongTotalLength()`（空/全未解決なら 1.0）
+    を返すよう拡張、`ActiveVideoClip`/`ActiveAudioClip` は解決済みヘッド（`ResolvedClipAt`）を参照。
+    `CurrentSongStep` を公開し、`OperatorUI` が Song タブ表示中に変化を検知して再生中カードへ
+    `rr-song-card--playing` を付与（`_songCards` キャッシュの class トグルのみ・再構築なし）。空 Song 再生時は
+    警告ログを 1 回だけ出す（`SelectSong` で再アーム）。**#27c**＝`Short.holdLoop` が再生側で未消費・同一 Short
+    の再発火で頭出しされない・`Rate`（Master Speed）が映像速度に効かない、の3点を修正。`SourceVideo` に
+    `Restart()`（time=0+Play）を追加し `Loop`/`Speed` setter に差分ガードを付与。`ShowTimeline.ApplyBinding` は
+    Short 表示中に `holdLoop` を sink の `Loop` へ反映（Sequence 側の元設定は退避→離脱時に復元）・`Speed` へ
+    `Rate` を毎フレーム反映・`HoldStart` が「新規発火」を検知したときのみ `Restart()` を呼ぶ（同一クリップ
+    参照でも頭出し）。**Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・
+    実機での見た目/挙動確認は未**。
 
 ## 作業上の注意
 
