@@ -14,7 +14,7 @@ namespace RewriteReality
     [UxmlElement]
     public partial class RrIcon : VisualElement
     {
-        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines, Eye, EyeOff, Lock, LockOpen, Keyboard, ListMusic }
+        public enum Kind { Play, Pause, Stop, Prev, Next, Loop, SpeakerOn, SpeakerMute, Diamond, Zap, AudioLines, Eye, EyeOff, Lock, LockOpen, Keyboard, ListMusic, Plus, SquarePen }
 
         Kind _icon = Kind.Play;
 
@@ -74,6 +74,8 @@ namespace RewriteReality
                 case Kind.LockOpen:    LockGlyph(p, ox, oy, s, false); break;
                 case Kind.Keyboard:    KeyboardGlyph(p, ox, oy, s); break;
                 case Kind.ListMusic:   ListMusic(p, ox, oy, s); break;
+                case Kind.Plus:        Plus(p, ox, oy, s); break;
+                case Kind.SquarePen:   SquarePen(p, ox, oy, s); break;
             }
         }
 
@@ -256,6 +258,40 @@ namespace RewriteReality
             p.BeginPath();
             p.MoveTo(P(ox, oy, s, 0.82f, 0.78f));
             p.LineTo(P(ox, oy, s, 0.82f, 0.28f));
+            p.Stroke();
+        }
+
+        // 十字（Add Sequence レール等・lucide "plus" 相当）。
+        void Plus(Painter2D p, float ox, float oy, float s)
+        {
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.5f, 0.20f));
+            p.LineTo(P(ox, oy, s, 0.5f, 0.80f));
+            p.Stroke();
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.20f, 0.5f));
+            p.LineTo(P(ox, oy, s, 0.80f, 0.5f));
+            p.Stroke();
+        }
+
+        // 四角＋ペン（ステップカードの Edit・lucide "square-pen" 相当）。左下に開いた枠＋右上に斜めのペン軸。
+        void SquarePen(Painter2D p, float ox, float oy, float s)
+        {
+            // 枠（右上を開けた □）＝編集対象のドキュメント
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.80f, 0.46f));
+            p.LineTo(P(ox, oy, s, 0.80f, 0.82f));
+            p.LineTo(P(ox, oy, s, 0.18f, 0.82f));
+            p.LineTo(P(ox, oy, s, 0.18f, 0.20f));
+            p.LineTo(P(ox, oy, s, 0.54f, 0.20f));
+            p.Stroke();
+            // ペン軸（右上への斜線）
+            p.BeginPath();
+            p.MoveTo(P(ox, oy, s, 0.46f, 0.54f));
+            p.LineTo(P(ox, oy, s, 0.80f, 0.20f));
+            p.LineTo(P(ox, oy, s, 0.90f, 0.30f));
+            p.LineTo(P(ox, oy, s, 0.56f, 0.64f));
+            p.ClosePath();
             p.Stroke();
         }
 

@@ -136,11 +136,12 @@ namespace RewriteReality
         VisualElement _shortAddTrackWrap, _shortAddTrackMenu, _shortLanes, _shortBody, _shortPlayhead;
         Button _shortAddTrackBtn;
 
-        // Song（Sequence セットリスト）ステップ列＋プレビュー（§7c・#29 U11）
-        VisualElement _songSteps, _songAddStepWrap, _songAddStepMenu;
-        Button _songAddStepBtn, _songPreviewJump;
-        Label _songPreviewTitle, _songPreviewBody;
-        int _songSelStep;   // 左ペインで選択中のステップ（右プレビュー対象）
+        // Song（Sequence セットリスト）＝MPC 流 横ストリップ：集計ヘッダー＋左固定 Add Sequence レール＋
+        // 横スクロールのステップカード列（§7c・07-18・#29 U12。旧2ペインを全面刷新）。
+        VisualElement _songStrip, _songRailList;
+        Label _songHeadSummary;
+        Button _songHeadJump;
+        int _songSelStep;   // 選択中のステップ（ヘッダーのジャンプ対象・カード選択枠）
 
         // PERFORM 左ドック Banks（保存済み Sequence/Short/Song 一覧・U10）
         VisualElement _banksList;
@@ -1048,16 +1049,12 @@ namespace RewriteReality
             _shortBody = _root.Q<VisualElement>("rr-short-body");
             _shortPlayhead = _root.Q<VisualElement>("rr-short-playhead");
 
-            // Song（セットリスト）ステップ列＋プレビュー（§7c・U11）。
-            _songSteps = _root.Q<VisualElement>("rr-song-steps");
-            _songAddStepWrap = _root.Q<VisualElement>("rr-song-addstep-wrap");
-            _songAddStepMenu = _root.Q<VisualElement>("rr-song-addstep-menu");
-            _songAddStepBtn  = _root.Q<Button>("rr-song-add-step");
-            _songPreviewTitle = _root.Q<Label>("rr-song-preview-title");
-            _songPreviewBody  = _root.Q<Label>("rr-song-preview-body");
-            _songPreviewJump  = _root.Q<Button>("rr-song-preview-jump");
-            if (_songAddStepBtn != null) _songAddStepBtn.clicked += () => ToggleMenuAt(_songAddStepMenu, _songAddStepBtn);
-            if (_songPreviewJump != null) _songPreviewJump.clicked += JumpToSongStepSequence;
+            // Song（セットリスト）＝横ストリップ：集計ヘッダー＋左固定 Add Sequence レール＋カード列（§7c・U12）。
+            _songHeadSummary = _root.Q<Label>("rr-song-head-summary");
+            _songHeadJump    = _root.Q<Button>("rr-song-head-jump");
+            _songRailList    = _root.Q<VisualElement>("rr-song-rail-list");
+            _songStrip       = _root.Q<VisualElement>("rr-song-strip");
+            if (_songHeadJump != null) _songHeadJump.clicked += JumpToSongStepSequence;
 
             // 動的タブバー（Sequence/Short/Song 追加・削除・切替・07-10 App.jsx／§7c で3種へ）
             _tlAddMenu = _root.Q<VisualElement>("rr-tl-addmenu");
@@ -1517,128 +1514,157 @@ namespace RewriteReality
             if (_tlLoop != null) _tlLoop.style.display = isShort ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
-        // -------------------------------------------------- Song（Sequence セットリスト）ステップ列＋プレビュー（§7c・U11）
-        // 左＝ステップ列（順序・Sequence 名・×N repeat・並べ替え/削除）。右＝選択ステップの読み取り専用プレビュー
-        // （現状はサマリ文字列のみ・フル多トラック再現は将来・見た目の作り込みはユーザーの UI Builder 側）。
+        // -------------------------------------------------- Song（Sequence セットリスト）＝MPC 流 横ストリップ（§7c・07-18・U12）
+        // 左固定の Add Sequence レール（全 Sequence 常時一覧・1クリックで末尾追加）＋横スクロールのステップカード列
+        // （番号／名前／Edit ペン→該当 Sequence タブ／×削除／×N ステッパー／‹›並べ替え）。カード間に → で再生の流れ。
+        // 旧2ペイン（縦ステップリスト＋読み取り専用プレビュー・上方向ポップオーバー）は廃止。
         void RebuildSongSteps()
         {
-            if (_songSteps == null) return;
-            _songSteps.Clear();
             var song = _timeline?.ActiveSong;
-            if (song == null) { RefreshSongPreview(null); return; }
+            RebuildSongRail();
 
-            for (int i = 0; i < song.steps.Count; i++)
-                _songSteps.Add(BuildSongStepRow(i, song.steps[i]));
+            if (_songStrip == null) return;
+            _songStrip.Clear();
 
-            if (_songSelStep >= song.steps.Count) _songSelStep = Mathf.Max(0, song.steps.Count - 1);
-            RefreshSongPreview(song.steps.Count > 0 ? song.steps[_songSelStep] : null);
-            RebuildSongAddStepMenu();
+            if (song == null) { UpdateSongSummary(null); return; }
+
+            int count = song.steps.Count;
+            if (_songSelStep >= count) _songSelStep = Mathf.Max(0, count - 1);
+
+            if (count == 0)
+            {
+                var empty = new Label("左から順に再生されます — Add Sequence でステップを追加");
+                empty.AddToClassList("rr-song-strip__empty");
+                _songStrip.Add(empty);
+            }
+            for (int i = 0; i < count; i++)
+            {
+                _songStrip.Add(BuildSongCard(i, song.steps[i]));
+                var arrow = new Label("→"); arrow.AddToClassList("rr-song-arrow"); arrow.AddToClassList("rr-mono");
+                _songStrip.Add(arrow);   // 最後のカードの後にも付く＝再生フローが続く表現（モック準拠）
+            }
+
+            UpdateSongSummary(song);
         }
 
-        VisualElement BuildSongStepRow(int index, ShowTimeline.SongStep step)
+        // 集計ヘッダー：N steps · M plays（M=Σ×N）＋選択ステップの Sequence へジャンプ。
+        void UpdateSongSummary(ShowTimeline.Song song)
         {
-            var row = new VisualElement();
-            row.AddToClassList("rr-song-step");
-            EnableClass(row, "rr-song-step--active", index == _songSelStep);
-            row.RegisterCallback<MouseDownEvent>(_ =>
+            int steps = song != null ? song.steps.Count : 0;
+            int plays = 0;
+            if (song != null) for (int i = 0; i < song.steps.Count; i++) plays += Mathf.Max(1, song.steps[i].repeat);
+            if (_songHeadSummary != null) _songHeadSummary.text = $"{steps} steps · {plays} plays";
+
+            if (_songHeadJump != null)
             {
-                _songSelStep = index;
-                RefreshSongPreview(step);
-                RebuildSongSteps();
-            });
+                bool has = song != null && _songSelStep >= 0 && _songSelStep < song.steps.Count;
+                _songHeadJump.style.display = has ? DisplayStyle.Flex : DisplayStyle.None;
+                if (has) _songHeadJump.text = "Edit " + song.steps[_songSelStep].sequenceName + " →";
+            }
+        }
 
-            var idx = new Label((index + 1).ToString()); idx.AddToClassList("rr-song-step__idx"); idx.AddToClassList("rr-mono");
-            row.Add(idx);
+        VisualElement BuildSongCard(int index, ShowTimeline.SongStep step)
+        {
+            var card = new VisualElement();
+            card.AddToClassList("rr-song-card");
+            EnableClass(card, "rr-song-card--active", index == _songSelStep);
+            card.RegisterCallback<MouseDownEvent>(_ => { _songSelStep = index; RebuildSongSteps(); });
 
-            var name = new Label(step.sequenceName); name.AddToClassList("rr-song-step__name");
-            row.Add(name);
+            // 上段：番号 + Sequence 名 + Edit ペン + × 削除
+            var top = new VisualElement(); top.AddToClassList("rr-song-card__top");
+            var idx = new Label((index + 1).ToString("00")); idx.AddToClassList("rr-song-card__idx"); idx.AddToClassList("rr-mono");
+            top.Add(idx);
+            var name = new Label(step.sequenceName); name.AddToClassList("rr-song-card__name");
+            top.Add(name);
 
-            Button StepBtn(string text, System.Action onClick, bool danger = false)
+            var pen = new Button(); pen.AddToClassList("rr-song-card__iconbtn"); pen.tooltip = "Edit " + step.sequenceName;
+            var penIcon = new RrIcon { Icon = RrIcon.Kind.SquarePen }; penIcon.AddToClassList("rr-song-card__pen");
+            pen.Add(penIcon);
+            pen.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+            pen.clicked += () => JumpToSequenceByName(step.sequenceName);
+            top.Add(pen);
+
+            var del = new Button { text = "×" }; del.AddToClassList("rr-song-card__iconbtn"); del.AddToClassList("rr-song-card__del"); del.tooltip = "Remove";
+            del.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
+            del.clicked += () => { _timeline.RemoveSongStep(index); if (_songSelStep >= index && _songSelStep > 0) _songSelStep--; RebuildSongSteps(); };
+            top.Add(del);
+            card.Add(top);
+
+            // 下段：[−] ×N [+] | [‹] [›]
+            var bottom = new VisualElement(); bottom.AddToClassList("rr-song-card__bottom");
+            Button StepBtn(string text, System.Action onClick, bool disabled = false)
             {
                 var b = new Button { text = text };
-                b.AddToClassList("rr-song-step__btn");
-                if (danger) b.AddToClassList("rr-song-step__btn--danger");
+                b.AddToClassList("rr-song-card__stepbtn");
+                if (disabled) { b.AddToClassList("rr-song-card__stepbtn--disabled"); b.SetEnabled(false); }
                 b.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
                 b.clicked += onClick;
                 return b;
             }
 
-            row.Add(StepBtn("−", () => { _timeline.SetSongStepRepeat(index, step.repeat - 1); RebuildSongSteps(); }));
-            var repeat = new Label("×" + step.repeat); repeat.AddToClassList("rr-song-step__repeat"); repeat.AddToClassList("rr-mono");
-            row.Add(repeat);
-            row.Add(StepBtn("+", () => { _timeline.SetSongStepRepeat(index, step.repeat + 1); RebuildSongSteps(); }));
-            row.Add(StepBtn("↑", () => { _timeline.MoveSongStep(index, -1); if (_songSelStep == index) _songSelStep--; else if (_songSelStep == index - 1) _songSelStep++; RebuildSongSteps(); }));
-            row.Add(StepBtn("↓", () => { _timeline.MoveSongStep(index, 1); if (_songSelStep == index) _songSelStep++; else if (_songSelStep == index + 1) _songSelStep--; RebuildSongSteps(); }));
-            row.Add(StepBtn("×", () => { _timeline.RemoveSongStep(index); RebuildSongSteps(); }, danger: true));
+            bottom.Add(StepBtn("−", () => { _timeline.SetSongStepRepeat(index, step.repeat - 1); RebuildSongSteps(); }));
+            var repeat = new Label("×" + step.repeat); repeat.AddToClassList("rr-song-card__repeat"); repeat.AddToClassList("rr-mono");
+            bottom.Add(repeat);
+            bottom.Add(StepBtn("+", () => { _timeline.SetSongStepRepeat(index, step.repeat + 1); RebuildSongSteps(); }));
 
-            return row;
+            var divider = new VisualElement(); divider.AddToClassList("rr-song-card__divider");
+            bottom.Add(divider);
+
+            int last = (_timeline?.ActiveSong?.steps.Count ?? 1) - 1;
+            bottom.Add(StepBtn("‹", () => { _timeline.MoveSongStep(index, -1); _songSelStep = Mathf.Max(0, index - 1); RebuildSongSteps(); }, disabled: index == 0));
+            bottom.Add(StepBtn("›", () => { _timeline.MoveSongStep(index, 1); _songSelStep = index + 1; RebuildSongSteps(); }, disabled: index >= last));
+            card.Add(bottom);
+
+            return card;
         }
 
-        // + STEP メニュー：現在の Sequence 一覧から選んでアクティブ Song の末尾に追加。
-        void RebuildSongAddStepMenu()
+        // Add Sequence レール：全 Sequence を常時一覧表示（縦スクロール）。クリックで末尾にステップ追加＋選択。
+        void RebuildSongRail()
         {
-            if (_songAddStepMenu == null) return;
-            _songAddStepMenu.Clear();
+            if (_songRailList == null) return;
+            _songRailList.Clear();
             if (_timeline == null) return;
 
             int n = _timeline.SequenceCount;
             if (n == 0)
             {
-                var empty = new Label("No sequences yet");
-                empty.AddToClassList("rr-addtrack-file__name");
-                _songAddStepMenu.Add(empty);
+                var empty = new Label("Sequence タブがありません。まず Sequence を作成してください。");
+                empty.AddToClassList("rr-song-rail__empty");
+                _songRailList.Add(empty);
                 return;
             }
             for (int i = 0; i < n; i++)
             {
                 var seq = _timeline.GetSequence(i);
-                var item = new Button { text = seq.name };
-                item.AddToClassList("rr-addtrack-file");
-                item.RegisterCallback<PointerDownEvent>(e => e.StopPropagation());
-                item.clicked += () =>
+                var item = new VisualElement(); item.AddToClassList("rr-song-rail-item"); item.tooltip = "Add " + seq.name;
+                var dot = new VisualElement(); dot.AddToClassList("rr-song-rail-item__dot"); item.Add(dot);
+                var lbl = new Label(seq.name); lbl.AddToClassList("rr-song-rail-item__name"); item.Add(lbl);
+                var plus = new RrIcon { Icon = RrIcon.Kind.Plus }; plus.AddToClassList("rr-song-rail-item__plus"); item.Add(plus);
+                string seqName = seq.name;
+                item.RegisterCallback<MouseDownEvent>(_ =>
                 {
-                    _timeline.AddSongStep(seq.name);
-                    _songSelStep = _timeline.ActiveSong.steps.Count - 1;
-                    HideMenu(_songAddStepMenu);
+                    _timeline.AddSongStep(seqName);
+                    _songSelStep = Mathf.Max(0, _timeline.ActiveSong.steps.Count - 1);
                     RebuildSongSteps();
-                };
-                _songAddStepMenu.Add(item);
+                });
+                _songRailList.Add(item);
             }
         }
 
-        // 選択ステップの参照 Sequence を右ペインへ（読み取り専用サマリ）。
-        void RefreshSongPreview(ShowTimeline.SongStep step)
+        // ステップの参照 Sequence タブへジャンプ（カードの Edit ペン／ヘッダーの Edit → から）。
+        void JumpToSequenceByName(string name)
         {
-            var seq = step != null ? FindSequenceByName(step.sequenceName) : null;
-            if (_songPreviewTitle != null) _songPreviewTitle.text = seq != null ? seq.name : "—";
-            if (_songPreviewBody != null)
-            {
-                _songPreviewBody.text = seq != null
-                    ? $"{seq.tracks.Count} tracks · {ShowTimeline.FormatTime(seq.length)}"
-                    : "+ Step で Sequence を並べて Song を構成";
-            }
-            if (_songPreviewJump != null) _songPreviewJump.SetEnabled(seq != null);
-        }
-
-        ShowTimeline.Sequence FindSequenceByName(string name)
-        {
-            if (_timeline == null || string.IsNullOrEmpty(name)) return null;
+            if (string.IsNullOrEmpty(name) || _timeline == null) return;
             for (int i = 0; i < _timeline.SequenceCount; i++)
-            {
-                var seq = _timeline.GetSequence(i);
-                if (seq != null && seq.name == name) return seq;
-            }
-            return null;
+                if (_timeline.GetSequence(i).name == name) { SelectTab(ShowTimeline.TabKind.Sequence, i); return; }
         }
 
-        // 右プレビューの「Edit Sequence →」＝選択ステップの参照 Sequence タブへジャンプ（§7c）。
+        // ヘッダー「Edit <Seq> →」＝選択ステップの参照 Sequence タブへジャンプ（§7c）。
         void JumpToSongStepSequence()
         {
             var song = _timeline?.ActiveSong;
             if (song == null || _songSelStep < 0 || _songSelStep >= song.steps.Count) return;
-            var name = song.steps[_songSelStep].sequenceName;
-            for (int i = 0; i < _timeline.SequenceCount; i++)
-                if (_timeline.GetSequence(i).name == name) { SelectTab(ShowTimeline.TabKind.Sequence, i); return; }
+            JumpToSequenceByName(song.steps[_songSelStep].sequenceName);
         }
 
         // -------------------------------------------------- PERFORM 左ドック Banks（U10・§7b 07-14）

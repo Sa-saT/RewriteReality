@@ -1471,72 +1471,14 @@
 .rr-list-dot--short    { background-color: var(--rr-primary); }
 .rr-list-dot--songlist { background-color: var(--rr-selection); }
 
-/* Song（Sequence セットリスト）本文＝2ペイン：左=ステップ列・右=読み取り専用プレビュー（§7c・U11）。 */
-.rr-tl-songlist { flex-direction: row; flex-grow: 1; min-height: 0; }
-.rr-song-steps-wrap {
-    width: 300px;
+/* Song（Sequence セットリスト）本文＝MPC 流 横ストリップ：集計ヘッダー＋左固定 Add Sequence レール＋
+   横スクロールのステップカード列（§7c・07-18・U12。旧2ペインを全面刷新）。 */
+.rr-tl-songlist { flex-direction: column; flex-grow: 1; min-height: 0; }
+
+/* ヘッダー：PLAY ORDER 集計＋選択 Sequence へジャンプ */
+.rr-song-head {
+    height: 26px;
     flex-shrink: 0;
-    flex-direction: column;
-    min-height: 0;   /* ScrollView 子を伸縮させる（縦スクロール取りこぼし対策・rr-tl-tracklist と同様） */
-    border-right-width: 1px;
-    border-right-color: var(--rr-hairline);
-    padding: 6px;
-}
-/* ステップ列（ScrollView）：中身がはみ出て見切れないよう viewport 側にも flex-grow を明示
-   （UI Toolkit の ScrollView は自身に flex-grow を付けるだけでは高さが伝播しない・rr-tl-tracklist と同じ罠）。 */
-.rr-song-steps { flex-grow: 1; min-height: 0; }
-.rr-song-steps > .unity-scroll-view__content-viewport { flex-grow: 1; }
-.rr-song-step {
-    height: 30px;
-    flex-direction: row;
-    align-items: center;
-    padding-left: 6px;
-    padding-right: 4px;
-    border-radius: 2px;
-    border-left-width: 2px;
-    border-left-color: rgba(0, 0, 0, 0);
-}
-.rr-song-step:hover { background-color: var(--rr-surface-raised); }
-.rr-song-step--active {
-    background-color: var(--rr-surface-raised);
-    border-left-color: var(--rr-selection);
-}
-.rr-song-step__idx { width: 16px; flex-shrink: 0; font-size: 10px; color: var(--rr-muted); }
-.rr-song-step__name {
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 30px;
-    font-size: 12px;
-    color: var(--rr-text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-right: 4px;
-}
-.rr-song-step__repeat {
-    flex-shrink: 0;
-    font-size: 11px;
-    color: var(--rr-text);
-    min-width: 20px;
-    -unity-text-align: middle-center;
-}
-.rr-song-step__btn {
-    width: 18px; height: 18px;
-    flex-shrink: 0;
-    margin-left: 3px;
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 1px;
-    border-color: var(--rr-hairline);
-    border-radius: 3px;
-    color: var(--rr-body);
-    font-size: 11px;
-    padding: 0;
-    -unity-text-align: middle-center;
-}
-.rr-song-step__btn:hover { background-color: var(--rr-surface-raised); }
-.rr-song-step__btn--danger { color: var(--rr-semantic-record); }
-.rr-song-preview { flex-grow: 1; min-width: 0; flex-direction: column; }
-.rr-song-preview__head {
-    height: 28px;
     flex-direction: row;
     align-items: center;
     padding-left: 10px;
@@ -1544,5 +1486,166 @@
     border-bottom-width: 1px;
     border-bottom-color: var(--rr-hairline);
 }
-.rr-song-preview__title { font-size: 12px; -unity-font-style: bold; color: var(--rr-text); }
-.rr-song-preview__body { padding: 10px; font-size: 11px; color: var(--rr-muted); white-space: normal; }
+.rr-song-head__label {
+    font-size: 10px;
+    -unity-font-style: bold;
+    letter-spacing: 0.8px;
+    color: var(--rr-muted);
+    margin-right: 8px;
+}
+.rr-song-head__summary { font-size: 10px; color: var(--rr-muted); }
+
+/* 本文：左固定レール＋横スクロールのカード列 */
+.rr-song-body {
+    flex-grow: 1;
+    min-height: 0;
+    flex-direction: row;
+    padding: 10px;
+}
+
+/* Add Sequence レール（左端固定・全 Sequence 常時一覧・1クリックで末尾追加） */
+.rr-song-rail {
+    width: 158px;
+    flex-shrink: 0;
+    flex-direction: column;
+    min-height: 0;
+    margin-right: 8px;
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);  /* UI Toolkit は破線非対応のため実線ヘアラインで代替 */
+    border-radius: 6px;
+}
+.rr-song-rail__label {
+    padding: 7px 10px 4px 10px;
+    font-size: 10px;
+    -unity-font-style: bold;
+    letter-spacing: 0.7px;
+    color: var(--rr-muted);
+    flex-shrink: 0;
+}
+/* レール一覧（ScrollView）：viewport 側にも flex-grow を明示（自身の flex-grow だけでは高さ非伝播・既知の罠）。 */
+.rr-song-rail__list { flex-grow: 1; min-height: 0; }
+.rr-song-rail__list > .unity-scroll-view__content-viewport { flex-grow: 1; }
+.rr-song-rail-item {
+    height: 26px;
+    flex-direction: row;
+    align-items: center;
+    padding-left: 7px;
+    padding-right: 7px;
+    border-radius: 4px;
+}
+.rr-song-rail-item:hover { background-color: var(--rr-surface-raised); }
+.rr-song-rail-item__dot {
+    width: 6px; height: 6px;
+    flex-shrink: 0;
+    margin-right: 7px;
+    border-radius: 3px;
+    background-color: var(--rr-semantic-live);
+}
+.rr-song-rail-item__name {
+    flex-grow: 1;
+    font-size: 12px;
+    color: var(--rr-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.rr-song-rail-item__plus { width: 12px; height: 12px; flex-shrink: 0; color: var(--rr-muted); }
+.rr-song-rail__empty {
+    padding: 2px 7px;
+    font-size: 11px;
+    color: var(--rr-muted);
+    white-space: normal;
+}
+
+/* ステップカード列（横スクロール・.rr-tl-tablist と同じ横方向の罠対策）。 */
+.rr-song-strip { flex-grow: 1; min-width: 0; flex-direction: row; }
+.rr-song-strip > .unity-scroll-view__content-viewport { flex-direction: row; }
+.rr-song-strip__empty {
+    -unity-text-align: middle-left;
+    white-space: normal;
+    font-size: 12px;
+    color: var(--rr-muted);
+}
+
+/* ステップカード（幅158px・上段=番号/名前/pen/×・下段=×N ステッパー＋並べ替え）。 */
+.rr-song-card {
+    width: 158px;
+    flex-shrink: 0;
+    margin-right: 8px;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline-strong);
+}
+.rr-song-card:hover { background-color: var(--rr-surface-raised); }
+.rr-song-card--active {
+    background-color: var(--rr-surface-raised);
+    border-color: var(--rr-selection);
+}
+.rr-song-card__top { flex-direction: row; align-items: center; margin-bottom: 6px; }
+.rr-song-card__idx { font-size: 10px; color: var(--rr-muted); margin-right: 6px; flex-shrink: 0; }
+.rr-song-card--active .rr-song-card__idx { color: var(--rr-selection); }
+.rr-song-card__name {
+    flex-grow: 1;
+    font-size: 12px;
+    -unity-font-style: bold;
+    color: var(--rr-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 4px;
+}
+.rr-song-card__iconbtn {
+    width: 18px; height: 18px;
+    flex-shrink: 0;
+    padding: 0;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    -unity-text-align: middle-center;
+    font-size: 13px;
+    color: var(--rr-muted-soft);
+}
+.rr-song-card__pen { width: 12px; height: 12px; flex-shrink: 0; color: var(--rr-muted-soft); }
+.rr-song-card:hover .rr-song-card__pen { color: var(--rr-selection); }
+.rr-song-card--active .rr-song-card__pen { color: var(--rr-selection); }
+.rr-song-card__del { color: var(--rr-muted-soft); }
+.rr-song-card:hover .rr-song-card__del { color: var(--rr-semantic-record); }
+.rr-song-card--active .rr-song-card__del { color: var(--rr-semantic-record); }
+.rr-song-card__bottom { flex-direction: row; align-items: center; }
+.rr-song-card__stepbtn {
+    width: 22px; height: 22px;
+    flex-shrink: 0;
+    padding: 0;
+    background-color: var(--rr-surface-inset);
+    border-width: 1px;
+    border-color: var(--rr-hairline);
+    border-radius: 4px;
+    color: var(--rr-body);
+    font-size: 12px;
+    -unity-text-align: middle-center;
+}
+.rr-song-card__stepbtn:hover { background-color: var(--rr-surface-raised); }
+.rr-song-card__stepbtn--disabled { opacity: 0.3; }
+.rr-song-card__repeat {
+    flex-grow: 1;
+    -unity-text-align: middle-center;
+    font-size: 13px;
+    color: var(--rr-text);
+}
+.rr-song-card__divider {
+    width: 1px; height: 14px;
+    flex-shrink: 0;
+    margin-left: 2px; margin-right: 2px;
+    background-color: var(--rr-hairline);
+}
+
+/* カード間の再生フロー矢印。 */
+.rr-song-arrow {
+    flex-shrink: 0;
+    align-self: center;
+    margin-right: 8px;
+    font-size: 12px;
+    color: var(--rr-muted-soft);
+    -unity-text-align: middle-center;
+}

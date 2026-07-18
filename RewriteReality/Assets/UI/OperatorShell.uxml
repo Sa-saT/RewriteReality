@@ -317,20 +317,18 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="rr-tl-songlist" class="rr-tl-songlist" style="display: none;">
-                <ui:VisualElement name="rr-song-steps-wrap" class="rr-song-steps-wrap">
-                    <ui:ScrollView name="rr-song-steps" class="rr-song-steps" mode="Vertical" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" />
-                    <ui:VisualElement name="rr-song-addstep-wrap" class="rr-addtrack-wrap">
-                        <ui:Button name="rr-song-add-step" text="+ STEP" class="rr-add-track" />
-                        <ui:VisualElement name="rr-song-addstep-menu" class="rr-tl-addmenu" style="display: none;" />
-                    </ui:VisualElement>
+                <ui:VisualElement name="rr-song-head" class="rr-song-head">
+                    <ui:Label text="PLAY ORDER" class="rr-song-head__label" />
+                    <ui:Label name="rr-song-head-summary" text="0 steps · 0 plays" class="rr-song-head__summary rr-mono" />
+                    <ui:VisualElement class="rr-spacer" />
+                    <ui:Button name="rr-song-head-jump" text="Edit →" class="rr-add-track" />
                 </ui:VisualElement>
-                <ui:VisualElement name="rr-song-preview" class="rr-song-preview">
-                    <ui:VisualElement class="rr-song-preview__head">
-                        <ui:Label name="rr-song-preview-title" text="—" class="rr-song-preview__title" />
-                        <ui:VisualElement class="rr-spacer" />
-                        <ui:Button name="rr-song-preview-jump" text="Edit Sequence →" class="rr-add-track" />
+                <ui:VisualElement name="rr-song-body" class="rr-song-body">
+                    <ui:VisualElement name="rr-song-rail" class="rr-song-rail">
+                        <ui:Label text="+ Add Sequence" class="rr-song-rail__label" />
+                        <ui:ScrollView name="rr-song-rail-list" class="rr-song-rail__list" mode="Vertical" vertical-scroller-visibility="Hidden" horizontal-scroller-visibility="Hidden" />
                     </ui:VisualElement>
-                    <ui:Label name="rr-song-preview-body" text="" class="rr-song-preview__body rr-mono" />
+                    <ui:ScrollView name="rr-song-strip" class="rr-song-strip" mode="Horizontal" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" />
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
