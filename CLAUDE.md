@@ -199,6 +199,22 @@ RewriteRealityProject/        ← git repo ルート
     `Rate` を毎フレーム反映・`HoldStart` が「新規発火」を検知したときのみ `Restart()` を呼ぶ（同一クリップ
     参照でも頭出し）。**Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・
     実機での見た目/挙動確認は未**。
+  - **#28a/#28b＝タイムライン音声の内部再生（M13・2026-07-20）**: `SourceVideo` と対称の opt-in シンク
+    `SourceAudio`（`Assets/Scripts/Sources/`）を新設（Loop/Speed/Volume/Mute・差分ガード・`_wantPlaying` に
+    よる再生意図管理・Volume はプチノイズ対策の内蔵フェード追従）。`ShowTimeline` に `ClipAsset.audio`・
+    `_audioSink`（opt-in・未設定なら無音）を追加し、`ApplyBinding` から独立した `ApplyAudioBinding` を毎フレーム
+    実行（映像クリップ変更の有無に関わらず Loop/Speed/再生状態を反映）。供給元は解決済み再生ヘッドの Audio
+    トラック（`ResolvedClipAt(Audio)`）＝**Short 押下中も音声は Sequence/Song 側を継続**（Short は映像専用
+    レイヤーのため holdLoop 退避/頭出しは適用しない）。`Rewind`/`SeekNormalized` は `_audioResyncPending` を
+    立て、次の `ApplyAudioBinding` で同一クリップでも `AudioSource.time` を playhead へ再同期する。
+    **#28b**＝`Track.muted` を `ResolvedClipAt`/`ResolvedAudioTrack` の解決段階で除外（mute したトラックは
+    実際に鳴らない・上のトラックが mute なら次の Audio トラックが解決される）。`Track.volume` を新設し
+    解決トラックの音量を毎フレーム `_audioSink.Volume` へ反映。解析（`AudioAnalyzer.Tick`）は
+    `AudioListener.GetSpectrumData` のため**コード変更不要**で内部再生音を自動的に最終ミックスとして拾う
+    （docs/05 の「解析は最終ミックス」を充足）。**Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付き
+    コンパイル＝0 エラー確認済み・実機での音出し確認は未**（エディタ検証時は MicInput 無効で行うこと・
+    Bluetooth が HFP に落ちてピッチが変わる既知の罠）。`Main.unity` への `_audioSink`/`_library.audio` 配線・
+    `Track.volume` の Inspector 調整はユーザー側。
 
 ## 作業上の注意
 

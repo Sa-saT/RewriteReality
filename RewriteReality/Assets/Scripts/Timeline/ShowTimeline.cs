@@ -43,8 +43,11 @@ namespace RewriteReality
             [Range(0f, 1f)]
             [Tooltip("重ね合成の不透明度（U3・現状は UI 表示のみ・パイプライン未結線）")]
             public float opacity = 1f;
-            [Tooltip("音声トラックのミュート（U3・現状は UI 表示のみ）")]
+            [Tooltip("音声トラックのミュート（#28b・解決から除外＝実際に鳴らない）")]
             public bool muted = false;
+            [Range(0f, 1f)]
+            [Tooltip("音声トラックの音量（#28b・SourceAudio.Volume へ反映）")]
+            public float volume = 1f;
             public List<Clip> clips = new List<Clip>();
         }
 
@@ -635,10 +638,12 @@ namespace RewriteReality
             if (_audioSink == null) return;   // opt-out：純トランスポート
 
             var clip = ResolvedClipAt(TrackKind.Audio);
+            var track = ResolvedAudioTrack();
             bool changed = force || !ReferenceEquals(clip, _appliedAudioClip);
 
             _audioSink.Loop = _loop;
             _audioSink.Speed = _rate;
+            _audioSink.Volume = track != null ? track.volume : 1f;
             bool shouldPlay = _playing && _rate > 0.0001f;
             _audioSink.SetPlaying(shouldPlay);
 
@@ -682,7 +687,8 @@ namespace RewriteReality
 
 
         /// <summary>解決済み再生ヘッド（<see cref="_phSeq"/>/<see cref="_phLocalTime"/>・
-        /// Update() で毎フレーム <see cref="ResolvePlayhead"/> が更新）でのクリップ検索。#27b。</summary>
+        /// Update() で毎フレーム <see cref="ResolvePlayhead"/> が更新）でのクリップ検索。#27b。
+        /// Audio トラックは muted なら解決対象から除外する（#28b・実際に鳴らさない）。</summary>
         Clip ResolvedClipAt(TrackKind kind)
         {
             var seq = _phSeq;
@@ -693,10 +699,32 @@ namespace RewriteReality
             {
                 var track = seq.tracks[ti];
                 if (track == null || !track.enabled || track.kind != kind) continue;
+                if (kind == TrackKind.Audio && track.muted) continue;
                 for (int ci = 0; ci < track.clips.Count; ci++)
                 {
                     var c = track.clips[ci];
                     if (c != null && t >= c.start && t < c.End) { found = c; break; }
+                }
+            }
+            return found;
+        }
+
+        /// <summary>解決済み再生ヘッドが指す（muted 除外後の）Audio トラック。volume 参照用（#28b）。
+        /// 見つからなければ null。</summary>
+        Track ResolvedAudioTrack()
+        {
+            var seq = _phSeq;
+            if (seq == null) return null;
+            double t = _phLocalTime;
+            Track found = null;
+            for (int ti = 0; ti < seq.tracks.Count; ti++)
+            {
+                var track = seq.tracks[ti];
+                if (track == null || !track.enabled || track.kind != TrackKind.Audio || track.muted) continue;
+                for (int ci = 0; ci < track.clips.Count; ci++)
+                {
+                    var c = track.clips[ci];
+                    if (c != null && t >= c.start && t < c.End) { found = track; break; }
                 }
             }
             return found;
