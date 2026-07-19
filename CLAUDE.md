@@ -215,6 +215,15 @@ RewriteRealityProject/        ← git repo ルート
     コンパイル＝0 エラー確認済み・実機での音出し確認は未**（エディタ検証時は MicInput 無効で行うこと・
     Bluetooth が HFP に落ちてピッチが変わる既知の罠）。`Main.unity` への `_audioSink`/`_library.audio` 配線・
     `Track.volume` の Inspector 調整はユーザー側。
+  - **#36＝ショーデータの JSON 永続化（2026-07-20）**: `ShowTimeline` に `ShowState`（Sequence/Short/Song
+    バンク＋各 active index・再生コンテキスト・loop/rate。`_library` の実アセット参照は対象外＝シーン持ちの
+    まま）と `SaveShow`/`LoadShow`（既定パス＝`Application.persistentDataPath/show.json`・JsonUtility 往復）
+    を追加。`LoadShow` は index を範囲内へ clamp・`_held` クリア・保存時の再生コンテキストへ
+    `SelectSequence`/`SelectSong` で復帰し、`StructureChanged` イベントを発火する。`OperatorUI` がこれを
+    購読し（`OnTimelineStructureChanged`）タブ/トラック行/ステップ列/Banks 一覧を全面再構築。
+    自動化は `_autoLoadOnStart`/`_autoSaveOnQuit`（既定 false・opt-in・非破壊）。エディタ確認用に
+    `[ContextMenu("Save Show"/"Load Show")]` を用意（**UI ボタン化は ClaudeDesign ハンドオフ待ち**）。
+    **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機確認は未**。
 
 ## 作業上の注意
 

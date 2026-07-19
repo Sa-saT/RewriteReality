@@ -1134,6 +1134,8 @@ namespace RewriteReality
             {
                 _timeline.ShortStateChanged -= RefreshShortHeld;
                 _timeline.ShortStateChanged += RefreshShortHeld;
+                _timeline.StructureChanged -= OnTimelineStructureChanged;
+                _timeline.StructureChanged += OnTimelineStructureChanged;
             }
             RefreshShortHeld();
             RefreshShortAssignment();
@@ -2783,7 +2785,24 @@ namespace RewriteReality
             {
                 _timeline.PlayStateChanged -= RefreshTransport;
                 _timeline.ShortStateChanged -= RefreshShortHeld;
+                _timeline.StructureChanged -= OnTimelineStructureChanged;
             }
+        }
+
+        /// <summary>ShowTimeline.StructureChanged 購読先（#36・LoadShow 成功時）。
+        /// タブ/トラック行/ステップ列/Banks 一覧を全面再構築して読み込んだバンクへ追随する。</summary>
+        void OnTimelineStructureChanged()
+        {
+            if (_timeline == null) return;
+            RebuildTimelineTabs();
+            RebuildSequenceTracks();
+            RebuildSongSteps();
+            RebuildBanksList();
+            RefreshShortHeld();
+            RefreshShortAssignment();
+            if (_tlTotal != null) _tlTotal.text = "/ " + ShowTimeline.FormatTime(_timeline.Length);
+            if (_tlLoop != null) EnableClass(_tlLoop, "rr-transport-btn--active", _timeline.Loop);
+            RefreshTransport();
         }
 
         void Update()

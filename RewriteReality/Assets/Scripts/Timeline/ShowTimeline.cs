@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Video;
@@ -110,6 +111,22 @@ namespace RewriteReality
             public AudioClip audio;
         }
 
+        /// <summary>Sequence/Short/Song バンクの永続化スナップショット（#36・JsonUtility 往復）。
+        /// _library（VideoClip/AudioClip 実参照）は対象外＝シーン持ちのまま。</summary>
+        [Serializable]
+        public sealed class ShowState
+        {
+            public List<Sequence> sequences = new List<Sequence>();
+            public int activeSequence;
+            public List<Short> shorts = new List<Short>();
+            public int activeShort;
+            public List<Song> songs = new List<Song>();
+            public int activeSongIndex;
+            public TabKind playbackContext;
+            public bool loop;
+            public float rate;
+        }
+
         [Header("Sequence（マルチトラックバンク・リニア通し・旧称 Song）")]
         [Tooltip("Sequence バンク。空なら実行時に既定の 1 本を生成する。")]
         [SerializeField] List<Sequence> _sequences = new List<Sequence>();
@@ -133,6 +150,12 @@ namespace RewriteReality
         [SerializeField] List<Song> _songs = new List<Song>();
         [Tooltip("いま編集/表示中の Song（タブ選択）")]
         [SerializeField] int _activeSongIndex = 0;
+
+        [Header("永続化（opt-in・JSON 保存/読込・#36）")]
+        [Tooltip("起動時に自動で読み込む（成功時は既定シードをスキップ）")]
+        [SerializeField] bool _autoLoadOnStart = false;
+        [Tooltip("終了時に自動で保存する")]
+        [SerializeField] bool _autoSaveOnQuit = false;
 
         [Header("バインド（opt-in・未設定なら純トランスポート）")]
         [Tooltip("アクティブな映像クリップを流し込む先。null なら映像を差し替えない。")]
@@ -178,6 +201,9 @@ namespace RewriteReality
         public event Action ShortStateChanged;
         /// <summary>実効の映像クリップ（sequence or 最上位 short）が変わったとき発火。</summary>
         public event Action<Clip> ActiveVideoClipChanged;
+        /// <summary>Sequence/Short/Song バンクの構成が丸ごと入れ替わったとき発火（#36・LoadShow 成功時）。
+        /// UI はタブ/トラック/ステップ列などの全面再構築で追随する。</summary>
+        public event Action StructureChanged;
 
         public Sequence ActiveSequence =>
             (_sequences != null && _activeSequence >= 0 && _activeSequence < _sequences.Count) ? _sequences[_activeSequence] : null;
@@ -426,7 +452,18 @@ namespace RewriteReality
 
         void Awake()
         {
+            if (_autoLoadOnStart) LoadShow();   // 成功時は EnsureSeeded が no-op（各リストが空でなくなるため）
             EnsureSeeded();
+        }
+
+        void OnApplicationQuit()
+        {
+            if (_autoSaveOnQuit) SaveShow();
+        }
+
+        void OnDisable()
+        {
+            if (_autoSaveOnQuit) SaveShow();   // OnApplicationQuit と二重に呼ばれ得るが無害
         }
 
         /// <summary>既定の Sequence/Short を用意（空なら 1 枚ずつ。Song は未使用なら生成しない）。
@@ -438,6 +475,66 @@ namespace RewriteReality
             if (_shorts == null || _shorts.Count == 0) _shorts = new List<Short> { DefaultShort() };
             if (_songs == null) _songs = new List<Song>();
         }
+
+        static string DefaultShowPath => Path.Combine(Application.persistentDataPath, "show.json");
+
+        /// <summary>Sequence/Short/Song バンクを JSON へ保存する（#36）。既定パスは
+        /// persistentDataPath/show.json。_library（実アセット参照）は保存対象外。</summary>
+        public void SaveShow(string path = null)
+        {
+            path = string.IsNullOrEmpty(path) ? DefaultShowPath : path;
+            var state = new ShowState
+            {
+                sequences = _sequences ?? new List<Sequence>(),
+                activeSequence = _activeSequence,
+                shorts = _shorts ?? new List<Short>(),
+                activeShort = _activeShort,
+                songs = _songs ?? new List<Song>(),
+                activeSongIndex = _activeSongIndex,
+                playbackContext = _playbackContext,
+                loop = _loop,
+                rate = _rate,
+            };
+            File.WriteAllText(path, JsonUtility.ToJson(state));
+        }
+
+        /// <summary>JSON から Sequence/Short/Song バンクを読み込む（#36）。ファイルが無ければ何もせず false。
+        /// 成功時は index を範囲内へ clamp し、保存時の再生コンテキストへ SelectSequence/SelectSong で復帰、
+        /// _held をクリアし、<see cref="StructureChanged"/> を発火して UI の全面再構築を促す。</summary>
+        public bool LoadShow(string path = null)
+        {
+            path = string.IsNullOrEmpty(path) ? DefaultShowPath : path;
+            if (!File.Exists(path)) return false;
+
+            ShowState state;
+            try { state = JsonUtility.FromJson<ShowState>(File.ReadAllText(path)); }
+            catch (Exception e) { Debug.LogWarning($"[ShowTimeline] LoadShow 失敗（{path}）: {e.Message}"); return false; }
+            if (state == null) return false;
+
+            _sequences = state.sequences ?? new List<Sequence>();
+            _shorts = state.shorts ?? new List<Short>();
+            _songs = state.songs ?? new List<Song>();
+            EnsureSeeded();   // 空のまま渡ってきた場合の安全網（既存内容があれば no-op）
+
+            _activeSequence = Mathf.Clamp(state.activeSequence, 0, Mathf.Max(0, _sequences.Count - 1));
+            _activeShort = Mathf.Clamp(state.activeShort, 0, Mathf.Max(0, _shorts.Count - 1));
+            _activeSongIndex = Mathf.Clamp(state.activeSongIndex, 0, Mathf.Max(0, _songs.Count - 1));
+            _loop = state.loop;
+            _rate = Mathf.Clamp(state.rate, 0f, 4f);
+            _held.Clear();
+
+            if (state.playbackContext == TabKind.Song && _songs.Count > 0) SelectSong(_activeSongIndex);
+            else SelectSequence(_activeSequence);
+
+            StructureChanged?.Invoke();
+            return true;
+        }
+
+        [ContextMenu("Save Show")]
+        void SaveShowFromMenu() => SaveShow();
+
+        [ContextMenu("Load Show")]
+        void LoadShowFromMenu() => LoadShow();
 
         void Start()
         {
