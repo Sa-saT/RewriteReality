@@ -760,6 +760,23 @@ namespace RewriteReality
             _audioSink.SetClip(ac, local);
         }
 
+        /// <summary>ライブラリ項目の総数（左ドックのライブラリ連動・#37）。</summary>
+        public int LibraryCount => _library != null ? _library.Count : 0;
+
+        /// <summary>index のライブラリ項目（範囲外は null・#37）。</summary>
+        public ClipAsset GetLibraryItem(int index) =>
+            (_library != null && index >= 0 && index < _library.Count) ? _library[index] : null;
+
+        /// <summary>アクティブ Short の clip.sourceId を id へ設定する（左ドックからの割当・#37）。
+        /// 次フレームの ApplyBinding で再バインドされるよう _appliedClip を無効化する。</summary>
+        public void AssignShortSource(string id)
+        {
+            var sh = ActiveShort;
+            if (sh == null || sh.clip == null) return;
+            sh.clip.sourceId = id;
+            _appliedClip = null;   // 差分ガードを無効化し、次フレームで確実に再バインドさせる
+        }
+
         VideoClip ResolveVideo(Clip clip)
         {
             if (clip == null || string.IsNullOrEmpty(clip.sourceId) || _library == null) return null;

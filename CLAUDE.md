@@ -224,6 +224,19 @@ RewriteRealityProject/        ← git repo ルート
     自動化は `_autoLoadOnStart`/`_autoSaveOnQuit`（既定 false・opt-in・非破壊）。エディタ確認用に
     `[ContextMenu("Save Show"/"Load Show")]` を用意（**UI ボタン化は ClaudeDesign ハンドオフ待ち**）。
     **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機確認は未**。
+  - **#37＝PERFORM左ドックのライブラリを_library実データ連動（最小版・2026-07-20）**: `ShowTimeline` に
+    `LibraryCount`/`GetLibraryItem(i)`（読み取り）＋`AssignShortSource(id)`（アクティブ Short の
+    `clip.sourceId` 設定・`_appliedClip` 無効化で次フレーム再バインド）を追加。`OperatorShell.uxml` の
+    Sources/Audio Foldout 内の静的プレースホルダ行を `rr-lib-sources-list`/`rr-lib-audio-list` という
+    named コンテナで包み（既存の行構造・USS クラスはそのまま流用・新規コントロールなし）、`OperatorUI.
+    RebuildLibraryDock()` が `_library` に video/audio 実体があるセクションだけをそのコンテナへ実データで
+    再構築する（該当種別が 0 件のセクションは従来のプレースホルダを残す＝空白化回避）。選択ハイライトは
+    既存の汎用選択機構（`WireDockItems`/`SelectionModel`・#3 スライス）をそのまま再利用（新規実装なし）。
+    Short タブ表示中に実ライブラリ行（`_library` に実在する id のみ・プレースホルダ行は無視）を選ぶと
+    `OnSelectionChanged` から `AssignShortSource` を呼びアクティブ Short へ割当、それ以外のタブでは
+    選択ハイライトのみ（割当はしない）。**Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付き
+    コンパイル＝0 エラー確認済み・実機/UI Builder での見た目確認は未**。`Main.unity` の `_library` への
+    クリップ登録はユーザー側。
 
 ## 作業上の注意
 

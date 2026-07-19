@@ -266,6 +266,7 @@ namespace RewriteReality
             BuildTimelineTransport();   // 先に _timeline を解決（Tabs 側の Short 発火が参照する）
             BuildTimelineTabs();
             BuildExitUx();
+            RebuildLibraryDock();
             BuildDockSelection();
 
             _built = true;
@@ -2036,6 +2037,88 @@ namespace RewriteReality
             ("rr-item-scene",         SelectionKind.Scene),
         };
 
+        // PERFORM 左ドックのライブラリ（Sources/Audio）を _library の実データで再構築（#37・最小版）。
+        // 各セクションは該当種別（video/audio）が 1 件も無ければ従来の静的プレースホルダを残す
+        // （見た目の空白化を避ける）。汎用セレクションモデル（#3）本実装までの最小つなぎ。
+        void RebuildLibraryDock()
+        {
+            if (_timeline == null || _root == null) return;
+            int n = _timeline.LibraryCount;
+            if (n == 0) return;
+
+            int videoCount = 0, audioCount = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var a = _timeline.GetLibraryItem(i);
+                if (a == null) continue;
+                if (a.video != null) videoCount++;
+                if (a.audio != null) audioCount++;
+            }
+
+            if (videoCount > 0)
+            {
+                var list = _root.Q<VisualElement>("rr-lib-sources-list");
+                if (list != null)
+                {
+                    list.Clear();
+                    for (int i = 0; i < n; i++)
+                    {
+                        var a = _timeline.GetLibraryItem(i);
+                        if (a == null || a.video == null) continue;
+                        list.Add(BuildLibraryRow("rr-item-source-video", "rr-list-dot--source",
+                            a.id, ShowTimeline.FormatTime(a.video.length)));
+                    }
+                }
+            }
+
+            if (audioCount > 0)
+            {
+                var list = _root.Q<VisualElement>("rr-lib-audio-list");
+                if (list != null)
+                {
+                    list.Clear();
+                    for (int i = 0; i < n; i++)
+                    {
+                        var a = _timeline.GetLibraryItem(i);
+                        if (a == null || a.audio == null) continue;
+                        list.Add(BuildLibraryRow("rr-item-audio-input", "rr-list-dot--audio",
+                            a.id, ShowTimeline.FormatTime(a.audio.length)));
+                    }
+                }
+            }
+        }
+
+        VisualElement BuildLibraryRow(string itemClass, string dotClass, string label, string meta)
+        {
+            var row = new VisualElement();
+            row.AddToClassList("rr-list-item");
+            row.AddToClassList(itemClass);
+            var dot = new VisualElement();
+            dot.AddToClassList("rr-list-dot");
+            dot.AddToClassList(dotClass);
+            row.Add(dot);
+            var lbl = new Label(label);
+            lbl.AddToClassList("rr-list-label");
+            row.Add(lbl);
+            var metaLbl = new Label(meta);
+            metaLbl.AddToClassList("rr-list-meta");
+            metaLbl.AddToClassList("rr-mono");
+            row.Add(metaLbl);
+            return row;
+        }
+
+        /// <summary>id が _library に実在するか（プレースホルダ行の誤割当を避けるガード・#37）。</summary>
+        bool LibraryHasId(string id)
+        {
+            if (_timeline == null || string.IsNullOrEmpty(id)) return false;
+            for (int i = 0; i < _timeline.LibraryCount; i++)
+            {
+                var a = _timeline.GetLibraryItem(i);
+                if (a != null && a.id == id) return true;
+            }
+            return false;
+        }
+
         void BuildDockSelection()
         {
             _dockItems.Clear();
@@ -2083,6 +2166,14 @@ namespace RewriteReality
             }
             RefreshTrackHighlight();   // track 行のハイライトのみ更新（行は作り直さない・U3）
             if (sel.Kind == SelectionKind.Surface) SyncActiveSurfaceFromSelection(sel);   // WARP 対象を選択へ追従（U4）
+            // Short タブ表示中に実ライブラリ項目（Source/Audio）を選ぶとアクティブ Short へ割当（#37・最小版）。
+            // それ以外のタブ／プレースホルダ行（_library 未登録の id）は選択ハイライトのみ。
+            if (_viewKind == ShowTimeline.TabKind.Short &&
+                (sel.Kind == SelectionKind.SourceVideo || sel.Kind == SelectionKind.AudioInput) &&
+                LibraryHasId(sel.Id))
+            {
+                _timeline?.AssignShortSource(sel.Id);
+            }
             RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝Master/Program）
         }
 

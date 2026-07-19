@@ -31,36 +31,40 @@
                         <ui:VisualElement name="rr-banks-list" />
                     </ui:Foldout>
                     <ui:Foldout text="Sources" value="true" class="rr-lib-fold">
-                        <ui:VisualElement class="rr-list-item rr-item-source-video">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
-                            <ui:Label text="reality_base.mov" class="rr-list-label" />
-                            <ui:Label text="03:20" class="rr-list-meta rr-mono" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item rr-item-source-video">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
-                            <ui:Label text="loop_grid.mp4" class="rr-list-label" />
-                            <ui:Label text="00:40" class="rr-list-meta rr-mono" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item rr-item-source-camera">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
-                            <ui:Label text="BlackMagic 1" class="rr-list-label" />
-                            <ui:Label text="1080p" class="rr-list-meta rr-mono" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item rr-item-source-camera">
-                            <ui:Label text="FaceTime HD" class="rr-list-label" />
-                            <ui:Label text="720p" class="rr-list-meta rr-mono" />
+                        <ui:VisualElement name="rr-lib-sources-list">
+                            <ui:VisualElement class="rr-list-item rr-item-source-video">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
+                                <ui:Label text="reality_base.mov" class="rr-list-label" />
+                                <ui:Label text="03:20" class="rr-list-meta rr-mono" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-list-item rr-item-source-video">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
+                                <ui:Label text="loop_grid.mp4" class="rr-list-label" />
+                                <ui:Label text="00:40" class="rr-list-meta rr-mono" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-list-item rr-item-source-camera">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--source" />
+                                <ui:Label text="BlackMagic 1" class="rr-list-label" />
+                                <ui:Label text="1080p" class="rr-list-meta rr-mono" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-list-item rr-item-source-camera">
+                                <ui:Label text="FaceTime HD" class="rr-list-label" />
+                                <ui:Label text="720p" class="rr-list-meta rr-mono" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:Foldout>
                     <ui:Foldout text="Audio" value="false" class="rr-lib-fold">
-                        <ui:VisualElement class="rr-list-item rr-item-audio-input">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--audio" />
-                            <ui:Label text="AudioListener" class="rr-list-label" />
-                            <ui:Label text="mix" class="rr-list-meta rr-mono" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item rr-item-audio-input">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--audio" />
-                            <ui:Label text="BlackHole 2ch" class="rr-list-label" />
-                            <ui:Label text="ext" class="rr-list-meta rr-mono" />
+                        <ui:VisualElement name="rr-lib-audio-list">
+                            <ui:VisualElement class="rr-list-item rr-item-audio-input">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--audio" />
+                                <ui:Label text="AudioListener" class="rr-list-label" />
+                                <ui:Label text="mix" class="rr-list-meta rr-mono" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-list-item rr-item-audio-input">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--audio" />
+                                <ui:Label text="BlackHole 2ch" class="rr-list-label" />
+                                <ui:Label text="ext" class="rr-list-meta rr-mono" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:VisualElement class="rr-list-item rr-item-mapping">
                             <ui:Label text="Low → Feedback" class="rr-list-label" />
