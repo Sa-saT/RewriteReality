@@ -104,6 +104,7 @@ namespace RewriteReality
         {
             public string id = "";
             public VideoClip video;
+            public AudioClip audio;
         }
 
         [Header("Sequence（マルチトラックバンク・リニア通し・旧称 Song）")]
@@ -133,6 +134,8 @@ namespace RewriteReality
         [Header("バインド（opt-in・未設定なら純トランスポート）")]
         [Tooltip("アクティブな映像クリップを流し込む先。null なら映像を差し替えない。")]
         [SerializeField] SourceVideo _videoSink;
+        [Tooltip("解決済み再生ヘッドの Audio トラックを流し込む先（M13・#28a）。null なら音声を鳴らさない。")]
+        [SerializeField] SourceAudio _audioSink;
         [Tooltip("クリップの sourceId → 実アセットの対応表。")]
         [SerializeField] List<ClipAsset> _library = new List<ClipAsset>();
 
@@ -156,11 +159,15 @@ namespace RewriteReality
 
         // バインドの適用済み参照（差分時のみ差し替え＝ヒッチ/GC 回避）。
         Clip _appliedClip;
+        Clip _appliedAudioClip;
 
         // Short Hold-Loop 実挙動（#27c）。
         bool _shortRestartPending;   // 次の ApplyBinding で「同一クリップでも頭出し」を強制するフラグ（HoldStart が立てる）
         Short _prevTopShort;         // 直前フレームの TopShort（Short⇄Sequence 遷移検知・Loop 退避復元用）
         bool _savedSinkLoop;         // Short 表示に入る直前の _videoSink.Loop（退避・離脱時に復元）
+
+        // 音声バインド（#28a）。Seek/Rewind 直後は同一クリップでも time を playhead へ合わせ直す必要がある。
+        bool _audioResyncPending;    // Seek/Rewind が立てる・ApplyBinding が消費して AudioSource.time を再同期
 
         /// <summary>再生状態が変わったとき発火（UI のボタン表示更新用）。</summary>
         public event Action PlayStateChanged;
@@ -459,10 +466,10 @@ namespace RewriteReality
         public void TogglePlay() => SetPlaying(!_playing);
 
         /// <summary>先頭へ（既に先頭付近なら据え置き）。UI の ⏮ 相当。</summary>
-        public void Rewind() { _time = 0.0; }
+        public void Rewind() { _time = 0.0; _audioResyncPending = true; }
 
         /// <summary>0..1 で頭出し（ドラッグ/クリックシーク用）。</summary>
-        public void SeekNormalized(float t) { _time = Mathf.Clamp01(t) * Length; }
+        public void SeekNormalized(float t) { _time = Mathf.Clamp01(t) * Length; _audioResyncPending = true; }
 
         void SetPlaying(bool on)
         {
@@ -603,16 +610,52 @@ namespace RewriteReality
             }
             _prevTopShort = top;
 
+            ApplyAudioBinding(force);   // 音声は映像クリップ変更の有無に関わらず毎フレーム反映（Loop/Speed/再生状態）
+
             if (!changed) return;
             _appliedClip = clip;
 
             ActiveVideoClipChanged?.Invoke(clip);
 
-            if (_videoSink == null) return;               // opt-out：純トランスポート
-            var vc = ResolveVideo(clip);
-            if (vc == null) return;                        // 未解決時は現状維持（差し替えない）
-            _videoSink.SetClip(vc);
-            if (top != null && restartPending) _videoSink.Restart();   // 同一クリップの再発火でも頭出し
+            if (_videoSink != null)
+            {
+                var vc = ResolveVideo(clip);
+                if (vc != null)
+                {
+                    _videoSink.SetClip(vc);
+                    if (top != null && restartPending) _videoSink.Restart();   // 同一クリップの再発火でも頭出し
+                }
+            }
+        }
+
+        /// <summary>Audio トラックの内部再生バインド（M13・#28a）。Short 押下中も音声レイヤーは持たず
+        /// Sequence/Song 側を継続する（docs/07b §3.5.2）。Loop 退避/頭出しは映像専用（Short 用）で行わない。</summary>
+        void ApplyAudioBinding(bool force)
+        {
+            if (_audioSink == null) return;   // opt-out：純トランスポート
+
+            var clip = ResolvedClipAt(TrackKind.Audio);
+            bool changed = force || !ReferenceEquals(clip, _appliedAudioClip);
+
+            _audioSink.Loop = _loop;
+            _audioSink.Speed = _rate;
+            bool shouldPlay = _playing && _rate > 0.0001f;
+            _audioSink.SetPlaying(shouldPlay);
+
+            bool resync = _audioResyncPending;
+            _audioResyncPending = false;
+
+            if (!changed)
+            {
+                if (resync && clip != null) _audioSink.SetTime(_phLocalTime - clip.start);
+                return;
+            }
+            _appliedAudioClip = clip;
+
+            var ac = ResolveAudio(clip);
+            if (ac == null) return;   // 未解決時は現状維持（差し替えない）
+            double local = clip != null ? _phLocalTime - clip.start : 0d;
+            _audioSink.SetClip(ac, local);
         }
 
         VideoClip ResolveVideo(Clip clip)
@@ -625,6 +668,18 @@ namespace RewriteReality
             }
             return null;
         }
+
+        AudioClip ResolveAudio(Clip clip)
+        {
+            if (clip == null || string.IsNullOrEmpty(clip.sourceId) || _library == null) return null;
+            for (int i = 0; i < _library.Count; i++)
+            {
+                var a = _library[i];
+                if (a != null && a.id == clip.sourceId) return a.audio;
+            }
+            return null;
+        }
+
 
         /// <summary>解決済み再生ヘッド（<see cref="_phSeq"/>/<see cref="_phLocalTime"/>・
         /// Update() で毎フレーム <see cref="ResolvePlayhead"/> が更新）でのクリップ検索。#27b。</summary>
