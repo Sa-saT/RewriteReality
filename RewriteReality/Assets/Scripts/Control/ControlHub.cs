@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace RewriteReality
@@ -14,6 +16,8 @@ namespace RewriteReality
         [SerializeField] EffectChain _effectChain;
         [Tooltip("Master Speed を sequence トランスポートへ反映する先（未設定なら自動取得）")]
         [SerializeField] ShowTimeline _timeline;
+        [Tooltip("起動時に MIDI マップ（CC/Note 割当）を自動読込する（opt-in・#M7）")]
+        [SerializeField] bool _autoLoadMidiMap = false;
 
         static readonly IReadOnlyList<EffectBase> _empty = new EffectBase[0];
 
@@ -21,6 +25,7 @@ namespace RewriteReality
         {
             if (_effectChain == null) _effectChain = FindFirstObjectByType<EffectChain>();
             if (_timeline == null) _timeline = FindFirstObjectByType<ShowTimeline>();
+            if (_autoLoadMidiMap) LoadMidiMap();
         }
 
         // ---- Master/Program（右 Inspector 無選択時・§4a・U1）----
@@ -101,6 +106,149 @@ namespace RewriteReality
         {
             var p = SelectedParameter;
             if (p != null) p.Normalized = normalized;
+        }
+
+        // ===== MIDI 抽象マッピング（M7・CC/Note ラーン・docs/07 §2）=====
+        // コントローラ非依存の原則を保つため、CC/Note 番号は「番号→(effect,param)」のマップとしてのみ
+        // 扱い、エフェクト側には一切埋め込まない。ラーンで割当を作る（現場で任意 CC を任意パラメータへ）。
+
+        [Serializable] public struct MidiCcBinding   { public int cc;   public int effect; public int param; }
+        [Serializable] public struct MidiNoteBinding { public int note; public int effect; }
+
+        [Serializable]
+        sealed class MidiMapState
+        {
+            public List<MidiCcBinding> cc = new List<MidiCcBinding>();
+            public List<MidiNoteBinding> note = new List<MidiNoteBinding>();
+        }
+
+        readonly Dictionary<int, (int fx, int param)> _ccMap = new Dictionary<int, (int, int)>();
+        readonly Dictionary<int, int> _noteMap = new Dictionary<int, int>();
+        bool _learning;
+
+        /// <summary>MIDI ラーン待機中か（次に触れた CC/Note を現在の選択へ割り当てる）。</summary>
+        public bool IsLearning => _learning;
+
+        /// <summary>ラーン状態 / マップが変わったとき発火（UI 表示更新用）。</summary>
+        public event Action MidiMapChanged;
+
+        /// <summary>ラーン開始：次に受けた CC を選択中パラメータへ、Note を選択中エフェクトの ON/OFF へ割当。</summary>
+        public void BeginMidiLearn() { _learning = true; MidiMapChanged?.Invoke(); }
+
+        /// <summary>ラーン中止。</summary>
+        public void CancelMidiLearn() { if (!_learning) return; _learning = false; MidiMapChanged?.Invoke(); }
+
+        /// <summary>CC を受信（MidiControl から・値は 0..1）。ラーン中なら現在の選択へ割当、以後はマップに従う。</summary>
+        public void ApplyMidiCc(int cc, float normalized)
+        {
+            if (_learning)
+            {
+                _ccMap[cc] = (SelectedEffect, SelectedParam);
+                _learning = false;
+                MidiMapChanged?.Invoke();
+            }
+            if (_ccMap.TryGetValue(cc, out var b))
+            {
+                var p = GetParameter(b.fx, b.param);
+                if (p != null) p.Normalized = normalized;
+            }
+        }
+
+        /// <summary>Note を受信（MidiControl から）。ラーン中の note-on は現在の選択エフェクトへ割当、
+        /// 以後は note-on でそのエフェクトを ON/OFF トグルする（note-off は無視）。</summary>
+        public void ApplyMidiNote(int note, bool on)
+        {
+            if (!on) return;
+            if (_learning)
+            {
+                _noteMap[note] = SelectedEffect;
+                _learning = false;
+                MidiMapChanged?.Invoke();
+                return;
+            }
+            if (_noteMap.TryGetValue(note, out int fx)) ToggleEffect(fx);
+        }
+
+        /// <summary>CC 割当を解除。</summary>
+        public void ClearMidiCc(int cc) { if (_ccMap.Remove(cc)) MidiMapChanged?.Invoke(); }
+
+        /// <summary>全 MIDI 割当を解除。</summary>
+        public void ClearAllMidiBindings()
+        {
+            if (_ccMap.Count == 0 && _noteMap.Count == 0) return;
+            _ccMap.Clear(); _noteMap.Clear();
+            MidiMapChanged?.Invoke();
+        }
+
+        // ===== OSC 受信（M7・OscControl から・docs/07 §3）=====
+        // アドレス例: /rr/master 0.8 / /rr/fade 0 / /rr/bpm 128 / /rr/speed 1
+        //            /rr/fx/<slug>/<paramslug> 0.7 / /rr/fx/<slug>/enabled 1
+        // <slug> は EffectBase.Name を小文字化しスペースを '-' に（<paramslug> も同様）。
+
+        /// <summary>グローバル OSC 値を反映（address 末尾セグメントで分岐）。既知キーなら true。
+        /// master/fade は 0..1、speed は 0..4、bpm は実 BPM をそのまま受ける。</summary>
+        public bool ApplyOscGlobal(string key, float value)
+        {
+            switch (key)
+            {
+                case "master": Master = value; return true;
+                case "fade":   FadeToBlack = value; return true;
+                case "bpm":    Bpm = value; return true;
+                case "speed":  MasterSpeed = value; return true;
+                default: return false;
+            }
+        }
+
+        /// <summary>/rr/fx/&lt;slug&gt;/&lt;param&gt; を反映。paramSlug=="enabled" は ON/OFF（value>=0.5）、
+        /// それ以外は同名（slug 一致）パラメータへ正規化値を設定。解決できたら true。</summary>
+        public bool ApplyOscFx(string fxSlug, string paramSlug, float value)
+        {
+            var fx = FindEffectBySlug(fxSlug);
+            if (fx == null) return false;
+            if (paramSlug == "enabled") { fx.enabled = value >= 0.5f; return true; }
+            var ps = fx.Parameters;
+            for (int i = 0; i < ps.Count; i++)
+                if (Slugify(ps[i].Name) == paramSlug) { ps[i].Normalized = value; return true; }
+            return false;
+        }
+
+        EffectBase FindEffectBySlug(string slug)
+        {
+            for (int i = 0; i < Count; i++)
+            {
+                var fx = Effects[i];
+                if (fx != null && Slugify(fx.Name) == slug) return fx;
+            }
+            return null;
+        }
+
+        /// <summary>名前をアドレス用スラグに（小文字・スペース→'-'）。OSC 送信側と規約を合わせる。</summary>
+        public static string Slugify(string s) => string.IsNullOrEmpty(s) ? "" : s.ToLowerInvariant().Replace(' ', '-');
+
+        // ===== MIDI マップの永続化（opt-in・現場ごとのコントローラ割当を保存）=====
+        static string MidiMapPath => Path.Combine(Application.persistentDataPath, "midimap.json");
+
+        [ContextMenu("Save MIDI Map")]
+        public void SaveMidiMap()
+        {
+            var st = new MidiMapState();
+            foreach (var kv in _ccMap)   st.cc.Add(new MidiCcBinding { cc = kv.Key, effect = kv.Value.fx, param = kv.Value.param });
+            foreach (var kv in _noteMap) st.note.Add(new MidiNoteBinding { note = kv.Key, effect = kv.Value });
+            File.WriteAllText(MidiMapPath, JsonUtility.ToJson(st));
+        }
+
+        [ContextMenu("Load MIDI Map")]
+        public void LoadMidiMap()
+        {
+            if (!File.Exists(MidiMapPath)) return;
+            MidiMapState st;
+            try { st = JsonUtility.FromJson<MidiMapState>(File.ReadAllText(MidiMapPath)); }
+            catch (Exception e) { Debug.LogWarning($"[ControlHub] LoadMidiMap 失敗: {e.Message}"); return; }
+            if (st == null) return;
+            _ccMap.Clear(); _noteMap.Clear();
+            if (st.cc != null)   foreach (var b in st.cc)   _ccMap[b.cc] = (b.effect, b.param);
+            if (st.note != null) foreach (var b in st.note) _noteMap[b.note] = b.effect;
+            MidiMapChanged?.Invoke();
         }
     }
 }
