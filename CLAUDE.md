@@ -253,6 +253,13 @@ RewriteRealityProject/        ← git repo ルート
     自前ルーティング**（`OscDataHandle` はコールバック内でのみ有効な共有バッファのため float を即取り出す）。
     **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機
     （MIDI コントローラ/OSC 送信元）検証は未**。シーンへの `MidiControl`/`OscControl` 配置はユーザー側。
+    - **⚠ 完成時 TODO（MIDI ハードウェア未所持ゆえの暫定対応・2026-07-20）**: 現状 MIDI 経路は**実機で
+      未検証**。物理コントローラが無いため、検証は **macOS IAC ドライバ（仮想 MIDI バス）＋ Python 送信
+      スクリプト**で代替する前提（手順・スクリプト＝`tools/control-test/`・README 参照）。また **MIDI ラーンは
+      専用 UI が未実装**で、暫定的に `ControlHub` の `[ContextMenu]`（Begin/Cancel MIDI Learn 等）から起動する
+      “仮”トリガーになっている。**App 完成前に、①実機 MIDI コントローラ（nanoKONTROL / APC mini 等）での動作確認、
+      ②ラーンの正式 UI 化（ContextMenu 依存の解消）**を必ず行うこと。OSC 経路は `tools/control-test/osc_test.py`
+      でハードウェア無しに検証可能（実装は共通の `ControlHub` を通るため MIDI 側の実機確認の代替にも一部なる）。
 
 ## 作業上の注意
 
