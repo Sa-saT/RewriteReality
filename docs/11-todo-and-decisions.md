@@ -48,7 +48,7 @@
 
 ### M7. 操作・運用
 - [ ] パラメータの ScriptableObject 化＋オペレータ UI
-- [ ] MIDI ラーン（Minis）/ OSC 受信（OscJack, BPM/シーン）
+- [x] MIDI ラーン（Minis）/ OSC 受信（OscJack, BPM/シーン） ＝ #M7 実装済（2026-07-20・`ControlHub`＋`MidiControl`/`OscControl`・コンパイル0エラー・実機検証は未）
 - [ ] プリセット保存/読込・シーン切替
 
 ### M8. 仕上げ

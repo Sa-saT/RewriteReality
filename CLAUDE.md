@@ -237,6 +237,22 @@ RewriteRealityProject/        ← git repo ルート
     選択ハイライトのみ（割当はしない）。**Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付き
     コンパイル＝0 エラー確認済み・実機/UI Builder での見た目確認は未**。`Main.unity` の `_library` への
     クリップ登録はユーザー側。
+  - **#M7＝MIDI(Minis)/OSC(OscJack) 実機コントロール入力層（2026-07-20・branch `feat/m7-midi-osc-control`）**:
+    本番のライブ操作（docs/07 §2/§3）。コントローラ非依存の抽象マッピングを `ControlHub` に実装し、
+    Minis/OscJack の入力を橋渡しする **opt-in コンポーネント**（`KeyboardControl` と同型・シーン未配置なら
+    非破壊）を追加。**`ControlHub`**＝CC/Note マッピング表（番号→(effect,param)/(effect)・エフェクト側に
+    番号を埋めない）＋**MIDI ラーン**（`BeginMidiLearn`→次に触れた CC を選択中パラメータへ、Note を選択中
+    エフェクトの ON/OFF へ割当）、`ApplyMidiCc`/`ApplyMidiNote`、OSC 解決ヘルパ `ApplyOscGlobal`
+    （master/fade/bpm/speed）/`ApplyOscFx`（`/rr/fx/<slug>/<param>`・`enabled`）、`Slugify`（Name→slug）、
+    MIDI マップの JSON 保存/読込（`persistentDataPath/midimap.json`・`_autoLoadMidiMap` opt-in・ContextMenu）。
+    **`MidiControl`**＝`InputSystem.onDeviceChange` で Minis `MidiDevice` を発見し `onWillControlChange`/
+    `onWillNoteOn`/`onWillNoteOff` を購読（値は will イベント引数の float を使う＝コントロール状態は確定前・
+    Minis 実装準拠・デバイス着脱に live 追従）。**`OscControl`**＝`OscServer(port)` を待ち受け、OscJack は
+    ワーカースレッドで dispatch かつ完全一致のみのため **monitor コールバック（空アドレス）で全受信→
+    (address,float) をスレッドセーフキューへ積み、`Update()`（メインスレッド）でドレインして `/rr/...` を
+    自前ルーティング**（`OscDataHandle` はコールバック内でのみ有効な共有バッファのため float を即取り出す）。
+    **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機
+    （MIDI コントローラ/OSC 送信元）検証は未**。シーンへの `MidiControl`/`OscControl` 配置はユーザー側。
 
 ## 作業上の注意
 
