@@ -1,0 +1,7 @@
+# RewriteReality control-test 送信スクリプトの依存（#M7 実機確認用）
+# 導入例:
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -r tools/control-test/requirements.txt
+python-osc>=1.8
+mido>=1.3
+python-rtmidi>=1.5

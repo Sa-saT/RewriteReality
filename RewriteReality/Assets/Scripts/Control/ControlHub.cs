@@ -132,10 +132,13 @@ namespace RewriteReality
         /// <summary>ラーン状態 / マップが変わったとき発火（UI 表示更新用）。</summary>
         public event Action MidiMapChanged;
 
-        /// <summary>ラーン開始：次に受けた CC を選択中パラメータへ、Note を選択中エフェクトの ON/OFF へ割当。</summary>
+        /// <summary>ラーン開始：次に受けた CC を選択中パラメータへ、Note を選択中エフェクトの ON/OFF へ割当。
+        /// UI トリガー未実装のため、実機検証時は Inspector の ContextMenu からも起動できる（#M7）。</summary>
+        [ContextMenu("Begin MIDI Learn")]
         public void BeginMidiLearn() { _learning = true; MidiMapChanged?.Invoke(); }
 
         /// <summary>ラーン中止。</summary>
+        [ContextMenu("Cancel MIDI Learn")]
         public void CancelMidiLearn() { if (!_learning) return; _learning = false; MidiMapChanged?.Invoke(); }
 
         /// <summary>CC を受信（MidiControl から・値は 0..1）。ラーン中なら現在の選択へ割当、以後はマップに従う。</summary>
@@ -173,6 +176,7 @@ namespace RewriteReality
         public void ClearMidiCc(int cc) { if (_ccMap.Remove(cc)) MidiMapChanged?.Invoke(); }
 
         /// <summary>全 MIDI 割当を解除。</summary>
+        [ContextMenu("Clear All MIDI Bindings")]
         public void ClearAllMidiBindings()
         {
             if (_ccMap.Count == 0 && _noteMap.Count == 0) return;
