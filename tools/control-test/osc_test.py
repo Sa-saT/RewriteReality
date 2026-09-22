@@ -28,6 +28,8 @@ KNOWN_ADDRESSES = [
     ("/rr/fade", "0..1", "Fade to Black"),
     ("/rr/bpm", "実BPM 例:128", "BPM"),
     ("/rr/speed", "0..4", "Master Speed（ShowTimeline.Rate へ）"),
+    ("/rr/scene", "index 例:0", "シーン発火（index 番・SceneBank・#38）"),
+    ("/rr/scene/<name|index>", "1 で発火", "シーン発火（名前 slug または index・#38）"),
     ("/rr/fx/rgb-shift/mix", "0..1", "RGB Shift ミックス"),
     ("/rr/fx/rgb-shift/amount", "0..1(正規化)", "RGB Shift 量"),
     ("/rr/fx/rgb-shift/angle", "0..1(正規化)", "RGB Shift 角度"),

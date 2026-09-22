@@ -18,6 +18,8 @@ namespace RewriteReality
         [SerializeField] ShowTimeline _timeline;
         [Tooltip("起動時に MIDI マップ（CC/Note 割当）を自動読込する（opt-in・#M7）")]
         [SerializeField] bool _autoLoadMidiMap = false;
+        [Tooltip("OSC のシーン発火先（未設定なら自動取得・不在ならシーン系アドレスは無視・#38）")]
+        [SerializeField] SceneBank _scenes;
 
         static readonly IReadOnlyList<EffectBase> _empty = new EffectBase[0];
 
@@ -25,6 +27,7 @@ namespace RewriteReality
         {
             if (_effectChain == null) _effectChain = FindFirstObjectByType<EffectChain>();
             if (_timeline == null) _timeline = FindFirstObjectByType<ShowTimeline>();
+            if (_scenes == null) _scenes = FindFirstObjectByType<SceneBank>();
             if (_autoLoadMidiMap) LoadMidiMap();
         }
 
@@ -199,6 +202,11 @@ namespace RewriteReality
                 case "fade":   FadeToBlack = value; return true;
                 case "bpm":    Bpm = value; return true;
                 case "speed":  MasterSpeed = value; return true;
+                // /rr/scene <index>：index 番のシーンを発火（0 始まり・#38）
+                case "scene":
+                    if (_scenes == null) return false;
+                    _scenes.Fire(Mathf.RoundToInt(value));
+                    return true;
                 default: return false;
             }
         }
@@ -213,6 +221,28 @@ namespace RewriteReality
             var ps = fx.Parameters;
             for (int i = 0; i < ps.Count; i++)
                 if (Slugify(ps[i].Name) == paramSlug) { ps[i].Normalized = value; return true; }
+            return false;
+        }
+
+        /// <summary>/rr/scene/&lt;name-slug|index&gt; を反映（value&gt;=0.5 で発火・押し離しの 0 は無視）。
+        /// 解決できたら true（#38・docs/07 「OSC 受信（BPM/シーン）」）。</summary>
+        public bool ApplyOscScene(string target, float value)
+        {
+            if (_scenes == null || string.IsNullOrEmpty(target)) return false;
+            if (value < 0.5f) return true;   // ボタンの離し（0）は発火しない＝無視だが既知アドレス
+
+            if (int.TryParse(target, out int index))
+            {
+                if (index < 0 || index >= _scenes.Count) return false;
+                _scenes.Fire(index);
+                return true;
+            }
+
+            for (int i = 0; i < _scenes.Count; i++)
+            {
+                var sc = _scenes.Get(i);
+                if (sc != null && Slugify(sc.name) == target) { _scenes.Fire(i); return true; }
+            }
             return false;
         }
 

@@ -65,6 +65,10 @@ python3 tools/control-test/osc_test.py --list-addresses
 - エフェクト: `/rr/fx/<slug>/<param>`（値は正規化 0..1）／`/rr/fx/<slug>/enabled`（0 か 1）
   - slug 例: `rgb-shift` `color-grade` `block-glitch` `feedback`
   - param 例: `mix` `amount` `angle` `exposure` `saturation` `intensity` `decay` `zoom`
+- シーン発火（#38・`SceneBank` 配置時のみ）: `/rr/scene <index>` ／ `/rr/scene/<name-slug|index> 1`
+  - 例: `python3 tools/control-test/osc_test.py /rr/scene 1`（2 番目のシーンを発火）
+  - 例: `python3 tools/control-test/osc_test.py /rr/scene/drop-01 1`（名前 slug で発火）
+  - `/rr/master` と `/rr/fade` は **出力に実効**（`MasterOut` 段）。`/rr/fade 1` で黒まで落ちる。
 
 ---
 

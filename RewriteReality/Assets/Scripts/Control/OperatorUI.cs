@@ -19,6 +19,10 @@ namespace RewriteReality
         [SerializeField] ControlHub _hub;
         [Tooltip("preview に映す最終 RT の供給元（未指定なら自動取得）")]
         [SerializeField] EffectChain _chain;
+        [Tooltip("プレビュー元（Master/Fade 適用後の最終 RT）。未設定なら自動取得（#38）")]
+        [SerializeField] Manager _manager;
+        [Tooltip("シーン（プリセット）バンク。未配置なら Scenes は従来のプレースホルダ表示（#38）")]
+        [SerializeField] SceneBank _sceneBank;
         [Tooltip("上バー OUTPUT メニューの対象（未指定なら自動取得）")]
         [SerializeField] OutputManager _output;
         [Tooltip("WARP 編集オーバーレイの対象（埋め込み合成・未指定なら自動取得）")]
@@ -217,6 +221,15 @@ namespace RewriteReality
             if (_surfaces == null) _surfaces = FindFirstObjectByType<SurfaceManager>();
             if (_appMode == null) _appMode = FindFirstObjectByType<AppMode>();
             if (_outputWarp == null) _outputWarp = FindFirstObjectByType<OutputWarp>();
+            if (_manager == null) _manager = FindFirstObjectByType<Manager>();
+            if (_sceneBank == null) _sceneBank = FindFirstObjectByType<SceneBank>();
+        }
+
+        // プレビューは Master/Fade 適用後（Manager.FinalTexture）を優先し、無ければ EffectChain の結果（#38）。
+        Texture ProgramTexture()
+        {
+            if (_manager != null && _manager.FinalTexture != null) return _manager.FinalTexture;
+            return _chain != null ? _chain.FinalTexture : null;
         }
 
         void OnEnable()
@@ -268,6 +281,12 @@ namespace RewriteReality
             BuildExitUx();
             RebuildLibraryDock();
             BuildDockSelection();
+
+            if (_sceneBank != null)
+            {
+                _sceneBank.ScenesChanged -= OnScenesChanged;
+                _sceneBank.ScenesChanged += OnScenesChanged;
+            }
 
             _built = true;
             _builtEffectCount = -1;   // 次の LateUpdate で FX 一覧を構築
@@ -2042,7 +2061,11 @@ namespace RewriteReality
         // （見た目の空白化を避ける）。汎用セレクションモデル（#3）本実装までの最小つなぎ。
         void RebuildLibraryDock()
         {
-            if (_timeline == null || _root == null) return;
+            if (_root == null) return;
+
+            RebuildScenesDock();   // Scenes は SceneBank 由来（_library とは独立・#38）
+
+            if (_timeline == null) return;
             int n = _timeline.LibraryCount;
             if (n == 0) return;
 
@@ -2087,6 +2110,34 @@ namespace RewriteReality
                 }
             }
         }
+
+        // PERFORM 左ドックの Scenes を SceneBank の実データで再構築（#38）。
+        // SceneBank 未配置 or 0 件なら従来の静的プレースホルダを残す（見た目の空白化を避ける）。
+        void RebuildScenesDock()
+        {
+            if (_sceneBank == null || _sceneBank.Count == 0) return;
+            var list = _root.Q<VisualElement>("rr-lib-scenes-list");
+            if (list == null) return;
+
+            list.Clear();
+            for (int i = 0; i < _sceneBank.Count; i++)
+            {
+                var sc = _sceneBank.Get(i);
+                if (sc == null) continue;
+                list.Add(BuildLibraryRow("rr-item-scene", "rr-list-dot--scene", sc.name, TriggerLabel(sc)));
+            }
+        }
+
+        /// <summary>シーンの発火割当の表示（PAD 優先・未割当は「·」）。</summary>
+        static string TriggerLabel(SceneState sc)
+        {
+            if (sc == null) return "·";
+            if (sc.pad >= 0) return "PAD " + (sc.pad + 1);
+            return string.IsNullOrEmpty(sc.key) ? "·" : sc.key;
+        }
+
+        /// <summary>SceneBank に実在するシーン名か（プレースホルダ行の誤操作を避けるガード・#38）。</summary>
+        bool SceneBankHas(string id) => _sceneBank != null && _sceneBank.IndexOf(id) >= 0;
 
         VisualElement BuildLibraryRow(string itemClass, string dotClass, string label, string meta)
         {
@@ -2174,6 +2225,8 @@ namespace RewriteReality
             {
                 _timeline?.AssignShortSource(sel.Id);
             }
+            if (sel.Kind == SelectionKind.Scene && SceneBankHas(sel.Id))
+                _sceneBank.Select(_sceneBank.IndexOf(sel.Id));   // 選択シーンを記録（発火はしない・#38）
             RebuildInspector();   // 選択に応じて Inspector を出し分け（無選択＝Master/Program）
         }
 
@@ -2398,16 +2451,40 @@ namespace RewriteReality
             if (_inspectorTitle != null) _inspectorTitle.text = sel.Id;
             AddSectionLabel(sel.Id, StagePill("SCENE", "scene"));
 
-            AddSliderRow("Fade In", 0.5f, 0f, 5f, "s", false, v => { });
-            AddSliderRow("Fade Out", 1.2f, 0f, 5f, "s", false, v => { });
+            int index = _sceneBank != null ? _sceneBank.IndexOf(sel.Id) : -1;
+            var scene = _sceneBank != null ? _sceneBank.Get(index) : null;
+
+            if (scene == null)
+            {
+                // SceneBank 未配置 or プレースホルダ行＝従来どおり読み取り専用（発火/保存は無効）。
+                AddSliderRow("Fade In", 0.5f, 0f, 5f, "s", false, v => { });
+                AddSliderRow("Fade Out", 1.2f, 0f, 5f, "s", false, v => { });
+                AddSectionLabel("Trigger");
+                AddInfoRow("Key", "·");
+                AddToggleRow("Hold", false, v => { });
+                AddButtonRow(
+                    MakeButton("Fire", "primary", null, enabled: false),
+                    MakeButton("Save", "secondary", null, enabled: false),
+                    MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+                var hint = new Label("SceneBank 未配置：シーンの発火/保存は無効（シーンに SceneBank を置くと有効・#38）");
+                hint.AddToClassList("rr-hint");
+                _inspector.Add(hint);
+                return;
+            }
+
+            // 保存（現在の状態の取り込み）は構成変更＝準備 Edit のみ。発火は本番 Live でも可。
+            bool canSave = _appMode == null || _appMode.CanEditStructure;
+
+            AddSliderRow("Fade In", scene.fadeIn, 0f, 5f, "s", false, v => scene.fadeIn = v);
+            AddSliderRow("Fade Out", scene.fadeOut, 0f, 5f, "s", false, v => scene.fadeOut = v);
 
             AddSectionLabel("Trigger");
-            AddInfoRow("Key", "PAD 4");
-            AddToggleRow("Hold", true, v => { });
+            AddInfoRow("Key", TriggerLabel(scene));
+            AddToggleRow("Hold", scene.hold, v => scene.hold = v);
 
             AddButtonRow(
-                MakeButton("Fire", "primary", null, enabled: false),
-                MakeButton("Save", "secondary", null, enabled: false),
+                MakeButton("Fire", "primary", () => _sceneBank.Fire(index)),
+                MakeButton("Save", "secondary", canSave ? (System.Action)(() => _sceneBank.CaptureInto(index)) : null, enabled: canSave),
                 MakeButton("Deselect", "ghost", () => _selection.Deselect()));
         }
 
@@ -2665,8 +2742,8 @@ namespace RewriteReality
                 v => { if (_hub != null) _hub.MasterSpeed = v; });
 
             string res = "1920×1080";
-            if (_chain != null && _chain.FinalTexture != null)
-                res = _chain.FinalTexture.width + "×" + _chain.FinalTexture.height;
+            var finalTex = ProgramTexture();
+            if (finalTex != null) res = finalTex.width + "×" + finalTex.height;
             AddInfoRow("Output", res);
 
             AddBpmRow(_hub != null ? _hub.Bpm : 128f, v => { if (_hub != null) _hub.Bpm = v; });
@@ -2878,6 +2955,24 @@ namespace RewriteReality
                 _timeline.ShortStateChanged -= RefreshShortHeld;
                 _timeline.StructureChanged -= OnTimelineStructureChanged;
             }
+            if (_sceneBank != null) _sceneBank.ScenesChanged -= OnScenesChanged;
+        }
+
+        /// <summary>SceneBank.ScenesChanged 購読先（#38・追加/削除/改名/Load 時）。
+        /// Scenes 一覧を作り直し、行の選択配線と Inspector を追随させる。</summary>
+        void OnScenesChanged()
+        {
+            RebuildScenesDock();
+
+            // 選択配線は「作り直した行」だけに張り直す（全体に BuildDockSelection を掛けると
+            // 既存行のハンドラが二重登録になり、同一項目クリックのトグル解除と衝突するため）。
+            var list = _root != null ? _root.Q<VisualElement>("rr-lib-scenes-list") : null;
+            if (list != null)
+            {
+                _dockItems.RemoveAll(d => d.kind == SelectionKind.Scene);
+                WireDockItems(list);
+            }
+            RebuildInspector();
         }
 
         /// <summary>ShowTimeline.StructureChanged 購読先（#36・LoadShow 成功時）。
@@ -2947,7 +3042,7 @@ namespace RewriteReality
                 // OUTPUT warp 編集中は、見たまま調整できるよう変形後 RT を表示（無ければ Final RT）。
                 Texture rt = null;
                 if (_warpOutputMode && _outputWarp != null && _outputWarp.Active) rt = _outputWarp.Output;
-                if (rt == null && _chain != null) rt = _chain.FinalTexture;
+                if (rt == null) rt = ProgramTexture();
                 if (rt != null && _preview.image != rt) _preview.image = rt;
             }
 
@@ -2958,8 +3053,9 @@ namespace RewriteReality
                 if (_sourceCamera != null && _sourceCamera.Texture != null && _mapPreviewIn.image != _sourceCamera.Texture)
                     _mapPreviewIn.image = _sourceCamera.Texture;
             }
-            if (_mapPreviewOut != null && _chain != null && _chain.FinalTexture != null && _mapPreviewOut.image != _chain.FinalTexture)
-                _mapPreviewOut.image = _chain.FinalTexture;
+            var programTex = ProgramTexture();
+            if (_mapPreviewOut != null && programTex != null && _mapPreviewOut.image != programTex)
+                _mapPreviewOut.image = programTex;
         }
 
         void UpdateFps()

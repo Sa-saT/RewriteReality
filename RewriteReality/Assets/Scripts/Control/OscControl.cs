@@ -12,6 +12,7 @@ namespace RewriteReality
     /// アドレス規約（先頭 <c>/rr/</c>）:
     ///   <c>/rr/master</c> 0..1 ／ <c>/rr/fade</c> 0..1 ／ <c>/rr/bpm</c> 実BPM ／ <c>/rr/speed</c> 0..4
     ///   <c>/rr/fx/&lt;slug&gt;/&lt;param&gt;</c> 0..1 ／ <c>/rr/fx/&lt;slug&gt;/enabled</c> 0|1
+    ///   <c>/rr/scene</c> index ／ <c>/rr/scene/&lt;name-slug|index&gt;</c> 1（シーン発火・#38）
     ///   &lt;slug&gt; は EffectBase.Name を小文字化しスペースを '-' に（<see cref="ControlHub.Slugify"/>）。
     ///
     /// スレッド境界: OscJack の <see cref="OscServer"/> は専用ワーカースレッドでメッセージを受け、
@@ -88,6 +89,8 @@ namespace RewriteReality
             bool ok;
             if (segs[2] == "fx" && segs.Length >= 5)
                 ok = _hub.ApplyOscFx(segs[3], segs[4], value);
+            else if (segs[2] == "scene" && segs.Length >= 4)
+                ok = _hub.ApplyOscScene(segs[3], value);
             else
                 ok = _hub.ApplyOscGlobal(segs[2], value);
 

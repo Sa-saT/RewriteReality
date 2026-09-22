@@ -260,6 +260,25 @@ RewriteRealityProject/        ← git repo ルート
       “仮”トリガーになっている。**App 完成前に、①実機 MIDI コントローラ（nanoKONTROL / APC mini 等）での動作確認、
       ②ラーンの正式 UI 化（ContextMenu 依存の解消）**を必ず行うこと。OSC 経路は `tools/control-test/osc_test.py`
       でハードウェア無しに検証可能（実装は共通の `ControlHub` を通るため MIDI 側の実機確認の代替にも一部なる）。
+  - **#38＝シーン（プリセット）保存/読込/発火 ＋ Master・Fade to Black の実効化（2026-09-22）**:
+    M7 チェック「プリセット保存/読込・シーン切替」を実装。**`MasterOut`**（プレーンクラス＝シーン配線不要）＋
+    `Assets/Shaders/MasterOut.shader`（Always Included 登録済み）を `Manager` の最終段に挿入し、
+    これまで値を保持するだけだった `ControlHub.Master` / `FadeToBlack` を**実際の出力に反映**
+    （Master=1・Fade=0 なら Blit せず素通し＝非破壊）。`Manager.FinalTexture` を公開し、`OperatorUI` の
+    プレビュー/解像度表示は Master/Fade 適用後を見る（`ProgramTexture()`）。**`SceneState`**（Master/BPM/
+    Master Speed＋各エフェクトの enabled/mix/scope/全パラメータ＋fadeIn/fadeOut/key/pad/hold）に
+    `Capture`/`Apply`（突合は `EffectBase.Name`・未知エフェクトは飛ばす）を実装し、`Preset`
+    （ScriptableObject）はこれを1件持つ形へ刷新。**`SceneBank`**（opt-in MonoBehaviour・`ShowTimeline` と同型）＝
+    シーン一覧／発火（黒へ fadeOut → 適用 → fadeIn で復帰・`ControlHub.FadeToBlack` を駆動）／hold は押下中だけ
+    適用し離すと直前状態へ復帰／キー・パッド発火（`ShowTimeline.PadKeyName` を共用）／JSON 永続化
+    （`persistentDataPath/scenes.json`・`_autoLoadOnStart`/`_autoSaveOnQuit` は既定 false）／`ScenesChanged` イベント。
+    **Fade to Black は保存対象外**（安全操作であり見た目ではないため）。UI＝PERFORM 左ドック Scenes を
+    named コンテナ `rr-lib-scenes-list` 経由で実データ再構築（#37 と同じ最小改変・SceneBank 未配置/0件なら
+    従来のプレースホルダ据え置き）、右 Inspector の Scene は Fade In/Out・Trigger(Key/Hold)・**Fire/Save を実配線**
+    （Save は準備 Edit のみ・Fire は Live 可）。OSC は `/rr/scene <index>` ／ `/rr/scene/<name-slug|index> 1` を追加
+    （`ControlHub.ApplyOscScene`・`tools/control-test/` の早見と README も更新）。
+    **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機確認は未**。
+    シーンへの `SceneBank` 配置とシーン登録はユーザー側。
 
 ## 作業上の注意
 
