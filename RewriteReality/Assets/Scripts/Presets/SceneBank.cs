@@ -328,8 +328,15 @@ namespace RewriteReality
             }
         }
 
+        [ContextMenu("Add Scene From Current")]
+        void AddSceneFromMenu() => AddSceneFromCurrent();
+
         [ContextMenu("Capture Current → Active Scene")]
         void CaptureActiveFromMenu() => CaptureInto(ActiveIndex);
+
+        /// <summary>Inspector でリストを直接編集した後、UI（左ドック Scenes）へ反映させる。</summary>
+        [ContextMenu("Notify UI (Scenes Changed)")]
+        public void NotifyScenesChanged() => ScenesChanged?.Invoke();
 
         [ContextMenu("Fire Active Scene")]
         void FireActiveFromMenu() => Fire(ActiveIndex);
