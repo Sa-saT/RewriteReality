@@ -652,6 +652,14 @@
     border-color: var(--rr-hairline-strong);
 }
 
+/* 押下直後の確認表示（Save/Fire などの一時フィードバック・#38）。
+   1 秒ほど semantic-live 緑で塗って「効いた」ことを示し、元の見た目へ戻す。 */
+.rr-btn--done {
+    background-color: var(--rr-live);
+    color: var(--rr-on-primary);
+    border-color: var(--rr-live);
+}
+
 /* ---------------------------------------------------------- Timeline (bottom dock) */
 .rr-timeline {
     height: 208px;   /* タブバー(30px) 追加分を拡張 */
@@ -1539,7 +1547,7 @@
     flex-shrink: 0;
     margin-right: 7px;
     border-radius: 3px;
-    background-color: var(--rr-semantic-live);
+    background-color: var(--rr-live);
 }
 .rr-song-rail-item__name {
     flex-grow: 1;
@@ -1585,8 +1593,8 @@
     border-color: var(--rr-selection);
 }
 /* 再生中カード（#27b・CurrentSongStep 追随）。選択枠(selection)とは独立の状態＝live 色で区別。 */
-.rr-song-card--playing { border-color: var(--rr-semantic-live); }
-.rr-song-card--playing .rr-song-card__idx { color: var(--rr-semantic-live); }
+.rr-song-card--playing { border-color: var(--rr-live); }
+.rr-song-card--playing .rr-song-card__idx { color: var(--rr-live); }
 .rr-song-card__top { flex-direction: row; align-items: center; margin-bottom: 6px; }
 .rr-song-card__idx { font-size: 10px; color: var(--rr-muted); margin-right: 6px; flex-shrink: 0; }
 .rr-song-card--active .rr-song-card__idx { color: var(--rr-selection); }
@@ -1613,8 +1621,8 @@
 .rr-song-card:hover .rr-song-card__pen { color: var(--rr-selection); }
 .rr-song-card--active .rr-song-card__pen { color: var(--rr-selection); }
 .rr-song-card__del { color: var(--rr-muted-soft); }
-.rr-song-card:hover .rr-song-card__del { color: var(--rr-semantic-record); }
-.rr-song-card--active .rr-song-card__del { color: var(--rr-semantic-record); }
+.rr-song-card:hover .rr-song-card__del { color: var(--rr-record); }
+.rr-song-card--active .rr-song-card__del { color: var(--rr-record); }
 .rr-song-card__bottom { flex-direction: row; align-items: center; }
 .rr-song-card__stepbtn {
     width: 22px; height: 22px;

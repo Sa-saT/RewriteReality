@@ -2487,10 +2487,26 @@ namespace RewriteReality
             AddInfoRow("Key", TriggerLabel(scene));
             AddToggleRow("Hold", scene.hold, v => scene.hold = v);
 
-            AddButtonRow(
-                MakeButton("Fire", "primary", () => _sceneBank.Fire(index)),
-                MakeButton("Save", "secondary", canSave ? (System.Action)(() => _sceneBank.CaptureInto(index)) : null, enabled: canSave),
-                MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+            Button fireBtn = null, saveBtn = null;
+            fireBtn = MakeButton("Fire", "primary", () =>
+            {
+                _sceneBank.Fire(index);
+                FlashButton(fireBtn, "FIRED");
+            });
+            saveBtn = MakeButton("Save", "secondary", canSave ? (System.Action)(() =>
+            {
+                _sceneBank.CaptureInto(index);
+                FlashButton(saveBtn, "SAVED");
+            }) : null, enabled: canSave);
+
+            AddButtonRow(fireBtn, saveBtn, MakeButton("Deselect", "ghost", () => _selection.Deselect()));
+
+            // Save の意味（このシーンへの取り込み）と、ファイル永続化の導線を明示（#38）。
+            var note = new Label(canSave
+                ? "Save＝いまの見た目をこのシーンへ上書き（ファイル保存ではありません）。\nファイルへは SceneBank の ⋮ → Save Scenes / 復元は Load Scenes。"
+                : "本番 Live 中は Save 不可（準備 Edit に切替）。Fire は Live でも可。");
+            note.AddToClassList("rr-hint");
+            _inspector.Add(note);
         }
 
         // -------------------------------------------------- surface（U4・MAPPING 左ドックから移設）
@@ -2899,6 +2915,21 @@ namespace RewriteReality
             btn.AddToClassList("rr-btn--" + variant);
             btn.SetEnabled(enabled);
             return btn;
+        }
+
+        /// <summary>押した結果が見た目に出ない操作（Save など）に一時フィードバックを出す（#38）。
+        /// ラベルを差し替えて 1.2 秒 semantic-live 緑で塗り、元へ戻す。</summary>
+        static void FlashButton(Button btn, string doneText, long ms = 1200)
+        {
+            if (btn == null) return;
+            string original = btn.text;
+            btn.text = doneText;
+            btn.AddToClassList("rr-btn--done");
+            btn.schedule.Execute(() =>
+            {
+                btn.text = original;
+                btn.RemoveFromClassList("rr-btn--done");
+            }).ExecuteLater(ms);
         }
 
         void AddButtonRow(params VisualElement[] buttons)

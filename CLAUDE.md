@@ -287,6 +287,13 @@ RewriteRealityProject/        ← git repo ルート
       リストを直接編集した場合も自動で左ドックへ反映（`Notify UI` の ContextMenu は手動用に残置）。
       `ControlHub` の OSC 経路も呼び出し時に遅延解決。なお **Play 中に足したコンポーネントは Play 停止で
       消える**ため、`SceneBank` は必ず **Edit モードで配置してシーンを保存**すること。
+    - **押下フィードバック＋用語の明確化（2026-09-22）**: Scene Inspector の Fire/Save は押しても
+      見た目が変わらず「効いたか分からない」ため、**押下直後に 1.2 秒だけラベルを `FIRED`/`SAVED` に変え
+      `--rr-live` 緑で塗る**（`OperatorUI.FlashButton` ＋ USS `.rr-btn--done`）。`SceneBank.CaptureInto`/`Fire`
+      は Console にも出す（`_logFire`）。あわせて Inspector に「**Save＝いまの見た目をこのシーンへ上書き
+      （ファイル保存ではない）／ファイルは ⋮ → Save Scenes・Load Scenes**」のヒントを表示。
+      ついでに USS の **未定義トークン参照を修正**（`--rr-semantic-live`×5 / `--rr-semantic-record`×2 →
+      実在する `--rr-live` / `--rr-record`。Song 再生中カードの緑枠などが無効化されていた）。
 
 ## 作業上の注意
 

@@ -33,6 +33,9 @@ namespace RewriteReality
         [Tooltip("キー/パッド発火を受け付ける（本番で無効化したい場合は OFF）")]
         [SerializeField] bool _enableTriggers = true;
 
+        [Tooltip("発火を Console に出す（配線確認用・本番は OFF 推奨）")]
+        [SerializeField] bool _logFire = true;
+
         // ---- フェード状態機械 ----
         enum FadePhase { None, Out, In }
         FadePhase _phase = FadePhase.None;
@@ -137,6 +140,8 @@ namespace RewriteReality
             if (s == null) return;
             // トリガ設定（key/pad/hold/fade）は見た目ではないので維持し、状態だけ取り直す。
             s.Capture(_hub);
+            Debug.Log($"[SceneBank] '{s.name}' に現在の状態を取り込みました（effects {s.effects.Count}・master {s.master:F2}）。" +
+                      "ファイルへ残すには ⋮ → Save Scenes。");
         }
 
         // -------------------------------------------------- 発火
@@ -148,6 +153,7 @@ namespace RewriteReality
             if (s == null) return;
             ActiveIndex = i;
             FireState(s, s.fadeOut, s.fadeIn);
+            if (_logFire) Debug.Log($"[SceneBank] Fire '{s.name}'（out {s.fadeOut:F2}s → in {s.fadeIn:F2}s）");
         }
 
         void FireState(SceneState s, float fadeOut, float fadeIn)

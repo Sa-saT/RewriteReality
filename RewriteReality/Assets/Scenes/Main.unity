@@ -204,7 +204,7 @@ MonoBehaviour:
   _audio: {fileID: 1427075338}
   _output: {fileID: 1074070486}
   _surfaces: {fileID: 203153260}
-  _controlHub: {fileID: 0}
+  _control: {fileID: 0}
 --- !u!4 &126582639
 Transform:
   m_ObjectHideFlags: 0
@@ -544,6 +544,7 @@ GameObject:
   - component: {fileID: 338224592}
   - component: {fileID: 338224591}
   - component: {fileID: 338224594}
+  - component: {fileID: 338224595}
   m_Layer: 0
   m_Name: Control
   m_TagString: Untagged
@@ -587,6 +588,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _effectChain: {fileID: 0}
   _timeline: {fileID: 0}
+  _autoLoadMidiMap: 0
+  _scenes: {fileID: 0}
 --- !u!4 &338224593
 Transform:
   m_ObjectHideFlags: 0
@@ -617,6 +620,35 @@ MonoBehaviour:
   _hub: {fileID: 0}
   _visible: 1
   _toggleVisibilityKey: 22
+--- !u!114 &338224595
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 338224590}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58530489fb344721b499c36b32752b77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _hub: {fileID: 0}
+  _scenes:
+  - id: bd44e737
+    name: Notify UI
+    master: 1
+    bpm: 128
+    masterSpeed: 1
+    fadeIn: 0.5
+    fadeOut: 1.2
+    key: 
+    pad: -1
+    hold: 0
+    effects: []
+  _autoLoadOnStart: 0
+  _autoSaveOnQuit: 0
+  _fileName: scenes.json
+  _enableTriggers: 1
 --- !u!1 &401071987
 GameObject:
   m_ObjectHideFlags: 0
@@ -1047,6 +1079,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _hub: {fileID: 0}
   _chain: {fileID: 0}
+  _manager: {fileID: 0}
+  _sceneBank: {fileID: 0}
   _output: {fileID: 0}
   _compositor: {fileID: 0}
   _surfaces: {fileID: 0}
@@ -1364,14 +1398,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2376b228ac0d42af9185327ba22c093, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _songs: []
-  _activeSong: 0
+  _sequences: []
+  _activeSequence: 0
   _loop: 1
   _playOnStart: 0
   _rate: 1
   _shorts: []
   _activeShort: 0
+  _songs: []
+  _activeSongIndex: 0
+  _autoLoadOnStart: 0
+  _autoSaveOnQuit: 0
   _videoSink: {fileID: 0}
+  _audioSink: {fileID: 0}
   _library: []
 --- !u!4 &1700000012
 Transform:
