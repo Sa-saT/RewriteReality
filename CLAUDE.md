@@ -237,6 +237,48 @@ RewriteRealityProject/        ← git repo ルート
     選択ハイライトのみ（割当はしない）。**Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付き
     コンパイル＝0 エラー確認済み・実機/UI Builder での見た目確認は未**。`Main.unity` の `_library` への
     クリップ登録はユーザー側。
+  - **#M7＝MIDI(Minis)/OSC(OscJack) 実機コントロール入力層（2026-07-20・branch `feat/m7-midi-osc-control`）**:
+    本番のライブ操作（docs/07 §2/§3）。コントローラ非依存の抽象マッピングを `ControlHub` に実装し、
+    Minis/OscJack の入力を橋渡しする **opt-in コンポーネント**（`KeyboardControl` と同型・シーン未配置なら
+    非破壊）を追加。**`ControlHub`**＝CC/Note マッピング表（番号→(effect,param)/(effect)・エフェクト側に
+    番号を埋めない）＋**MIDI ラーン**（`BeginMidiLearn`→次に触れた CC を選択中パラメータへ、Note を選択中
+    エフェクトの ON/OFF へ割当）、`ApplyMidiCc`/`ApplyMidiNote`、OSC 解決ヘルパ `ApplyOscGlobal`
+    （master/fade/bpm/speed）/`ApplyOscFx`（`/rr/fx/<slug>/<param>`・`enabled`）、`Slugify`（Name→slug）、
+    MIDI マップの JSON 保存/読込（`persistentDataPath/midimap.json`・`_autoLoadMidiMap` opt-in・ContextMenu）。
+    **`MidiControl`**＝`InputSystem.onDeviceChange` で Minis `MidiDevice` を発見し `onWillControlChange`/
+    `onWillNoteOn`/`onWillNoteOff` を購読（値は will イベント引数の float を使う＝コントロール状態は確定前・
+    Minis 実装準拠・デバイス着脱に live 追従）。**`OscControl`**＝`OscServer(port)` を待ち受け、OscJack は
+    ワーカースレッドで dispatch かつ完全一致のみのため **monitor コールバック（空アドレス）で全受信→
+    (address,float) をスレッドセーフキューへ積み、`Update()`（メインスレッド）でドレインして `/rr/...` を
+    自前ルーティング**（`OscDataHandle` はコールバック内でのみ有効な共有バッファのため float を即取り出す）。
+    **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機
+    （MIDI コントローラ/OSC 送信元）検証は未**。シーンへの `MidiControl`/`OscControl` 配置はユーザー側。
+    - **⚠ 完成時 TODO（MIDI ハードウェア未所持ゆえの暫定対応・2026-07-20）**: 現状 MIDI 経路は**実機で
+      未検証**。物理コントローラが無いため、検証は **macOS IAC ドライバ（仮想 MIDI バス）＋ Python 送信
+      スクリプト**で代替する前提（手順・スクリプト＝`tools/control-test/`・README 参照）。また **MIDI ラーンは
+      専用 UI が未実装**で、暫定的に `ControlHub` の `[ContextMenu]`（Begin/Cancel MIDI Learn 等）から起動する
+      “仮”トリガーになっている。**App 完成前に、①実機 MIDI コントローラ（nanoKONTROL / APC mini 等）での動作確認、
+      ②ラーンの正式 UI 化（ContextMenu 依存の解消）**を必ず行うこと。OSC 経路は `tools/control-test/osc_test.py`
+      でハードウェア無しに検証可能（実装は共通の `ControlHub` を通るため MIDI 側の実機確認の代替にも一部なる）。
+  - **#38＝シーン（プリセット）保存/読込/発火 ＋ Master・Fade to Black の実効化（2026-09-22）**:
+    M7 チェック「プリセット保存/読込・シーン切替」を実装。**`MasterOut`**（プレーンクラス＝シーン配線不要）＋
+    `Assets/Shaders/MasterOut.shader`（Always Included 登録済み）を `Manager` の最終段に挿入し、
+    これまで値を保持するだけだった `ControlHub.Master` / `FadeToBlack` を**実際の出力に反映**
+    （Master=1・Fade=0 なら Blit せず素通し＝非破壊）。`Manager.FinalTexture` を公開し、`OperatorUI` の
+    プレビュー/解像度表示は Master/Fade 適用後を見る（`ProgramTexture()`）。**`SceneState`**（Master/BPM/
+    Master Speed＋各エフェクトの enabled/mix/scope/全パラメータ＋fadeIn/fadeOut/key/pad/hold）に
+    `Capture`/`Apply`（突合は `EffectBase.Name`・未知エフェクトは飛ばす）を実装し、`Preset`
+    （ScriptableObject）はこれを1件持つ形へ刷新。**`SceneBank`**（opt-in MonoBehaviour・`ShowTimeline` と同型）＝
+    シーン一覧／発火（黒へ fadeOut → 適用 → fadeIn で復帰・`ControlHub.FadeToBlack` を駆動）／hold は押下中だけ
+    適用し離すと直前状態へ復帰／キー・パッド発火（`ShowTimeline.PadKeyName` を共用）／JSON 永続化
+    （`persistentDataPath/scenes.json`・`_autoLoadOnStart`/`_autoSaveOnQuit` は既定 false）／`ScenesChanged` イベント。
+    **Fade to Black は保存対象外**（安全操作であり見た目ではないため）。UI＝PERFORM 左ドック Scenes を
+    named コンテナ `rr-lib-scenes-list` 経由で実データ再構築（#37 と同じ最小改変・SceneBank 未配置/0件なら
+    従来のプレースホルダ据え置き）、右 Inspector の Scene は Fade In/Out・Trigger(Key/Hold)・**Fire/Save を実配線**
+    （Save は準備 Edit のみ・Fire は Live 可）。OSC は `/rr/scene <index>` ／ `/rr/scene/<name-slug|index> 1` を追加
+    （`ControlHub.ApplyOscScene`・`tools/control-test/` の早見と README も更新）。
+    **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機確認は未**。
+    シーンへの `SceneBank` 配置とシーン登録はユーザー側。
 
 ## 作業上の注意
 

@@ -19,6 +19,26 @@ public class Preset : ScriptableObject {
 }
 ```
 
+### 実装（#38・2026-09-22）
+
+| 型 | 役割 |
+|---|---|
+| `SceneState` | 1シーン分の状態（Master/BPM/Master Speed ＋ 各エフェクトの enabled/mix/scope/全パラメータ）＋トリガ設定（fadeIn/fadeOut/key/pad/hold）。`Capture(ControlHub)` / `Apply(ControlHub)` で往復 |
+| `Preset`（ScriptableObject） | `SceneState` を1件アセットとして持ち回す用 |
+| `SceneBank`（MonoBehaviour・opt-in） | シーンのバンク本体。一覧・発火・JSON 永続化（`persistentDataPath/scenes.json`）・キー/パッド発火。未配置なら一切影響しない |
+| `MasterOut` + `MasterOut.shader` | 出力直前のマスター段。`ControlHub.Master`（明度）と `FadeToBlack`（黒フェード）を最終 RT に掛ける。既定値（1 / 0）では Blit せず素通し |
+
+- **発火 = 黒へ `fadeOut` 秒 → 適用 → `fadeIn` 秒で復帰**（どちらも 0 なら即時）。フェードは
+  `ControlHub.FadeToBlack` を駆動するので、手動の Fade to Black と同じ経路＝二重に暗くならない。
+- **Fade to Black は保存対象外**（ライブの安全操作であり「見た目」ではないため、復元で勝手に暗転しない）。
+- `hold = true` のシーンは**押下中だけ適用**し、離すと押下直前の状態へ戻る（モーメンタリ）。
+- エフェクトの突合は **`EffectBase.Name`**（index ではない）。シーン構成が変わっていても、
+  見つからないエフェクトは飛ばして残りを適用する（非破壊）。
+- 右 Inspector（Scene 選択時）＝ Fade In / Fade Out / Trigger(Key, Hold) / **Fire**・**Save**。
+  Save（現在の状態の取り込み）は**準備 Edit のみ**、Fire は本番 Live でも可。
+  `SceneBank` 未配置なら従来どおり disabled 表示（プレースホルダ）。
+- OSC: `/rr/scene <index>` ／ `/rr/scene/<name-slug|index> 1` で発火（docs/07 §3「OSC 受信（BPM/シーン）」）。
+
 ## 1. GUI（オペレータ画面）
 
 - 制作・リハ用のオンスクリーン UI（スライダ/トグル/プリセット選択）

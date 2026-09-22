@@ -48,8 +48,9 @@
 
 ### M7. 操作・運用
 - [ ] パラメータの ScriptableObject 化＋オペレータ UI
-- [ ] MIDI ラーン（Minis）/ OSC 受信（OscJack, BPM/シーン）
-- [ ] プリセット保存/読込・シーン切替
+- [x] MIDI ラーン（Minis）/ OSC 受信（OscJack, BPM/シーン） ＝ #M7 実装済（2026-07-20・`ControlHub`＋`MidiControl`/`OscControl`・コンパイル0エラー・実機検証は未）
+- [x] プリセット保存/読込・シーン切替 ＝ #38 実装済（2026-09-22・`SceneState`/`Preset`/`SceneBank`＋
+      `MasterOut`(Master/Fade 実効化)・左ドック Scenes 実データ連動・OSC `/rr/scene`・コンパイル0エラー・実機検証は未）
 
 ### M8. 仕上げ
 - [ ] パフォーマンス/GC チューニング（60fps 維持）

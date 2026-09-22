@@ -25,15 +25,28 @@ namespace RewriteReality
         [Tooltip("複数 Input Surface（配置時は多surface合成に切替）")]
         [SerializeField] SurfaceManager _surfaces;
 
+        [Header("Master（#38）— 未設定なら自動取得")]
+        [Tooltip("Master / Fade to Black の値元（未設定ならシーンから自動取得・不在なら素通し）")]
+        [SerializeField] ControlHub _control;
+
         ICornerSource _cornerSource;
         Corners _lastCorners = Corners.FullFrame;
+
+        // 出力直前の Master / Fade to Black 段（プレーンクラス＝シーン配線不要・#38）
+        readonly MasterOut _masterOut = new MasterOut();
+
+        /// <summary>出力へ送っている最終 RT（Master/Fade 適用後）。UI プレビューはこれを見る。</summary>
+        public RenderTexture FinalTexture { get; private set; }
 
         void Awake()
         {
             _cornerSource = _cornerSourceBehaviour as ICornerSource;
             if (_cornerSourceBehaviour != null && _cornerSource == null)
                 Debug.LogError($"[Manager] {_cornerSourceBehaviour.GetType().Name} は ICornerSource を実装していません。");
+            if (_control == null) _control = FindFirstObjectByType<ControlHub>();
         }
+
+        void OnDestroy() => _masterOut.Dispose();
 
         void LateUpdate()
         {
@@ -68,7 +81,12 @@ namespace RewriteReality
             // 4) エフェクト（全体＝Global 範囲を finalRT に適用）
             var finalRT = _effectChain != null ? _effectChain.Process(sceneRT, audio) : sceneRT;
 
-            // 5) 出力（FS → Syphon → NDI）
+            // 5) マスター段（Master 明度 / Fade to Black）。既定値（1 / 0）では Blit せず素通し（#38）
+            if (_control != null)
+                finalRT = _masterOut.Apply(finalRT, _control.Master, _control.FadeToBlack);
+            FinalTexture = finalRT;
+
+            // 6) 出力（FS → Syphon → NDI）
             if (_output != null) _output.Publish(finalRT);
         }
     }

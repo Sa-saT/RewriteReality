@@ -76,17 +76,19 @@
                         </ui:VisualElement>
                     </ui:Foldout>
                     <ui:Foldout text="Scenes" value="true" class="rr-lib-fold">
-                        <ui:VisualElement class="rr-list-item rr-item-scene">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
-                            <ui:Label text="Intro" class="rr-list-label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item rr-item-scene">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
-                            <ui:Label text="Drop 01" class="rr-list-label" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="rr-list-item rr-item-scene">
-                            <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
-                            <ui:Label text="Outro" class="rr-list-label" />
+                        <ui:VisualElement name="rr-lib-scenes-list">
+                            <ui:VisualElement class="rr-list-item rr-item-scene">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
+                                <ui:Label text="Intro" class="rr-list-label" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-list-item rr-item-scene">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
+                                <ui:Label text="Drop 01" class="rr-list-label" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="rr-list-item rr-item-scene">
+                                <ui:VisualElement class="rr-list-dot rr-list-dot--scene" />
+                                <ui:Label text="Outro" class="rr-list-label" />
+                            </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:Foldout>
                 </ui:VisualElement>
