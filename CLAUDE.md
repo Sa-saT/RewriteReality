@@ -279,6 +279,14 @@ RewriteRealityProject/        ← git repo ルート
     （`ControlHub.ApplyOscScene`・`tools/control-test/` の早見と README も更新）。
     **Unity 同梱 Roslyn（csc）で Assembly-CSharp を全 define 付きコンパイル＝0 エラー確認済み・実機確認は未**。
     シーンへの `SceneBank` 配置とシーン登録はユーザー側。
+    - **実機初回の詰まりと対処（2026-09-22）**: `OperatorUI`/`ControlHub` は `SceneBank` を **Awake でしか
+      探していなかった**ため、**Play 中に SceneBank を AddComponent すると参照が null のまま**＝左ドック
+      Scenes はプレースホルダのまま／Inspector は「未配置」表示／OSC のシーン発火も不発、という症状になる。
+      対処＝`OperatorUI.SyncSceneBank()` を追加し、**未検出のうちは 1 秒おきに探索**して見つけ次第
+      購読＋再構築、さらに**シーン一覧の指紋（件数・name・key・pad）を毎フレーム比較**して Inspector で
+      リストを直接編集した場合も自動で左ドックへ反映（`Notify UI` の ContextMenu は手動用に残置）。
+      `ControlHub` の OSC 経路も呼び出し時に遅延解決。なお **Play 中に足したコンポーネントは Play 停止で
+      消える**ため、`SceneBank` は必ず **Edit モードで配置してシーンを保存**すること。
 
 ## 作業上の注意
 

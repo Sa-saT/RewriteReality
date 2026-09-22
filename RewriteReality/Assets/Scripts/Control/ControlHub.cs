@@ -204,6 +204,7 @@ namespace RewriteReality
                 case "speed":  MasterSpeed = value; return true;
                 // /rr/scene <index>：index 番のシーンを発火（0 始まり・#38）
                 case "scene":
+                    if (_scenes == null) _scenes = FindFirstObjectByType<SceneBank>();
                     if (_scenes == null) return false;
                     _scenes.Fire(Mathf.RoundToInt(value));
                     return true;
@@ -228,6 +229,7 @@ namespace RewriteReality
         /// 解決できたら true（#38・docs/07 「OSC 受信（BPM/シーン）」）。</summary>
         public bool ApplyOscScene(string target, float value)
         {
+            if (_scenes == null) _scenes = FindFirstObjectByType<SceneBank>();   // Play 中の後付け配置に追従（#38）
             if (_scenes == null || string.IsNullOrEmpty(target)) return false;
             if (value < 0.5f) return true;   // ボタンの離し（0）は発火しない＝無視だが既知アドレス
 

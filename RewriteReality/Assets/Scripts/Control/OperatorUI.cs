@@ -23,6 +23,10 @@ namespace RewriteReality
         [SerializeField] Manager _manager;
         [Tooltip("シーン（プリセット）バンク。未配置なら Scenes は従来のプレースホルダ表示（#38）")]
         [SerializeField] SceneBank _sceneBank;
+        // SceneBank は Play 中に後から追加されることがあるため（Awake 時点では未配置）、
+        // 見つかるまで低頻度で探し続け、見つけたら購読＋Scenes を再構築する（#38）。
+        float _sceneBankScanAt;
+        int _sceneSignature = int.MinValue;
         [Tooltip("上バー OUTPUT メニューの対象（未指定なら自動取得）")]
         [SerializeField] OutputManager _output;
         [Tooltip("WARP 編集オーバーレイの対象（埋め込み合成・未指定なら自動取得）")]
@@ -2466,7 +2470,8 @@ namespace RewriteReality
                     MakeButton("Fire", "primary", null, enabled: false),
                     MakeButton("Save", "secondary", null, enabled: false),
                     MakeButton("Deselect", "ghost", () => _selection.Deselect()));
-                var hint = new Label("SceneBank 未配置：シーンの発火/保存は無効（シーンに SceneBank を置くと有効・#38）");
+                var hint = new Label("この行はプレースホルダです。SceneBank を配置し、⋮ → Add Scene From Current で" +
+                                     "シーンを作ると発火/保存が有効になります（#38）");
                 hint.AddToClassList("rr-hint");
                 _inspector.Add(hint);
                 return;
@@ -3013,6 +3018,7 @@ namespace RewriteReality
             UpdateFps();
             SyncSurfaces();
             UpdateTimeline();   // playhead / 時間表示（ControlHub 非依存）
+            SyncSceneBank();    // SceneBank の遅延検出＋一覧の変更検知（#38）
 
             if (_hub == null) return; // 以降（FX 一覧 / inspector）は ControlHub が必要
 
@@ -3032,6 +3038,46 @@ namespace RewriteReality
 
             SyncFxRows();
             SyncParamRows();
+        }
+
+        // SceneBank を遅延検出し、シーン一覧（件数・名前・割当）の変化を拾って左ドックを作り直す。
+        // Awake の自動取得だけだと「Play 中に SceneBank を足した」「Inspector でリストを直接編集した」
+        // ケースを取りこぼすため（#38）。探索は見つかるまで 1 秒おき＝毎フレームの Find を避ける。
+        void SyncSceneBank()
+        {
+            if (_sceneBank == null)
+            {
+                if (Time.unscaledTime < _sceneBankScanAt) return;
+                _sceneBankScanAt = Time.unscaledTime + 1f;
+
+                _sceneBank = FindFirstObjectByType<SceneBank>();
+                if (_sceneBank == null) return;
+
+                _sceneBank.ScenesChanged -= OnScenesChanged;
+                _sceneBank.ScenesChanged += OnScenesChanged;
+                _sceneSignature = int.MinValue;   // 直後の比較で必ず再構築させる
+            }
+
+            int sig = SceneSignature();
+            if (sig == _sceneSignature) return;
+            _sceneSignature = sig;
+            OnScenesChanged();
+        }
+
+        // シーン一覧の「表示に効く部分」の指紋（件数・名前・キー/パッド割当）。文字列を作らず比較する。
+        int SceneSignature()
+        {
+            if (_sceneBank == null) return 0;
+            int h = 17 + _sceneBank.Count * 31;
+            for (int i = 0; i < _sceneBank.Count; i++)
+            {
+                var sc = _sceneBank.Get(i);
+                if (sc == null) { h = h * 31 + 7; continue; }
+                h = h * 31 + (sc.name != null ? sc.name.GetHashCode() : 0);
+                h = h * 31 + (sc.key  != null ? sc.key.GetHashCode()  : 0);
+                h = h * 31 + sc.pad;
+            }
+            return h;
         }
 
         // -------------------------------------------------- preview / fps
