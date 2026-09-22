@@ -23,11 +23,20 @@ RewriteReality（リアルタイム・カメラ埋め込み VJ アプリ／Unity
 | [11-todo-and-decisions.md](11-todo-and-decisions.md) | 実装タスク（M別）＋確定した選定①〜⑩ |
 | [12-feasibility-audit-2026-06.md](12-feasibility-audit-2026-06.md) | 実現可能性監査（OpenCvSharp / arm64・方式C） |
 
+## 実装タスク（履歴・完了済み）
+
+| ファイル | 内容 |
+|---|---|
+| [tasks-next-sonnet.md](tasks-next-sonnet.md) | #28a/#28b/#36/#37 のタスク指示（2026-07-20 に全完了・commit 付き） |
+| [design-sync/](design-sync/) | ClaudeDesign（`RewriteReality Design System`）のローカルミラーと移植メモ |
+
 ## 実機・運用手順
 
 | ファイル | 内容 |
 |---|---|
 | [M0-test-procedure.md](M0-test-procedure.md) | M0 動作確認手順（VideoPlayer / WebCamTexture / Syphon / NDI・実機メモ） |
+| [M38-scene-preset-procedure.md](M38-scene-preset-procedure.md) | #38 シーン（プリセット）操作手順（Master/Fade・SceneBank 配置・発火・保存2系統・OSC） |
+| [`../tools/control-test/README.md`](../tools/control-test/README.md) | MIDI(IAC 仮想バス)/OSC の実機確認手順（ハードウェア不要・#M7） |
 
 ## 関連（リポジトリ直下）
 

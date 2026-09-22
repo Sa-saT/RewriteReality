@@ -46,6 +46,8 @@ RewriteRealityProject/        ← git repo ルート
 | `docs/10-openframeworks-alternative.md` | oF 代替設計（参考） |
 | `docs/11-todo-and-decisions.md` | 実装タスク（M別）＋確定した選定①〜⑩ |
 | `docs/12-feasibility-audit-2026-06.md` | 実現可能性監査（OpenCvSharp/arm64・方式C） |
+| `docs/M0-test-procedure.md` | M0 動作確認手順（VideoPlayer/WebCam/Syphon/NDI・実機メモ） |
+| `docs/M38-scene-preset-procedure.md` | #38 シーン（プリセット）操作手順（Master/Fade・発火・保存2系統・OSC） |
 | `DESIGN.md`（ルート） | オペレータUIデザインシステム・トークン（`docs/07` と対） |
 
 ## 現在の状況 / 次の一手
@@ -294,6 +296,12 @@ RewriteRealityProject/        ← git repo ルート
       （ファイル保存ではない）／ファイルは ⋮ → Save Scenes・Load Scenes**」のヒントを表示。
       ついでに USS の **未定義トークン参照を修正**（`--rr-semantic-live`×5 / `--rr-semantic-record`×2 →
       実在する `--rr-live` / `--rr-record`。Song 再生中カードの緑枠などが無効化されていた）。
+    - **実機確認の結果（2026-09-22・ユーザー）**: B〜F（Master/Fade・SceneBank 配置・シーン作成・
+      Fire・Save・**自動 Load**）まで動作確認済み。フィードバックを受けて押下表示は `Saved`/`Fired`
+      （大文字 `SAVED` から変更）。**手順書＝`docs/M38-scene-preset-procedure.md`**（保存は `Main.unity`
+      と `scenes.json` の 2 系統である点、`Save` ボタンはファイル保存ではない点を明記）。
+      自己レビューで **シーンを全削除したとき左ドックに古い行が残る**不具合を発見・修正
+      （`_scenesDockReal` で実データ表示済みかを追跡し、0 件になったら `(no scenes)` 表示へ）。
 
 ## 作業上の注意
 

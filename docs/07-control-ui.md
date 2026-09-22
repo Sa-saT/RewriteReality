@@ -38,6 +38,9 @@ public class Preset : ScriptableObject {
   Save（現在の状態の取り込み）は**準備 Edit のみ**、Fire は本番 Live でも可。
   `SceneBank` 未配置なら従来どおり disabled 表示（プレースホルダ）。
 - OSC: `/rr/scene <index>` ／ `/rr/scene/<name-slug|index> 1` で発火（docs/07 §3「OSC 受信（BPM/シーン）」）。
+- **実機の操作手順・ハマりどころ＝[`M38-scene-preset-procedure.md`](M38-scene-preset-procedure.md)**
+  （SceneBank は Edit モードで配置／保存は `Main.unity` と `scenes.json` の 2 系統／
+  Inspector の `Save` はファイル保存ではない、など）。
 
 ## 1. GUI（オペレータ画面）
 

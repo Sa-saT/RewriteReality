@@ -27,6 +27,7 @@ namespace RewriteReality
         // 見つかるまで低頻度で探し続け、見つけたら購読＋Scenes を再構築する（#38）。
         float _sceneBankScanAt;
         int _sceneSignature = int.MinValue;
+        bool _scenesDockReal;   // 左ドック Scenes が実データ行になっているか（プレースホルダ据え置きの判定）
         [Tooltip("上バー OUTPUT メニューの対象（未指定なら自動取得）")]
         [SerializeField] OutputManager _output;
         [Tooltip("WARP 編集オーバーレイの対象（埋め込み合成・未指定なら自動取得）")]
@@ -2119,10 +2120,24 @@ namespace RewriteReality
         // SceneBank 未配置 or 0 件なら従来の静的プレースホルダを残す（見た目の空白化を避ける）。
         void RebuildScenesDock()
         {
-            if (_sceneBank == null || _sceneBank.Count == 0) return;
+            if (_sceneBank == null) return;
             var list = _root.Q<VisualElement>("rr-lib-scenes-list");
             if (list == null) return;
 
+            if (_sceneBank.Count == 0)
+            {
+                // 一度も実データを出していなければプレースホルダ据え置き（空白化を避ける）。
+                // 実データを出した後に全削除された場合は、発火しない古い行が残らないよう空表示にする。
+                if (!_scenesDockReal) return;
+                list.Clear();
+                var empty = new Label("(no scenes)");
+                empty.AddToClassList("rr-hint");
+                list.Add(empty);
+                _scenesDockReal = false;
+                return;
+            }
+
+            _scenesDockReal = true;
             list.Clear();
             for (int i = 0; i < _sceneBank.Count; i++)
             {
@@ -2491,12 +2506,12 @@ namespace RewriteReality
             fireBtn = MakeButton("Fire", "primary", () =>
             {
                 _sceneBank.Fire(index);
-                FlashButton(fireBtn, "FIRED");
+                FlashButton(fireBtn, "Fired");
             });
             saveBtn = MakeButton("Save", "secondary", canSave ? (System.Action)(() =>
             {
                 _sceneBank.CaptureInto(index);
-                FlashButton(saveBtn, "SAVED");
+                FlashButton(saveBtn, "Saved");
             }) : null, enabled: canSave);
 
             AddButtonRow(fireBtn, saveBtn, MakeButton("Deselect", "ghost", () => _selection.Deselect()));

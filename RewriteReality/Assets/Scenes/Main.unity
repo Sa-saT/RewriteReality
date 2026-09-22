@@ -635,7 +635,7 @@ MonoBehaviour:
   _hub: {fileID: 0}
   _scenes:
   - id: bd44e737
-    name: Notify UI
+    name: NotifyA
     master: 1
     bpm: 128
     masterSpeed: 1
@@ -649,6 +649,7 @@ MonoBehaviour:
   _autoSaveOnQuit: 0
   _fileName: scenes.json
   _enableTriggers: 1
+  _logFire: 1
 --- !u!1 &401071987
 GameObject:
   m_ObjectHideFlags: 0
