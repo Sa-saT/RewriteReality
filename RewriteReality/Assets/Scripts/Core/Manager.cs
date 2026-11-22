@@ -70,7 +70,10 @@ namespace RewriteReality
             if (useLayers)
             {
                 _layers.Tick();
-                if (_layers.HasBase) { baseTex = _layers.BaseTexture; time = _layers.BaseTime; }
+                // レイヤー有効時の base はタイムライン側が正。下段が無い/準備中は黒（null＝Compositor がクリア）にし、
+                // 旧 SourceVideo の無関係な映像へフォールバックさせない（docs/07b §3.5.3・#41 レビュー修正）。
+                baseTex = _layers.HasBase ? _layers.BaseTexture : null;
+                time = _layers.BaseTime;
             }
             var camTex  = _camera != null ? _camera.Texture : null;
 
