@@ -2,55 +2,58 @@
 
 小さく動かして積み上げる。各マイルストンで「画面に出る」ことを確認しながら進む。
 
+> **チェック状態は 2026-11-22 に実装へ合わせて更新**（[x]＝実装済み。実機未検証の項目は `CLAUDE.md` の各エントリに注記）。
+> 残り＝M3 の四隅ベイク・ツール／M8 仕上げ／M13（#40 音声ミックス・#41 映像レイヤー）／M9（任意）。
+
 ## M0. 環境構築（土台）
-- [ ] Unity Hub → Unity 6 LTS（Apple Silicon）導入
-- [ ] URP テンプレートで `RewriteReality/` プロジェクト作成、本リポジトリに配置（`11` B6）
-- [ ] VFX Graph / Shader Graph / Input System を Package Manager で追加
-- [ ] Klak（Syphon/NDI/Minis/OscJack）を git URL で追加し最小動作確認
+- [x] Unity Hub → Unity 6 LTS（Apple Silicon）導入
+- [x] URP テンプレートで `RewriteReality/` プロジェクト作成、本リポジトリに配置（`11` B6）
+- [x] VFX Graph / Shader Graph / Input System を Package Manager で追加
+- [x] Klak（Syphon/NDI/Minis/OscJack）を git URL で追加し最小動作確認
 - **完了条件**: 各パッケージのサンプルが mac arm64 で動く
 - **メモ**: 初期は方式C（四隅ベイク）採用のため **OpenCvSharp/arm64 は M0 では扱わない**。
   実行時 CV は将来 `LiveCvCornerSource`（M3 のオプション枠）で着手。KlakHap は任意・M8 で検討。
 
 ## M1. ソース表示
-- [ ] `SourceVideo`: 動画を VideoPlayer → RenderTexture で全画面表示（HAP は KlakHap）
-- [ ] `SourceCamera`: WebCamTexture を取得して表示
+- [x] `SourceVideo`: 動画を VideoPlayer → RenderTexture で全画面表示（HAP は KlakHap）
+- [x] `SourceCamera`: WebCamTexture を取得して表示
 - **完了条件**: 動画とカメラが別々に映る
 
 ## M2. 合成（トラッキング無しの仮置き）
-- [ ] `Compositor`: 画面内の**固定四角**にカメラ映像を**射影補間**でワープ合成
-- [ ] 手動で四隅をドラッグ移動できる（`07` の手動領域指定）
+- [x] `Compositor`: 画面内の**固定四角**にカメラ映像を**射影補間**でワープ合成
+- [x] 手動で四隅をドラッグ移動できる（`07` の手動領域指定）
 - **完了条件**: 動画の上の好きな四角にライブカメラが嵌まる（核が見える）
 
 ## M3. トラッキング（初期＝方式C＝ベイク。実行時 CV は将来オプション）
-- [ ] `ICornerSource` IF ＋ `BakedCornerSource`（`track.json` 読込）
+- [x] `ICornerSource` IF ＋ `BakedCornerSource`（`track.json` 読込）
 - [ ] オフラインで四隅をベイク（Python OpenCV / Mocha）→ `track.json` 出力
-- [ ] 四隅 → 合成へ接続、平滑化 ＆ `visible:false` 時のフェード
+- [x] 四隅 → 合成へ接続、平滑化 ＆ `visible:false` 時のフェード
 - [ ] （将来・ライブ実景時のみ）`LiveCvCornerSource`: OpenCvSharp で ArUco 検出
       （ワーカースレッド + AsyncGPUReadback）→ ホモグラフィ/KLT。ここで初めて arm64 ビルドに着手
 - **完了条件**: ベイク軌跡で、動画内の指定箇所にカメラ映像が追従する
 
 ## M4. エフェクト基盤＋第一弾
-- [ ] `EffectBase` ＋ `EffectChain`（RenderTexture ping-pong / Graphics.Blit）
-- [ ] RGB シフト / ブロックグリッチ / 色調 / フィードバック を実装
-- [ ] 実行時にエフェクトを足し引き・順序変更
+- [x] `EffectBase` ＋ `EffectChain`（RenderTexture ping-pong / Graphics.Blit）
+- [x] RGB シフト / ブロックグリッチ / 色調 / フィードバック を実装
+- [x] 実行時にエフェクトを足し引き・順序変更
 - **完了条件**: エフェクトを足し引きでき、見た目が変わる
 
 ## M5. オーディオリアクティブ
-- [ ] `AudioAnalyzer`: GetSpectrumData で帯域・ビート・RMS
-- [ ] 音成分 → エフェクト/VFX パラメータのマッピング
+- [x] `AudioAnalyzer`: GetSpectrumData で帯域・ビート・RMS
+- [x] 音成分 → エフェクト/VFX パラメータのマッピング
 - **完了条件**: 音に合わせてグリッチ等が反応する
 
 ## M6. 出力
-- [ ] KlakSyphon サーバ配信
-- [ ] フルスクリーン/プロジェクタ割当（マルチディスプレイ）
-- [ ] KlakNDI 送信
+- [x] KlakSyphon サーバ配信
+- [x] フルスクリーン/プロジェクタ割当（マルチディスプレイ）
+- [x] KlakNDI 送信
 - **完了条件**: 投影と他ソフト/別PCへ同時に出る
 
 ## M7. 操作・運用
-- [ ] パラメータの ScriptableObject 化＋オペレータ UI
-- [ ] MIDI ラーン（Minis）
-- [ ] OSC 受信（OscJack, BPM/シーン）
-- [ ] プリセット保存/読込・シーン切替
+- [x] パラメータの ScriptableObject 化＋オペレータ UI
+- [x] MIDI ラーン（Minis）
+- [x] OSC 受信（OscJack, BPM/シーン）
+- [x] プリセット保存/読込・シーン切替
 - **完了条件**: コントローラだけでライブ操作できる
 
 ## M8. 仕上げ
@@ -76,25 +79,25 @@
 ### M10. 出力変形（Output Surface）
 - [x] 最終 RT に**メッシュ/コーナーピン変形**（旧 B4 出力段台形補正を内包）＝**`OutputWarp` 実装＋`OutputManager` 配線**
       （既定 OFF＝素通し・Inspector でキーストーン四隅＋多pinグリッド／射影数学は `WarpMath` を `Compositor` と共有）※Unity 検証待ち
-- [ ] OUTPUT ページから surface として編集（Input/Output 分割ビュー §3.2）＝#22
+- [x] OUTPUT ページから surface として編集（Input/Output 分割ビュー §3.2）＝#22
 - **完了条件**: プロジェクタ面に合わせて出力映像を MadMapper 流に変形できる
 
 ### M11. 準備・本番の 2 モード
-- [ ] **準備 Edit / 本番 Live** のモード切替（`AppMode`）。本番は構成固定・値のみ操作
-- [ ] 準備で **複数 surface 配置**＋**エフェクト範囲（surface 指定/全体）割当**（`EffectBase.target`）
-- [ ] 本番で準備した surface に**ライブ動画を埋め込み**
+- [x] **準備 Edit / 本番 Live** のモード切替（`AppMode`）。本番は構成固定・値のみ操作
+- [x] 準備で **複数 surface 配置**＋**エフェクト範囲（surface 指定/全体）割当**（`EffectBase.target`）
+- [x] 本番で準備した surface に**ライブ動画を埋め込み**
 - **完了条件**: 仕込んだ surface に本番でライブ映像が入り、誤操作で構成が壊れない
 
 ### M12. タイムライン（song リニア通し ＋ short ホールド発火）
-- [ ] 下部マルチトラックUIの土台。再生ヘッド/スクラブを `SourceVideo.Time`・`track.json` と整合
-- [ ] **song**：映像トラックのクリップ配置・ON-OFF・opacity・リニア通し再生
-- [ ] **song 動画だけライブ速度可変**：`SourceVideo.PlaybackSpeed`（VideoPlayer.playbackSpeed）をボタン/スクロール(ジョグ)に割当（`ControlHub`）。0=フリーズ〜Nx・音声は通常速度のまま・四隅は video time で整合
-- [ ] **short**：キー割当の**ホールド発火**（押下中だけ最上位レイヤー合成・離すと非表示）。`EffectChain` 最終段に short レイヤー1段、`ControlHub` に short トリガー追加
+- [x] 下部マルチトラックUIの土台。再生ヘッド/スクラブを `SourceVideo.Time`・`track.json` と整合
+- [x] **song**：映像トラックのクリップ配置・ON-OFF・opacity・リニア通し再生
+- [x] **song 動画だけライブ速度可変**：`SourceVideo.PlaybackSpeed`（VideoPlayer.playbackSpeed）をボタン/スクロール(ジョグ)に割当（`ControlHub`）。0=フリーズ〜Nx・音声は通常速度のまま・四隅は video time で整合
+- [x] **short**：キー割当の**ホールド発火**（押下中だけ最上位レイヤー合成・離すと非表示）。`EffectChain` 最終段に short レイヤー1段、`ControlHub` に short トリガー追加
 - **完了条件**: song が通し再生され、キー押下中だけ short が最上位で差し込まれる（C＝song＋short・`07b` §3.5.2）
 
 ### M13. マルチトラック＋音声ミックス
-- [ ] 映像 ×N の重ね合成（`Compositor`/`EffectChain` 連携）
-- [ ] **音声トラック ×N の内部再生＋ミックス**（fade/mute/音量）。外部解析との両対応（`AudioAnalyzer` は最終ミックスを解析）
+- [ ] 映像 ×N の重ね合成（`Compositor`/`EffectChain` 連携）＝**#41**（Short 同時押しの重ねも含む・仕様 `07b` §3.5.3）
+- [ ] **音声トラック ×N の内部再生＋ミックス**（fade/mute/音量）。外部解析との両対応（`AudioAnalyzer` は最終ミックスを解析）＝**#40**（現状は解決トラック 1 本のみ鳴る・仕様 `07b` §3.5.1）
 - **完了条件**: 内部音源で完結、または外部音源＋解析の両構成でショーが回る
 
 ## 想定リスクと対策

@@ -9,45 +9,47 @@
 
 `docs/08-roadmap.md` の詳細版。上から順に。
 
+> **チェック状態は 2026-11-22 に実装へ合わせて更新**。次の実装バッチ＝`docs/tasks-next-sonnet-2.md`（#39〜#41）。
+
 ### M0. 環境・依存（土台）※完了（最新の進捗は `CLAUDE.md`「現在の状況」が正本）
-- [ ] Klak パッケージ投入（git URL）: KlakSyphon / KlakNDI
-- [ ] VFX Graph / Shader Graph をパッケージ追加
-- [ ] OscJack / Minis（MIDI）を追加
-- [ ] 各パッケージの最小サンプルが mac arm64 で動作することを確認
+- [x] Klak パッケージ投入（git URL）: KlakSyphon / KlakNDI
+- [x] VFX Graph / Shader Graph をパッケージ追加
+- [x] OscJack / Minis（MIDI）を追加
+- [x] 各パッケージの最小サンプルが mac arm64 で動作することを確認
 - **メモ**: 初期は方式C（ベイク）採用。**OpenCvSharp/arm64 は M0 では扱わない**
   （将来 `LiveCvCornerSource` で着手）。KlakHap は任意・M8 で検討（初期は通常 mp4＝VideoPlayer）。
 
 ### M1. ソース表示
-- [ ] `SourceVideo`: 動画 → RenderTexture（必要なら KlakHap）
-- [ ] `SourceCamera`: WebCamTexture 取得・表示
+- [x] `SourceVideo`: 動画 → RenderTexture（必要なら KlakHap）
+- [x] `SourceCamera`: WebCamTexture 取得・表示
 
 ### M2. 合成（トラッキング無し仮置き）
-- [ ] `Compositor`: 固定四角にカメラを**射影補間**でワープ合成
-- [ ] 四隅を手動ドラッグで指定
+- [x] `Compositor`: 固定四角にカメラを**射影補間**でワープ合成
+- [x] 四隅を手動ドラッグで指定
 
 ### M3. トラッキング（**初期は方式C＝ベイクで実装。実行時 CV は将来オプション**）
-- [ ] `ICornerSource` IF ＋ `BakedCornerSource`（`track.json` 読込）
+- [x] `ICornerSource` IF ＋ `BakedCornerSource`（`track.json` 読込）
 - [ ] オフラインで四隅をベイク（Python OpenCV / Mocha）→ `track.json` 出力（**fps=60、ソース動画と一致**）
-- [ ] 四隅 → 合成へ接続、平滑化 ＆ `visible:false` 時のフェード
+- [x] 四隅 → 合成へ接続、平滑化 ＆ `visible:false` 時のフェード
 - [ ] （将来・ライブ実景が必要な時のみ）`LiveCvCornerSource`: OpenCvSharp で
       ArUco 検出（ワーカースレッド + AsyncGPUReadback）→ ここで初めて arm64 ビルドに着手
 
 ### M4. エフェクト基盤＋第一弾
-- [ ] `EffectBase` ＋ `EffectChain`（RenderTexture ping-pong / Graphics.Blit）
-- [ ] RGB シフト / ブロックグリッチ / 色調 / フィードバック
-- [ ] 実行時に順序・ON/OFF・mix 変更
+- [x] `EffectBase` ＋ `EffectChain`（RenderTexture ping-pong / Graphics.Blit）
+- [x] RGB シフト / ブロックグリッチ / 色調 / フィードバック
+- [x] 実行時に順序・ON/OFF・mix 変更
 
 ### M5. オーディオリアクティブ
-- [ ] `AudioAnalyzer`: GetSpectrumData で帯域・ビート・RMS
-- [ ] 音成分 → エフェクト/VFX パラメータのマッピング
+- [x] `AudioAnalyzer`: GetSpectrumData で帯域・ビート・RMS
+- [x] 音成分 → エフェクト/VFX パラメータのマッピング
 
 ### M6. 出力
-- [ ] KlakSyphon サーバ配信
-- [ ] フルスクリーン/プロジェクタ割当（マルチディスプレイ）
-- [ ] KlakNDI 送信
+- [x] KlakSyphon サーバ配信
+- [x] フルスクリーン/プロジェクタ割当（マルチディスプレイ）
+- [x] KlakNDI 送信
 
 ### M7. 操作・運用
-- [ ] パラメータの ScriptableObject 化＋オペレータ UI
+- [x] パラメータの ScriptableObject 化＋オペレータ UI
 - [x] MIDI ラーン（Minis）/ OSC 受信（OscJack, BPM/シーン） ＝ #M7 実装済（2026-07-20・`ControlHub`＋`MidiControl`/`OscControl`・コンパイル0エラー・実機検証は未）
 - [x] プリセット保存/読込・シーン切替 ＝ #38 実装済（2026-09-22・`SceneState`/`Preset`/`SceneBank`＋
       `MasterOut`(Master/Fade 実効化)・左ドック Scenes 実データ連動・OSC `/rr/scene`・コンパイル0エラー・実機検証は未）
@@ -129,6 +131,18 @@
   （`SourceVideo.PlaybackSpeed`＝VideoPlayer.playbackSpeed・**ボタン/スクロール(ジョグ)割当**・0=フリーズ〜Nx・逆再生は将来）。
   音声トラックは通常速度のまま（意図的なズレ）。四隅は video time キーで自動整合。
 - **実装順（確定）**：コア完成 → 出力変形 → 準備/本番 2 モード → タイムライン → マルチトラック/音声。
+
+### B10. M13 の映像レイヤー／音声ミックス／再生速度の意味【確定 2026-11-22】
+完成図（B9）と実装のズレを点検して確定。仕様の正＝`07b` §3.5.1（音声）・§3.5.3（映像）。
+- **映像＝重ね合成**：Sequence の VID トラックはトラック毎に専用 VideoPlayer→RT、下から opacity×fade×blend で重ねる。
+  最下段の有効 VID＝base（四隅追従の時刻元）。Short は押下順に重ね（後押しが上）、既定は Surface 合成の後・Global エフェクトの前。
+  旧「単一 `_videoSink` に最優先クリップを差し替え」は互換のため温存（新コンポーネント未配置時）。
+- **音声＝全トラック同時再生の加算ミックス**：トラック毎に AudioSource・実効ゲイン＝volume×fade×mute。クリップに fadeIn/fadeOut。
+- **Master Speed（Rate）＝映像だけ**（B9 の確定どおり）。音とタイムライン時計は等速。#28a の `pitch=Rate`（音高が変わる）は
+  B9 違反だったため #39 で是正。
+- **ClaudeDesign 単独版の閉鎖（2026-12-14）**：UI/UX 変更の正本ワークフロー（ハンドオフ経由）は閉鎖前に移行先を決める。
+  当面の保全策＝リモートの `ui_kits/operator/` はローカルミラー `docs/design-sync/operator/` に同期済み（07-18 版・以後差分なし）。
+  移行先（Claude 内の Design System Artifact 等）はユーザー判断待ち。
 
 ---
 

@@ -7,6 +7,19 @@ agent は本ブリーフに沿って UXML/USS の足場とバインドを用意�
 > 正本トークン＝ルート `DESIGN.md`（暖色ダーク／Live Amber 希少／Selection Blue／JetBrains Mono／ヘアライン深度）。
 > 実装＝UI Toolkit（USS/UXML）。**CSS グリッド不可→flex**、**JS 挙動は使わない**（操作は C# の `ControlHub`/`OperatorUI`）。
 
+> **⚠ 現状との対応（2026-11-22 整理）** — 本書は #24 時点（2026-06〜07）の起点ブリーフ。以後の確定事項で
+> 置き換わった箇所は下表が正。画面の見た目・IA の正本は ClaudeDesign `ui_kits/operator/UNITY-HANDOFF.md`
+> （ローカルミラー＝`docs/design-sync/operator/UNITY-HANDOFF.md`）。
+>
+> | 本書の記述 | 現在の正 | 根拠 |
+> |---|---|---|
+> | 下端 6 ページタブ SOURCE/TRACK/FX/AUDIO/OUTPUT/SCENES（§2・§4） | **2 ページ PERFORM / MAPPING**。旧ページは選択→Inspector 連動・上バー OUTPUT トグル・WARP エディタ内 EMBED⇄OUTPUT に吸収 | HANDOFF §1（2026-07-05） |
+> | 上バーの Syphon/NDI バッジ・transport | 上バー＝`brand · project | 残り時間 | OUTPUT Full/Syphon/NDI トグル | fps/ms/gc`。transport はタイムライン側に一本化 | HANDOFF §2 |
+> | 「song」＝リニア通し（§3.5.2） | **Sequence**＝マルチトラックのリニア通し（旧 song）。**Song**＝Sequence を並べたセットリスト（MPC 流・×N repeat）。**Short**＝ホールド発火 | HANDOFF §7c（2026-07-13） |
+> | Fit モード Project（射影 2×2） | 廃止。**Mask / Grid(Bezier)** の 2 系統 | §3.2.1・HANDOFF §5 |
+> | 映像トラック ×N・Short の重ね合成（§3.5・§3.5.2） | **レイヤー合成モデルを確定（§3.5.3・2026-11-22）**。実装＝#41 | 本書 §3.5.3 |
+> | 音声トラック ×N の内部ミックス（§3.5.1） | **トラック毎に独立再生して加算ミックス（§3.5.1 追記・2026-11-22）**。実装＝#40 | 本書 §3.5.1 |
+
 ---
 
 ## 0. 使い方（Claude Design フロー）
@@ -154,6 +167,18 @@ AUD 2     [ sfx ]   [ sfx ]    ●ON         🔊/🔇
   （外部音を **BlackHole/Loopback** で `MicInput` に取り込めば現アーキで効く）。**Path 2**＝MIDI/OSC 連動
   （BPM 同期・ノート発火・CC＝`ControlHub` 経由・M7）。詳細＝`docs/05`。
 
+**内部ミックスの確定仕様（2026-11-22・#40）**
+
+- **全 Audio トラックを同時に鳴らす**（旧実装＝解決できた最上位トラック 1 本だけ＝M13 未達、を置換）。
+  トラック毎に専用 `AudioSource` を持ち、AudioListener 上で加算ミックス。解析（`AudioAnalyzer`）は最終ミックスを拾うので無改修。
+- 各トラックの実効ゲイン＝`track.volume × clipEnvelope × (muted ? 0 : 1)`。`enabled=false` も無音。
+- **クリップ fade**：`Clip.fadeIn` / `Clip.fadeOut`（秒・既定 0）。クリップ内ローカル時刻で線形エンベロープ。
+- **音は Master Speed（Rate）の影響を受けない**＝常に等速・ピッチ不変（B9「動画だけライブ速度可変」の確定どおり。
+  #28a で `pitch=Rate` にしていたのは仕様違反だったため是正）。**タイムラインの時計も等速**で進み、Rate は映像の再生速度にだけ効く。
+  Rate=0 は「映像だけフリーズ・音と時計は進む」。
+- 同期：クリップ切替時と Seek/Rewind 時に playhead へ頭出し。以後は自走し、ドリフトが閾値（既定 0.12 秒）を超えた時だけ再同期。
+- Short は音声レイヤーを持たない（押下中も Sequence/Song の音は継続）。
+
 ### 3.5.2 発火モデル：song（リニア通し）＋ short（ホールド発火）【確定 2026-06-30】
 
 C（両方）の具体形。**song** が本流として流れ続け、**short** をキーで瞬間的に最上位へ差し込む。
@@ -174,6 +199,32 @@ C（両方）の具体形。**song** が本流として流れ続け、**short** 
 - **実装の足場**：合成は `Compositor`→`EffectChain` の最終段に **short レイヤー合成**を1段足す。キー割当は
   `ControlHub`（コントローラ非依存の抽象マッピング層）に short トリガーを追加（KB→将来 MIDI パッドも同形で載る）。
 - **段階**：M12 で song（リニア通し）、続けて short のホールド発火を載せる（M12 後半〜）。
+
+### 3.5.3 映像レイヤー合成モデル【確定 2026-11-22・#41】
+
+旧実装は映像の出口が 1 つ（`_videoSink`）で、「最優先クリップに差し替える」方式だった（＝VID×N の重ね・Short 同時押しの
+重ねができない）。完成図どおりの**重ね合成**へ置き換える。
+
+```
+Sequence の VID トラック（下→上）          Short（押下順・後押しが上）
+  VID1(base) VID2 … VIDn                       S_a  S_b …
+     │  各トラック専用 VideoPlayer→RT              │ 各 Short 専用 VideoPlayer（事前 Prepare・頭出し待機）
+     └─► LayerStack: 下から opacity×fade×blend で重ねる ─► baseRT
+                                    │
+              Compositor（Surface 埋め込み）─► sceneRT
+                                    │
+              Short 重ね（押下順・opacity=1）─► EffectChain(Global) ─► MasterOut ─► Output
+```
+
+- **base＝最下段の有効 VID トラック**。四隅追従（`BakedCornerSource`）の時刻はこの base レイヤーの動画時刻を使う。
+- **Track.opacity が実効化**（これまで UI 表示のみ）。**Track.blend**＝Normal / Add / Screen / Multiply（既定 Normal）。
+  クリップ fade（`Clip.fadeIn/fadeOut`）は opacity エンベロープとして掛かる。
+- **Short は Surface 合成の後・Global エフェクトの前**に全画面で重ねる（＝Short にも全体エフェクトが乗る）。
+  `[SerializeField]` で「エフェクトの後（素の Short を最上位に）」へ切替可能。
+- **Short の即応性**：割当済み Short は起動時/構成変更時に専用 VideoPlayer を Prepare して 0 秒で待機させる
+  （押下→即表示・Prepare 待ちのヒッチを本番で出さない）。同時保持数の上限は SerializeField（既定 8）。
+- **Master Speed（Rate）は Sequence 映像レイヤーの再生速度**にだけ効く（Short は等速）。
+- 既存の単一 `_videoSink` 経路は温存（新コンポーネント未配置なら従来動作＝非破壊）。
 
 ---
 
