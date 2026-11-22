@@ -25,6 +25,10 @@ namespace RewriteReality
         [Tooltip("複数 Input Surface（配置時は多surface合成に切替）")]
         [SerializeField] SurfaceManager _surfaces;
 
+        [Header("M13（任意）— 未配置なら単一 SourceVideo 経路")]
+        [Tooltip("映像トラック×N＋Short 同時押しの重ね合成（配置時は base 映像と Short 重ねをこちらから取得）")]
+        [SerializeField] TimelineVideoLayers _layers;
+
         [Header("Master（#38）— 未設定なら自動取得")]
         [Tooltip("Master / Fade to Black の値元（未設定ならシーンから自動取得・不在なら素通し）")]
         [SerializeField] ControlHub _control;
@@ -61,7 +65,13 @@ namespace RewriteReality
             // 3) 合成
             if (_compositor == null) return;
             double time = _video != null ? _video.Time : 0d;
-            var baseTex = _video != null ? _video.TargetTexture : null;
+            Texture baseTex = _video != null ? _video.TargetTexture : null;
+            bool useLayers = _layers != null && _layers.isActiveAndEnabled;
+            if (useLayers)
+            {
+                _layers.Tick();
+                if (_layers.HasBase) { baseTex = _layers.BaseTexture; time = _layers.BaseTime; }
+            }
             var camTex  = _camera != null ? _camera.Texture : null;
 
             RenderTexture sceneRT;
@@ -78,8 +88,14 @@ namespace RewriteReality
                 sceneRT = _compositor.Composite(baseTex, camTex, _lastCorners);
             }
 
+            // 3b) Short 同時押しの重ね（M13・既定＝エフェクトの前）
+            if (useLayers && !_layers.ShortsAfterEffects) sceneRT = _layers.ApplyShorts(sceneRT);
+
             // 4) エフェクト（全体＝Global 範囲を finalRT に適用）
             var finalRT = _effectChain != null ? _effectChain.Process(sceneRT, audio) : sceneRT;
+
+            // 4b) Short 同時押しの重ね（M13・エフェクトの後・Master の前）
+            if (useLayers && _layers.ShortsAfterEffects) finalRT = _layers.ApplyShorts(finalRT);
 
             // 5) マスター段（Master 明度 / Fade to Black）。既定値（1 / 0）では Blit せず素通し（#38）
             if (_control != null)
