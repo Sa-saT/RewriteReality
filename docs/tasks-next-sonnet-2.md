@@ -1,13 +1,15 @@
 # 次期実装タスク 第2バッチ（Sonnet 向け・2026-11-22 作成）
 
+**✅ 全タスク完了（2026-11-22・branch `feat/m13-layers-mix`・未 push）**。Roslyn 直コンパイル 0 エラー。実機確認は未（ユーザー側）。
+
 想定ゴール＝**完成図（docs/00・07b）の M13 を満たす**＝「映像トラック ×N と Short の同時押しが重なって見え、
 音声トラック ×N が同時に鳴ってミックスされる」状態。2026-11-22 の点検で見つかったズレ（`docs/11` B10）を埋める。
 
 | Task | 内容 | 担当 | 状態 | commit |
 |---|---|---|---|---|
-| #39 | ShowTimeline の下準備（外部ドライバ API・fade/blend フィールド・Master Speed を映像専用に是正） | Opus | ✅ 完了 | `73479dd` |
-| #40 | `TimelineAudioMixer`＝音声トラック ×N の同時再生ミックス | Sonnet A | ⏳ | — |
-| #41 | `TimelineVideoLayers`＝映像トラック ×N＋Short の重ね合成 | Sonnet B | ⏳ | — |
+| #39 | ShowTimeline の下準備（外部ドライバ API・fade/blend フィールド・Master Speed を映像専用に是正） | Opus | ✅ 完了 | `73479dd`・`2c67ca7` |
+| #40 | `TimelineAudioMixer`＝音声トラック ×N の同時再生ミックス | Sonnet A | ✅ 完了（Opus レビュー済） | `b863307` |
+| #41 | `TimelineVideoLayers`＝映像トラック ×N＋Short の重ね合成 | Sonnet B | ✅ 完了（Opus レビュー修正 `7eebdf3`） | `075b315` |
 
 #40 と #41 は**互いに独立**（触るファイルが重ならない）＝並列実装可。どちらも #39 の API の上に載せる。
 仕様の正本＝`docs/07b-operator-ui-brief.md` §3.5.1（音声）・§3.5.3（映像）、決定＝`docs/11` B10。
@@ -58,7 +60,7 @@
 
 ---
 
-## #40: `TimelineAudioMixer` — 音声トラック ×N の同時再生ミックス（Sonnet A）
+## #40 ✅ 完了（commit `b863307`）: `TimelineAudioMixer` — 音声トラック ×N の同時再生ミックス（Sonnet A）
 
 **新規** `RewriteReality/Assets/Scripts/Timeline/TimelineAudioMixer.cs`（＋ `.meta`）。`sealed class : MonoBehaviour`。
 
@@ -84,7 +86,7 @@
 
 ---
 
-## #41: `TimelineVideoLayers` — 映像トラック ×N ＋ Short の重ね合成（Sonnet B）
+## #41 ✅ 完了（commit `075b315`＋レビュー修正 `7eebdf3`）: `TimelineVideoLayers` — 映像トラック ×N ＋ Short の重ね合成（Sonnet B）
 
 **新規**:
 - `RewriteReality/Assets/Scripts/Timeline/TimelineVideoLayers.cs`（＋`.meta`）

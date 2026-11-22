@@ -302,6 +302,22 @@ RewriteRealityProject/        ← git repo ルート
       と `scenes.json` の 2 系統である点、`Save` ボタンはファイル保存ではない点を明記）。
       自己レビューで **シーンを全削除したとき左ドックに古い行が残る**不具合を発見・修正
       （`_scenesDockReal` で実データ表示済みかを追跡し、0 件になったら `(no scenes)` 表示へ）。
+  - **#39〜#41＝M13 完成図とのズレ解消：映像レイヤー重ね合成＋音声トラック同時ミックス（2026-11-22・branch
+    `feat/m13-layers-mix`・未 push）**: 完成図点検（`docs/11` B10）で、①映像の出口が 1 つ（`_videoSink` に最優先クリップを
+    差し替え）で VID×N・Short 同時押しが重ならない、②音声は解決できた 1 トラックしか鳴らない、③#28a が音を `pitch=Rate`
+    にしていて B9「動画だけライブ速度可変」に違反、の 3 点を確認。**#39**（Opus）＝`ShowTimeline` に外部ドライバ API
+    （`ExternalAudioDriver/ExternalVideoDriver`・`PlayheadSequence/LocalTime`・`ResyncSerial`・`ShortsVersion`・
+    `HeldCount/GetHeldShortIndex`・`ShortFired`・`ClipAt/Envelope`・`Resolve*Asset`）と `Clip.fadeIn/fadeOut`・`Track.blend`
+    を追加し、**タイムライン時計と音を等速**に是正（Rate は映像の再生速度のみ・Rate=0＝映像だけフリーズ）。
+    **#40**（Sonnet）＝`TimelineAudioMixer`（opt-in・AudioSource ボイスを事前生成・トラック毎に volume×fade×mute・
+    pitch 常に 1・ResyncSerial/ドリフト閾値で再同期）。**#41**（Sonnet）＝`TimelineVideoLayers`（opt-in・VideoPlayer
+    を事前生成・VID トラックを下から `LayerBlend` シェーダ［Normal/Add/Screen/Multiply・Always Included 登録済］で重ね、
+    最下段の動画時刻を四隅追従の時刻元に・Short は事前 Prepare して押下順に重ね［既定＝Surface 合成後・Global FX 前］）
+    ＋`Manager` に opt-in 配線。Opus レビューで修正＝Song の repeat 先頭で頭出し要求が出ない（#39）／レイヤー有効時に
+    下段なしで旧 SourceVideo へフォールバックしていた→黒に（#41）。仕様＝`docs/07b` §3.5.1・§3.5.3、指示書＝
+    `docs/tasks-next-sonnet-2.md`。**Roslyn 直コンパイル 0 エラー・実機未検証**。ユーザー側＝`Main.unity` に
+    `TimelineAudioMixer`/`TimelineVideoLayers` を配置し `Manager._layers` を配線・`_library` にクリップ登録
+    （レイヤー使用時は旧 `SourceVideo` の clip を空にするとデコードの無駄が無い）。
 
 ## 作業上の注意
 
