@@ -138,6 +138,14 @@
 
 ---
 
+## ▶ 次回セッションの先頭で実施（ユーザー指示・2026-11-22）
+
+1. `Main.unity` に `TimelineAudioMixer` / `TimelineVideoLayers` を配置し、`Manager._layers` を配線。`_library` にクリップ登録
+   （レイヤー使用時は旧 `SourceVideo` の clip を空に）。
+2. 実機確認：Short 同時押しの重なり・音声トラック複数の同時再生・Master Speed＝映像だけ（音は等速）。
+3. 問題なければ `feat/m13-layers-mix` を main へマージ＋push。
+4. ClaudeDesign 単独版の閉鎖（2026-12-14）前に、移行先の決定とリモート `templates/`・`components/`・`tokens/` のローカル保全。
+
 ## 保留（このバッチではやらない）
 
 - Track Inspector の Blend セグメント・クリップ fade ハンドルなどの **UI**（ClaudeDesign ハンドオフ待ち・移行先は B10）。
