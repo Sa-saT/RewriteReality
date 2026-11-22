@@ -22,6 +22,9 @@ namespace RewriteReality
     {
         public enum TrackKind { Video, Audio }
 
+        /// <summary>映像トラックの重ね方（#39/#41・docs/07b §3.5.3）。</summary>
+        public enum LayerBlend { Normal, Add, Screen, Multiply }
+
         /// <summary>1 本のクリップ（開始・尺・参照 source/scene の id）。</summary>
         [Serializable]
         public sealed class Clip
@@ -31,6 +34,10 @@ namespace RewriteReality
             public double duration = 8; // 秒
             [Tooltip("参照するライブラリ項目 id（source/scene・#27 バインド）")]
             public string sourceId = "";
+            [Tooltip("フェードイン（秒・0=なし）。音声=ゲイン／映像=opacity のエンベロープ（#39）")]
+            public double fadeIn = 0;
+            [Tooltip("フェードアウト（秒・0=なし）。音声=ゲイン／映像=opacity のエンベロープ（#39）")]
+            public double fadeOut = 0;
             public double End => start + duration;
         }
 
@@ -42,8 +49,10 @@ namespace RewriteReality
             public TrackKind kind = TrackKind.Video;
             public bool enabled = true;
             [Range(0f, 1f)]
-            [Tooltip("重ね合成の不透明度（U3・現状は UI 表示のみ・パイプライン未結線）")]
+            [Tooltip("重ね合成の不透明度（映像トラック・TimelineVideoLayers 配置時に実効・#41）")]
             public float opacity = 1f;
+            [Tooltip("重ね方（映像トラック・TimelineVideoLayers 配置時に実効・#41）")]
+            public LayerBlend blend = LayerBlend.Normal;
             [Tooltip("音声トラックのミュート（#28b・解決から除外＝実際に鳴らない）")]
             public bool muted = false;
             [Range(0f, 1f)]
@@ -135,7 +144,7 @@ namespace RewriteReality
         [SerializeField] bool _loop = true;
         [Tooltip("開始時に自動再生する")]
         [SerializeField] bool _playOnStart = false;
-        [Tooltip("再生速度（1=等速・0 で一時停止相当）")]
+        [Tooltip("Master Speed＝映像の再生速度（1=等速・0=映像フリーズ）。音とタイムライン時計は等速（B9/B10・#39）")]
         [Range(0f, 4f)]
         [SerializeField] float _rate = 1f;
 
@@ -195,6 +204,12 @@ namespace RewriteReality
         // 音声バインド（#28a）。Seek/Rewind 直後は同一クリップでも time を playhead へ合わせ直す必要がある。
         bool _audioResyncPending;    // Seek/Rewind が立てる・ApplyBinding が消費して AudioSource.time を再同期
 
+        // 外部ドライバ連携（#39）。
+        int _resyncSerial;
+        int _shortsVersion;
+        Sequence _prevPhSeq;          // Song step 境界（Sequence 切替）検知用
+        int _prevSongStep = -1;
+
         /// <summary>再生状態が変わったとき発火（UI のボタン表示更新用）。</summary>
         public event Action PlayStateChanged;
         /// <summary>Short のホールド状態（何か押下中か）が変わったとき発火。UI のプレビュー用。</summary>
@@ -204,6 +219,82 @@ namespace RewriteReality
         /// <summary>Sequence/Short/Song バンクの構成が丸ごと入れ替わったとき発火（#36・LoadShow 成功時）。
         /// UI はタブ/トラック/ステップ列などの全面再構築で追随する。</summary>
         public event Action StructureChanged;
+        /// <summary>Short が「新規発火」された瞬間（最上位でなかった Short が押された）に index 付きで発火（#39・
+        /// レイヤー駆動側の頭出し用）。</summary>
+        public event Action<int> ShortFired;
+
+        // ---- 外部ドライバ連携（#39）----
+        // TimelineAudioMixer（#40）/ TimelineVideoLayers（#41）は ShowTimeline の状態を読み取って自前で再生する。
+        // 有効な間はこれらのフラグを立て、内蔵の単一 sink バインド（_audioSink/_videoSink）を止める（二重再生防止）。
+
+        /// <summary>true の間、内蔵の音声 sink バインド（ApplyAudioBinding）を行わない。</summary>
+        public bool ExternalAudioDriver { get; set; }
+        /// <summary>true の間、内蔵の映像 sink バインド（ApplyBinding の映像部）を行わない。</summary>
+        public bool ExternalVideoDriver { get; set; }
+
+        /// <summary>解決済み再生ヘッドの Sequence（Song コンテキストなら該当 step の Sequence・未解決は null）。</summary>
+        public Sequence PlayheadSequence => _phSeq;
+        /// <summary>解決済み再生ヘッドの Sequence 内ローカル時刻（秒）。</summary>
+        public double PlayheadLocalTime => _phLocalTime;
+
+        /// <summary>再生ヘッドの不連続ジャンプ（Seek/Rewind/再生コンテキスト切替/LoadShow/Song step 境界）ごとに増える。
+        /// ドライバ側はこの値の変化で全レイヤーを playhead へ頭出しし直す。</summary>
+        public int ResyncSerial => _resyncSerial;
+        /// <summary>Short の構成（追加/削除/パッド/割当 source/Load）が変わるたびに増える。ドライバ側の Prepare プール再構築用。</summary>
+        public int ShortsVersion => _shortsVersion;
+
+        /// <summary>押下中 Short の数（押下順＝index 0 が最下・末尾が最上位）。</summary>
+        public int HeldCount => _held.Count;
+        /// <summary>押下順 i 番目の Short index（範囲外は -1）。</summary>
+        public int GetHeldShortIndex(int i) => (i >= 0 && i < _held.Count) ? _held[i] : -1;
+
+        /// <summary>トラック内で localTime を含むクリップ（無ければ null）。enabled/muted は見ない（呼び出し側で判定）。</summary>
+        public static Clip ClipAt(Track track, double localTime)
+        {
+            if (track == null || track.clips == null) return null;
+            for (int i = 0; i < track.clips.Count; i++)
+            {
+                var c = track.clips[i];
+                if (c != null && localTime >= c.start && localTime < c.End) return c;
+            }
+            return null;
+        }
+
+        /// <summary>クリップの fadeIn/fadeOut による 0..1 エンベロープ（localTime は Sequence 内時刻）。範囲外は 0。</summary>
+        public static float Envelope(Clip c, double localTime)
+        {
+            if (c == null || localTime < c.start || localTime >= c.End) return 0f;
+            double e = 1.0;
+            double fromStart = localTime - c.start;
+            double toEnd = c.End - localTime;
+            if (c.fadeIn > 1e-4) e = Math.Min(e, fromStart / c.fadeIn);
+            if (c.fadeOut > 1e-4) e = Math.Min(e, toEnd / c.fadeOut);
+            return (float)Math.Max(0.0, Math.Min(1.0, e));
+        }
+
+        /// <summary>sourceId → VideoClip（ライブラリ解決・未登録は null）。</summary>
+        public VideoClip ResolveVideoAsset(string sourceId)
+        {
+            if (string.IsNullOrEmpty(sourceId) || _library == null) return null;
+            for (int i = 0; i < _library.Count; i++)
+            {
+                var a = _library[i];
+                if (a != null && a.id == sourceId) return a.video;
+            }
+            return null;
+        }
+
+        /// <summary>sourceId → AudioClip（ライブラリ解決・未登録は null）。</summary>
+        public AudioClip ResolveAudioAsset(string sourceId)
+        {
+            if (string.IsNullOrEmpty(sourceId) || _library == null) return null;
+            for (int i = 0; i < _library.Count; i++)
+            {
+                var a = _library[i];
+                if (a != null && a.id == sourceId) return a.audio;
+            }
+            return null;
+        }
 
         public Sequence ActiveSequence =>
             (_sequences != null && _activeSequence >= 0 && _activeSequence < _sequences.Count) ? _sequences[_activeSequence] : null;
@@ -225,6 +316,7 @@ namespace RewriteReality
             if (_sequences == null || index < 0 || index >= _sequences.Count) return;
             _activeSequence = index;
             _playbackContext = TabKind.Sequence;
+            _resyncSerial++;
         }
 
         // ---- タブ操作（動的タブバー・07-10 App.jsx／§7c で Sequence/Short/Song の3種へ）----
@@ -258,6 +350,7 @@ namespace RewriteReality
                 holdLoop = true,
                 clip = new Clip { name = "SHORT " + (_shorts.Count + 1), duration = 8 }
             });
+            _shortsVersion++;
             return _shorts.Count - 1;
         }
 
@@ -307,6 +400,7 @@ namespace RewriteReality
                     if (_shorts == null || index < 0 || index >= _shorts.Count) return false;
                     HoldReleaseAll();
                     _shorts.RemoveAt(index);
+                    _shortsVersion++;
                     if (_activeShort >= _shorts.Count) _activeShort = Math.Max(0, _shorts.Count - 1);
                     return true;
             }
@@ -348,6 +442,7 @@ namespace RewriteReality
             if (_songs == null || index < 0 || index >= _songs.Count) return;
             _activeSongIndex = index;
             _playbackContext = TabKind.Song;
+            _resyncSerial++;
             _loggedEmptySongWarning = false;   // 新しい Song を見始めたら警告は再度出せるようにする
         }
 
@@ -408,7 +503,7 @@ namespace RewriteReality
         public bool Playing => _playing;
         public bool Loop { get => _loop; set => _loop = value; }
 
-        /// <summary>再生速度（0..4・sequence 進行と将来の映像速度に効かせる・#27）。</summary>
+        /// <summary>Master Speed（0..4）＝Sequence 映像の再生速度のみ。音とタイムライン時計は等速（B9/B10・#39）。</summary>
         public float Rate
         {
             get => _rate;
@@ -522,6 +617,8 @@ namespace RewriteReality
             _loop = state.loop;
             _rate = Mathf.Clamp(state.rate, 0f, 4f);
             _held.Clear();
+            _shortsVersion++;
+            _resyncSerial++;
 
             if (state.playbackContext == TabKind.Song && _songs.Count > 0) SelectSong(_activeSongIndex);
             else SelectSequence(_activeSequence);
@@ -547,15 +644,23 @@ namespace RewriteReality
         {
             if (_playing)
             {
-                _time += UnityEngine.Time.deltaTime * Mathf.Max(0f, _rate);
+                // 時計は等速（Rate は映像の再生速度だけに効く・B9/B10・#39）。
+                _time += UnityEngine.Time.deltaTime;
                 if (_time >= Length)
                 {
-                    if (_loop) _time %= Length;   // 先頭へ巻き戻し
+                    if (_loop) { _time %= Length; _resyncSerial++; }   // 先頭へ巻き戻し
                     else { _time = Length; SetPlaying(false); }
                 }
             }
 
             ResolvePlayhead();   // Short 保持中でも毎フレーム更新（CurrentSongStep を鮮度保証）
+            if (!ReferenceEquals(_phSeq, _prevPhSeq) || _currentSongStepIndex != _prevSongStep)
+            {
+                // Song の step 境界／repeat 先頭は Sequence ローカル時刻が不連続になるので頭出し要求
+                if (_prevPhSeq != null || _prevSongStep >= 0) _resyncSerial++;
+                _prevPhSeq = _phSeq;
+                _prevSongStep = _currentSongStepIndex;
+            }
             PollShortInput();
             ApplyBinding(force: false);
         }
@@ -566,10 +671,10 @@ namespace RewriteReality
         public void TogglePlay() => SetPlaying(!_playing);
 
         /// <summary>先頭へ（既に先頭付近なら据え置き）。UI の ⏮ 相当。</summary>
-        public void Rewind() { _time = 0.0; _audioResyncPending = true; }
+        public void Rewind() { _time = 0.0; _audioResyncPending = true; _resyncSerial++; }
 
         /// <summary>0..1 で頭出し（ドラッグ/クリックシーク用）。</summary>
-        public void SeekNormalized(float t) { _time = Mathf.Clamp01(t) * Length; _audioResyncPending = true; }
+        public void SeekNormalized(float t) { _time = Mathf.Clamp01(t) * Length; _audioResyncPending = true; _resyncSerial++; }
 
         void SetPlaying(bool on)
         {
@@ -590,7 +695,7 @@ namespace RewriteReality
             bool wasTop = _held.Count > 0 && _held[_held.Count - 1] == shortIndex;
             _held.Remove(shortIndex);     // 重複除去（最上位へ繰り上げ）
             _held.Add(shortIndex);
-            if (!wasTop) _shortRestartPending = true;
+            if (!wasTop) { _shortRestartPending = true; ShortFired?.Invoke(shortIndex); }
             ShortStateChanged?.Invoke();
         }
 
@@ -655,6 +760,7 @@ namespace RewriteReality
             var sh = _shorts[shortIndex];
             sh.pad = pad;
             sh.key = PadKeyName(pad);
+            _shortsVersion++;
         }
 
         void PollShortInput()
@@ -697,16 +803,17 @@ namespace RewriteReality
             bool changed = force || !ReferenceEquals(clip, _appliedClip);
 
             var top = TopShort;
-            if (_videoSink != null)
+            var videoSink = ExternalVideoDriver ? null : _videoSink;   // 外部ドライバ有効時は内蔵 sink を触らない（#39）
+            if (videoSink != null)
             {
-                if (top != null && _prevTopShort == null) _savedSinkLoop = _videoSink.Loop;      // 退避
-                else if (top == null && _prevTopShort != null) _videoSink.Loop = _savedSinkLoop; // 復元
-                if (top != null) _videoSink.Loop = top.holdLoop;
-                _videoSink.Speed = _rate;   // Master Speed → 映像再生速度（差分時のみ実代入は Speed 内部で保証）
+                if (top != null && _prevTopShort == null) _savedSinkLoop = videoSink.Loop;      // 退避
+                else if (top == null && _prevTopShort != null) videoSink.Loop = _savedSinkLoop; // 復元
+                if (top != null) videoSink.Loop = top.holdLoop;
+                videoSink.Speed = _rate;   // Master Speed → 映像再生速度（差分時のみ実代入は Speed 内部で保証）
                 // トランスポート再生/一時停止（＋Master Speed≒0 のフリーズ）を映像へ反映。
                 // Short 発火中は最上位レイヤーとして常に再生（タイムライン停止中でも鳴らす）。
                 bool shouldPlay = (_playing && _rate > 0.0001f) || top != null;
-                _videoSink.SetPlaying(shouldPlay);
+                videoSink.SetPlaying(shouldPlay);
             }
             _prevTopShort = top;
 
@@ -717,13 +824,13 @@ namespace RewriteReality
 
             ActiveVideoClipChanged?.Invoke(clip);
 
-            if (_videoSink != null)
+            if (videoSink != null)
             {
                 var vc = ResolveVideo(clip);
                 if (vc != null)
                 {
-                    _videoSink.SetClip(vc);
-                    if (top != null && restartPending) _videoSink.Restart();   // 同一クリップの再発火でも頭出し
+                    videoSink.SetClip(vc);
+                    if (top != null && restartPending) videoSink.Restart();   // 同一クリップの再発火でも頭出し
                 }
             }
         }
@@ -732,16 +839,16 @@ namespace RewriteReality
         /// Sequence/Song 側を継続する（docs/07b §3.5.2）。Loop 退避/頭出しは映像専用（Short 用）で行わない。</summary>
         void ApplyAudioBinding(bool force)
         {
-            if (_audioSink == null) return;   // opt-out：純トランスポート
+            if (_audioSink == null || ExternalAudioDriver) return;   // opt-out：純トランスポート／外部ミキサー優先（#39）
 
             var clip = ResolvedClipAt(TrackKind.Audio);
             var track = ResolvedAudioTrack();
             bool changed = force || !ReferenceEquals(clip, _appliedAudioClip);
 
             _audioSink.Loop = _loop;
-            _audioSink.Speed = _rate;
+            _audioSink.Speed = 1f;   // 音は等速・ピッチ不変（B9「動画だけライブ速度可変」・#28a の pitch=Rate を是正・#39）
             _audioSink.Volume = track != null ? track.volume : 1f;
-            bool shouldPlay = _playing && _rate > 0.0001f;
+            bool shouldPlay = _playing;
             _audioSink.SetPlaying(shouldPlay);
 
             bool resync = _audioResyncPending;
@@ -774,30 +881,13 @@ namespace RewriteReality
             var sh = ActiveShort;
             if (sh == null || sh.clip == null) return;
             sh.clip.sourceId = id;
+            _shortsVersion++;
             _appliedClip = null;   // 差分ガードを無効化し、次フレームで確実に再バインドさせる
         }
 
-        VideoClip ResolveVideo(Clip clip)
-        {
-            if (clip == null || string.IsNullOrEmpty(clip.sourceId) || _library == null) return null;
-            for (int i = 0; i < _library.Count; i++)
-            {
-                var a = _library[i];
-                if (a != null && a.id == clip.sourceId) return a.video;
-            }
-            return null;
-        }
+        VideoClip ResolveVideo(Clip clip) => clip != null ? ResolveVideoAsset(clip.sourceId) : null;
 
-        AudioClip ResolveAudio(Clip clip)
-        {
-            if (clip == null || string.IsNullOrEmpty(clip.sourceId) || _library == null) return null;
-            for (int i = 0; i < _library.Count; i++)
-            {
-                var a = _library[i];
-                if (a != null && a.id == clip.sourceId) return a.audio;
-            }
-            return null;
-        }
+        AudioClip ResolveAudio(Clip clip) => clip != null ? ResolveAudioAsset(clip.sourceId) : null;
 
 
         /// <summary>解決済み再生ヘッド（<see cref="_phSeq"/>/<see cref="_phLocalTime"/>・
