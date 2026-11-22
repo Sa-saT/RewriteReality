@@ -209,6 +209,7 @@ namespace RewriteReality
         int _shortsVersion;
         Sequence _prevPhSeq;          // Song step 境界（Sequence 切替）検知用
         int _prevSongStep = -1;
+        double _prevPhLocalTime;      // repeat 先頭（同一 step 内の巻き戻り）検知用
 
         /// <summary>再生状態が変わったとき発火（UI のボタン表示更新用）。</summary>
         public event Action PlayStateChanged;
@@ -654,13 +655,14 @@ namespace RewriteReality
             }
 
             ResolvePlayhead();   // Short 保持中でも毎フレーム更新（CurrentSongStep を鮮度保証）
-            if (!ReferenceEquals(_phSeq, _prevPhSeq) || _currentSongStepIndex != _prevSongStep)
-            {
-                // Song の step 境界／repeat 先頭は Sequence ローカル時刻が不連続になるので頭出し要求
-                if (_prevPhSeq != null || _prevSongStep >= 0) _resyncSerial++;
-                _prevPhSeq = _phSeq;
-                _prevSongStep = _currentSongStepIndex;
-            }
+            // 再生ヘッドの不連続（Song の step 境界・同一 step 内の repeat 先頭＝ローカル時刻の巻き戻り）を検知して頭出し要求。
+            // repeat 先頭は Sequence も step も同じままローカル時刻だけ戻るため、後退量でも判定する。
+            if (!ReferenceEquals(_phSeq, _prevPhSeq) || _currentSongStepIndex != _prevSongStep
+                || _phLocalTime < _prevPhLocalTime - 0.25)
+                _resyncSerial++;
+            _prevPhSeq = _phSeq;
+            _prevSongStep = _currentSongStepIndex;
+            _prevPhLocalTime = _phLocalTime;
             PollShortInput();
             ApplyBinding(force: false);
         }
